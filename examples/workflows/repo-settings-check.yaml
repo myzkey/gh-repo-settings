@@ -1,0 +1,56 @@
+# Example GitHub Actions workflow for gh-repo-settings
+# Place this in .github/workflows/repo-settings-check.yaml
+
+name: Repo Settings Check
+
+on:
+  pull_request:
+    paths:
+      - ".github/repo-settings.yaml"
+      - ".github/repo-settings/**"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install gh-repo-settings
+        run: |
+          gh extension install <owner>/gh-repo-settings
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate config schema
+        run: |
+          gh repo-settings check --schema-only
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check settings diff
+        run: |
+          gh repo-settings check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check secrets
+        run: |
+          gh repo-settings check --secrets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check environment variables
+        run: |
+          gh repo-settings check --env
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

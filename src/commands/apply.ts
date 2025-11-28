@@ -6,7 +6,8 @@ import type {
   Label,
   BranchProtectionConfig,
 } from "../types.js";
-import { loadConfig } from "../utils/config.js";
+import { loadConfig, printValidationErrors } from "../utils/config.js";
+import { validateConfig } from "../utils/schema.js";
 import { printDiff } from "../utils/diff.js";
 import {
   ghApiGet,
@@ -46,6 +47,10 @@ interface GitHubSecret {
   name: string;
 }
 
+interface GitHubEnvVariable {
+  name: string;
+}
+
 export async function applyCommand(options: ApplyOptions): Promise<void> {
   const repoInfo = getRepoInfo(options.repo);
   const { owner, name } = repoInfo;
@@ -56,6 +61,17 @@ export async function applyCommand(options: ApplyOptions): Promise<void> {
     dir: options.dir,
     config: options.config,
   });
+
+  // Validate config before applying
+  console.log(chalk.blue("Validating config schema..."));
+  const validationResult = validateConfig(config);
+
+  if (!validationResult.valid) {
+    printValidationErrors(validationResult);
+    process.exit(1);
+  }
+
+  console.log(chalk.green("Schema validation passed.\n"));
 
   const diffs = await calculateDiffs(owner, name, config);
 
@@ -208,6 +224,34 @@ async function calculateDiffs(
     }
   }
 
+  // Env (existence check only)
+  if (config.env?.required) {
+    try {
+      const envResponse = ghApiGet<{ variables: GitHubEnvVariable[] }>(
+        `/repos/${owner}/${name}/actions/variables`
+      );
+      const existingVars = new Set(
+        envResponse.variables?.map((v) => v.name) || []
+      );
+
+      for (const varName of config.env.required) {
+        if (!existingVars.has(varName)) {
+          diffs.push({
+            type: "env",
+            action: "check",
+            details: `Missing env variable: ${varName} (use 'gh variable set ${varName}' to add)`,
+          });
+        }
+      }
+    } catch {
+      diffs.push({
+        type: "env",
+        action: "check",
+        details: `Could not verify env variables (API access may be restricted)`,
+      });
+    }
+  }
+
   return diffs;
 }
 
@@ -315,6 +359,15 @@ async function applyChanges(
   if (secretDiffs.length > 0) {
     console.log(chalk.yellow("\nSecret warnings:"));
     for (const diff of secretDiffs) {
+      console.log(chalk.yellow(`  ${diff.details}`));
+    }
+  }
+
+  // 6. Check env variables (no changes, just warnings)
+  const envDiffs = diffs.filter((d) => d.type === "env");
+  if (envDiffs.length > 0) {
+    console.log(chalk.yellow("\nEnvironment variable warnings:"));
+    for (const diff of envDiffs) {
       console.log(chalk.yellow(`  ${diff.details}`));
     }
   }

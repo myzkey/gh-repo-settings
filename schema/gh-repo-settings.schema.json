@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/owner/gh-repo-settings/main/schema/gh-repo-settings.schema.json",
+  "title": "gh-repo-settings configuration",
+  "description": "Configuration schema for gh-repo-settings GitHub CLI extension",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "repo": {
+      "type": "object",
+      "description": "Repository metadata settings",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Repository description"
+        },
+        "homepage": {
+          "type": "string",
+          "description": "Repository homepage URL",
+          "format": "uri"
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["public", "private", "internal"],
+          "description": "Repository visibility"
+        },
+        "allow_merge_commit": {
+          "type": "boolean",
+          "description": "Allow merge commits"
+        },
+        "allow_rebase_merge": {
+          "type": "boolean",
+          "description": "Allow rebase merging"
+        },
+        "allow_squash_merge": {
+          "type": "boolean",
+          "description": "Allow squash merging"
+        },
+        "delete_branch_on_merge": {
+          "type": "boolean",
+          "description": "Automatically delete head branches after merge"
+        },
+        "allow_update_branch": {
+          "type": "boolean",
+          "description": "Allow updating pull request branches"
+        }
+      }
+    },
+    "topics": {
+      "type": "array",
+      "description": "Repository topics",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]+$",
+        "minLength": 1,
+        "maxLength": 50
+      }
+    },
+    "labels": {
+      "type": "object",
+      "description": "Label configuration",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "replace_default": {
+          "type": "boolean",
+          "description": "If true, delete existing labels not in config",
+          "default": false
+        },
+        "items": {
+          "type": "array",
+          "description": "Label definitions",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "color"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Label name"
+              },
+              "color": {
+                "type": "string",
+                "pattern": "^[0-9a-fA-F]{6}$",
+                "description": "6-character hex color (without #)"
+              },
+              "description": {
+                "type": "string",
+                "description": "Label description"
+              }
+            }
+          }
+        }
+      }
+    },
+    "branch_protection": {
+      "type": "object",
+      "description": "Branch protection rules",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "required_reviews": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6,
+            "description": "Number of required approving reviews"
+          },
+          "dismiss_stale_reviews": {
+            "type": "boolean",
+            "description": "Dismiss stale reviews when new commits are pushed"
+          },
+          "require_status_checks": {
+            "type": "boolean",
+            "description": "Require status checks to pass before merging"
+          },
+          "status_checks": {
+            "type": "array",
+            "description": "Required status check names",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enforce_admins": {
+            "type": "boolean",
+            "description": "Enforce rules for administrators"
+          },
+          "require_linear_history": {
+            "type": "boolean",
+            "description": "Require linear history"
+          },
+          "allow_force_pushes": {
+            "type": "boolean",
+            "description": "Allow force pushes"
+          },
+          "allow_deletions": {
+            "type": "boolean",
+            "description": "Allow branch deletions"
+          }
+        }
+      }
+    },
+    "secrets": {
+      "type": "object",
+      "description": "Repository secrets configuration (existence check only)",
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "array",
+          "description": "List of required secret names",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "env": {
+      "type": "object",
+      "description": "Environment variables configuration (existence check only)",
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "array",
+          "description": "List of required environment variable names",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

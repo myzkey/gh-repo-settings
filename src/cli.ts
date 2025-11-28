@@ -60,16 +60,22 @@ program
 
 program
   .command("check")
-  .description("Compare YAML configuration with current GitHub settings")
+  .description("Validate config and compare with current GitHub settings")
   .option("-r, --repo <owner/name>", "Target repository (default: current repo)")
   .option("-c, --config <path>", "Path to single YAML config file")
   .option("-d, --dir <path>", "Path to config directory")
+  .option("--secrets", "Check only secrets existence")
+  .option("--env", "Check only environment variables existence")
+  .option("--schema-only", "Only validate YAML schema (no GitHub API calls)")
   .action(async (options) => {
     try {
       await checkCommand({
         repo: options.repo,
         config: options.config,
         dir: options.dir,
+        secrets: options.secrets,
+        env: options.env,
+        schemaOnly: options.schemaOnly,
       });
     } catch (error) {
       console.error(

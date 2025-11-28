@@ -1,6 +1,11 @@
 import chalk from "chalk";
-import type { Config, DiffItem } from "../types.js";
-import { loadConfig } from "../utils/config.js";
+import type { Config, DiffItem, ValidationResult } from "../types.js";
+import {
+  loadConfig,
+  loadAndValidateConfig,
+  printValidationErrors,
+} from "../utils/config.js";
+import { validateConfig } from "../utils/schema.js";
 import { printDiff } from "../utils/diff.js";
 import { ghApiGet, getRepoInfo } from "../utils/gh.js";
 
@@ -8,6 +13,9 @@ interface CheckOptions {
   repo?: string;
   config?: string;
   dir?: string;
+  secrets?: boolean;
+  env?: boolean;
+  schemaOnly?: boolean;
 }
 
 interface GitHubRepo {
@@ -29,6 +37,10 @@ interface GitHubLabel {
 }
 
 interface GitHubSecret {
+  name: string;
+}
+
+interface GitHubEnvVariable {
   name: string;
 }
 
@@ -56,17 +68,50 @@ interface GitHubBranchProtection {
 }
 
 export async function checkCommand(options: CheckOptions): Promise<void> {
+  // Load config first (without validation to show all errors)
+  const rawConfig = loadConfig({
+    dir: options.dir,
+    config: options.config,
+  });
+
+  // Step 1: Schema validation
+  console.log(chalk.blue("Validating YAML schema..."));
+  const validationResult = validateConfig(rawConfig);
+
+  if (!validationResult.valid) {
+    printValidationErrors(validationResult);
+    process.exit(1);
+  }
+
+  console.log(chalk.green("Schema validation passed.\n"));
+
+  // If schema-only mode, stop here
+  if (options.schemaOnly) {
+    return;
+  }
+
   const repoInfo = getRepoInfo(options.repo);
   const { owner, name } = repoInfo;
 
   console.log(chalk.blue(`Checking settings for ${owner}/${name}...`));
 
-  const config = loadConfig({
-    dir: options.dir,
-    config: options.config,
-  });
+  const diffs: DiffItem[] = [];
 
-  const diffs = await calculateDetailedDiffs(owner, name, config);
+  // Check secrets only
+  if (options.secrets) {
+    const secretDiffs = await checkSecrets(owner, name, rawConfig);
+    diffs.push(...secretDiffs);
+  }
+  // Check env only
+  else if (options.env) {
+    const envDiffs = await checkEnv(owner, name, rawConfig);
+    diffs.push(...envDiffs);
+  }
+  // Full check
+  else {
+    const allDiffs = await calculateDetailedDiffs(owner, name, rawConfig);
+    diffs.push(...allDiffs);
+  }
 
   if (diffs.length === 0) {
     console.log(chalk.green("\nAll settings are in sync!"));
@@ -75,6 +120,102 @@ export async function checkCommand(options: CheckOptions): Promise<void> {
 
   console.log(chalk.yellow(`\nFound ${diffs.length} difference(s):\n`));
   printDiff(diffs);
+
+  // Exit with error if there are issues
+  const hasErrors = diffs.some(
+    (d) => d.action === "check" || d.action === "create"
+  );
+  if (hasErrors) {
+    process.exit(1);
+  }
+}
+
+async function checkSecrets(
+  owner: string,
+  name: string,
+  config: Config
+): Promise<DiffItem[]> {
+  const diffs: DiffItem[] = [];
+
+  if (!config.secrets?.required || config.secrets.required.length === 0) {
+    console.log(chalk.gray("No required secrets defined in config."));
+    return diffs;
+  }
+
+  try {
+    const secretsResponse = ghApiGet<{ secrets: GitHubSecret[] }>(
+      `/repos/${owner}/${name}/actions/secrets`
+    );
+    const existingSecrets = new Set(
+      secretsResponse.secrets?.map((s) => s.name) || []
+    );
+
+    for (const secretName of config.secrets.required) {
+      if (!existingSecrets.has(secretName)) {
+        diffs.push({
+          type: "secrets",
+          action: "check",
+          details: `Missing required secret: ${secretName}`,
+        });
+      }
+    }
+
+    if (diffs.length === 0) {
+      console.log(chalk.green("All required secrets are present."));
+    }
+  } catch {
+    diffs.push({
+      type: "secrets",
+      action: "check",
+      details: `Could not verify secrets (API access may be restricted)`,
+    });
+  }
+
+  return diffs;
+}
+
+async function checkEnv(
+  owner: string,
+  name: string,
+  config: Config
+): Promise<DiffItem[]> {
+  const diffs: DiffItem[] = [];
+
+  if (!config.env?.required || config.env.required.length === 0) {
+    console.log(chalk.gray("No required environment variables defined in config."));
+    return diffs;
+  }
+
+  try {
+    const envResponse = ghApiGet<{ variables: GitHubEnvVariable[] }>(
+      `/repos/${owner}/${name}/actions/variables`
+    );
+    const existingVars = new Set(
+      envResponse.variables?.map((v) => v.name) || []
+    );
+
+    for (const varName of config.env.required) {
+      if (!existingVars.has(varName)) {
+        diffs.push({
+          type: "env",
+          action: "check",
+          details: `Missing required environment variable: ${varName}`,
+        });
+      }
+    }
+
+    if (diffs.length === 0) {
+      console.log(chalk.green("All required environment variables are present."));
+    }
+  } catch {
+    diffs.push({
+      type: "env",
+      action: "check",
+      details: `Could not verify environment variables (API access may be restricted)`,
+    });
+  }
+
+  return diffs;
 }
 
 async function calculateDetailedDiffs(
@@ -275,32 +416,12 @@ async function calculateDetailedDiffs(
   }
 
   // Check secrets
-  if (config.secrets?.required) {
-    try {
-      const secretsResponse = ghApiGet<{ secrets: GitHubSecret[] }>(
-        `/repos/${owner}/${name}/actions/secrets`
-      );
-      const existingSecrets = new Set(
-        secretsResponse.secrets?.map((s) => s.name) || []
-      );
+  const secretDiffs = await checkSecrets(owner, name, config);
+  diffs.push(...secretDiffs);
 
-      for (const secretName of config.secrets.required) {
-        if (!existingSecrets.has(secretName)) {
-          diffs.push({
-            type: "secrets",
-            action: "check",
-            details: `Missing required secret: ${secretName}`,
-          });
-        }
-      }
-    } catch {
-      diffs.push({
-        type: "secrets",
-        action: "check",
-        details: `Could not verify secrets (API access may be restricted)`,
-      });
-    }
-  }
+  // Check env
+  const envDiffs = await checkEnv(owner, name, config);
+  diffs.push(...envDiffs);
 
   return diffs;
 }
