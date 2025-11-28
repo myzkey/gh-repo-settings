@@ -2,6 +2,7 @@ import { Command } from 'commander'
 import { applyCommand } from '~/commands/apply'
 import { checkCommand } from '~/commands/check'
 import { exportCommand } from '~/commands/export'
+import { logger, setLogLevel } from '~/utils/logger'
 
 const program = new Command()
 
@@ -9,6 +10,16 @@ program
   .name('gh-repo-settings')
   .description('Manage GitHub repository settings via YAML configuration')
   .version('0.1.0')
+  .option('-v, --verbose', 'Show debug output')
+  .option('-q, --quiet', 'Only show errors')
+  .hook('preAction', () => {
+    const opts = program.opts()
+    if (opts.verbose) {
+      setLogLevel('verbose')
+    } else if (opts.quiet) {
+      setLogLevel('quiet')
+    }
+  })
 
 program
   .command('export')
@@ -29,9 +40,8 @@ program
         includeSecrets: options.includeSecrets,
       })
     } catch (error) {
-      console.error(
-        'Error:',
-        error instanceof Error ? error.message : String(error),
+      logger.error(
+        `Error: ${error instanceof Error ? error.message : String(error)}`,
       )
       process.exit(1)
     }
@@ -56,9 +66,8 @@ program
         dryRun: options.dryRun,
       })
     } catch (error) {
-      console.error(
-        'Error:',
-        error instanceof Error ? error.message : String(error),
+      logger.error(
+        `Error: ${error instanceof Error ? error.message : String(error)}`,
       )
       process.exit(1)
     }
@@ -87,9 +96,8 @@ program
         schemaOnly: options.schemaOnly,
       })
     } catch (error) {
-      console.error(
-        'Error:',
-        error instanceof Error ? error.message : String(error),
+      logger.error(
+        `Error: ${error instanceof Error ? error.message : String(error)}`,
       )
       process.exit(1)
     }

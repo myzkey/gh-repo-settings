@@ -1,8 +1,8 @@
 import type { Config, DiffItem } from '~/types'
-import { colors } from '~/utils/colors'
 import { loadConfig, printValidationErrors } from '~/utils/config'
 import { printDiff } from '~/utils/diff'
 import { getRepoInfo, ghApiGet } from '~/utils/gh'
+import { logger } from '~/utils/logger'
 import { validateConfig } from '~/utils/schema'
 
 interface CheckOptions {
@@ -71,7 +71,7 @@ export async function checkCommand(options: CheckOptions): Promise<void> {
   })
 
   // Step 1: Schema validation
-  console.log(colors.blue('Validating YAML schema...'))
+  logger.info('Validating YAML schema...')
   const validationResult = validateConfig(rawConfig)
 
   if (!validationResult.valid) {
@@ -79,7 +79,7 @@ export async function checkCommand(options: CheckOptions): Promise<void> {
     process.exit(1)
   }
 
-  console.log(colors.green('Schema validation passed.\n'))
+  logger.success('Schema validation passed.\n')
 
   // If schema-only mode, stop here
   if (options.schemaOnly) {
@@ -89,7 +89,7 @@ export async function checkCommand(options: CheckOptions): Promise<void> {
   const repoInfo = getRepoInfo(options.repo)
   const { owner, name } = repoInfo
 
-  console.log(colors.blue(`Checking settings for ${owner}/${name}...`))
+  logger.info(`Checking settings for ${owner}/${name}...`)
 
   const diffs: DiffItem[] = []
 
@@ -110,11 +110,11 @@ export async function checkCommand(options: CheckOptions): Promise<void> {
   }
 
   if (diffs.length === 0) {
-    console.log(colors.green('\nAll settings are in sync!'))
+    logger.success('\nAll settings are in sync!')
     return
   }
 
-  console.log(colors.yellow(`\nFound ${diffs.length} difference(s):\n`))
+  logger.warn(`\nFound ${diffs.length} difference(s):\n`)
   printDiff(diffs)
 
   // Exit with error if there are issues
@@ -134,7 +134,7 @@ async function checkSecrets(
   const diffs: DiffItem[] = []
 
   if (!config.secrets?.required || config.secrets.required.length === 0) {
-    console.log(colors.gray('No required secrets defined in config.'))
+    logger.debug('No required secrets defined in config.')
     return diffs
   }
 
@@ -157,7 +157,7 @@ async function checkSecrets(
     }
 
     if (diffs.length === 0) {
-      console.log(colors.green('All required secrets are present.'))
+      logger.success('All required secrets are present.')
     }
   } catch {
     diffs.push({
@@ -178,9 +178,7 @@ async function checkEnv(
   const diffs: DiffItem[] = []
 
   if (!config.env?.required || config.env.required.length === 0) {
-    console.log(
-      colors.gray('No required environment variables defined in config.'),
-    )
+    logger.debug('No required environment variables defined in config.')
     return diffs
   }
 
@@ -203,9 +201,7 @@ async function checkEnv(
     }
 
     if (diffs.length === 0) {
-      console.log(
-        colors.green('All required environment variables are present.'),
-      )
+      logger.success('All required environment variables are present.')
     }
   } catch {
     diffs.push({

@@ -1,5 +1,4 @@
 import type { Config, DiffItem, RepoInfo } from '~/types'
-import { colors } from '~/utils/colors'
 import { loadConfig, printValidationErrors } from '~/utils/config'
 import { printDiff } from '~/utils/diff'
 import {
@@ -10,6 +9,7 @@ import {
   ghApiPost,
   ghApiPut,
 } from '~/utils/gh'
+import { logger } from '~/utils/logger'
 import { validateConfig } from '~/utils/schema'
 
 interface ApplyOptions {
@@ -49,7 +49,7 @@ export async function applyCommand(options: ApplyOptions): Promise<void> {
   const repoInfo = getRepoInfo(options.repo)
   const { owner, name } = repoInfo
 
-  console.log(colors.blue(`Loading config for ${owner}/${name}...`))
+  logger.info(`Loading config for ${owner}/${name}...`)
 
   const config = loadConfig({
     dir: options.dir,
@@ -57,7 +57,7 @@ export async function applyCommand(options: ApplyOptions): Promise<void> {
   })
 
   // Validate config before applying
-  console.log(colors.blue('Validating config schema...'))
+  logger.info('Validating config schema...')
   const validationResult = validateConfig(config)
 
   if (!validationResult.valid) {
@@ -65,27 +65,27 @@ export async function applyCommand(options: ApplyOptions): Promise<void> {
     process.exit(1)
   }
 
-  console.log(colors.green('Schema validation passed.\n'))
+  logger.success('Schema validation passed.\n')
 
   const diffs = await calculateDiffs(owner, name, config)
 
   if (options.dryRun) {
-    console.log(colors.yellow('\n[DRY RUN] No changes will be made.\n'))
+    logger.warn('\n[DRY RUN] No changes will be made.\n')
     printDiff(diffs)
     return
   }
 
   if (diffs.length === 0) {
-    console.log(colors.green('No changes to apply.'))
+    logger.success('No changes to apply.')
     return
   }
 
   printDiff(diffs)
-  console.log(colors.blue('\nApplying changes...\n'))
+  logger.info('\nApplying changes...\n')
 
   await applyChanges(repoInfo, config, diffs)
 
-  console.log(colors.green('\nAll changes applied successfully!'))
+  logger.success('\nAll changes applied successfully!')
 }
 
 async function calculateDiffs(
@@ -258,24 +258,24 @@ async function applyChanges(
 
   // 1. Apply repo metadata
   if (config.repo && diffs.some((d) => d.type === 'repo')) {
-    console.log(colors.blue('Updating repository settings...'))
+    logger.info('Updating repository settings...')
     ghApiPatch(
       `/repos/${owner}/${name}`,
       config.repo as Record<string, unknown>,
     )
-    console.log(colors.green('  Repository settings updated'))
+    logger.success('  Repository settings updated')
   }
 
   // 2. Apply topics
   if (config.topics && diffs.some((d) => d.type === 'topics')) {
-    console.log(colors.blue('Updating topics...'))
+    logger.info('Updating topics...')
     ghApiPut(`/repos/${owner}/${name}/topics`, { names: config.topics })
-    console.log(colors.green('  Topics updated'))
+    logger.success('  Topics updated')
   }
 
   // 3. Apply labels
   if (config.labels && diffs.some((d) => d.type === 'labels')) {
-    console.log(colors.blue('Updating labels...'))
+    logger.info('Updating labels...')
 
     const currentLabels = ghApiGet<GitHubLabel[]>(
       `/repos/${owner}/${name}/labels`,
@@ -290,7 +290,7 @@ async function applyChanges(
           ghApiDelete(
             `/repos/${owner}/${name}/labels/${encodeURIComponent(label.name)}`,
           )
-          console.log(colors.red(`  Deleted label: ${label.name}`))
+          logger.error(`  Deleted label: ${label.name}`)
         }
       }
     }
@@ -308,7 +308,7 @@ async function applyChanges(
 
       if (!current) {
         ghApiPost(`/repos/${owner}/${name}/labels`, labelData)
-        console.log(colors.green(`  Created label: ${label.name}`))
+        logger.success(`  Created label: ${label.name}`)
       } else if (
         current.color !== label.color ||
         (current.description || '') !== (label.description || '')
@@ -317,14 +317,14 @@ async function applyChanges(
           `/repos/${owner}/${name}/labels/${encodeURIComponent(label.name)}`,
           labelData,
         )
-        console.log(colors.yellow(`  Updated label: ${label.name}`))
+        logger.warn(`  Updated label: ${label.name}`)
       }
     }
   }
 
   // 4. Apply branch protection
   if (config.branch_protection?.main) {
-    console.log(colors.blue('Updating branch protection for main...'))
+    logger.info('Updating branch protection for main...')
     const bp = config.branch_protection.main
 
     const protectionData: Record<string, unknown> = {
@@ -348,24 +348,24 @@ async function applyChanges(
     }
 
     ghApiPut(`/repos/${owner}/${name}/branches/main/protection`, protectionData)
-    console.log(colors.green('  Branch protection updated'))
+    logger.success('  Branch protection updated')
   }
 
   // 5. Check secrets (no changes, just warnings)
   const secretDiffs = diffs.filter((d) => d.type === 'secrets')
   if (secretDiffs.length > 0) {
-    console.log(colors.yellow('\nSecret warnings:'))
+    logger.warn('\nSecret warnings:')
     for (const diff of secretDiffs) {
-      console.log(colors.yellow(`  ${diff.details}`))
+      logger.warn(`  ${diff.details}`)
     }
   }
 
   // 6. Check env variables (no changes, just warnings)
   const envDiffs = diffs.filter((d) => d.type === 'env')
   if (envDiffs.length > 0) {
-    console.log(colors.yellow('\nEnvironment variable warnings:'))
+    logger.warn('\nEnvironment variable warnings:')
     for (const diff of envDiffs) {
-      console.log(colors.yellow(`  ${diff.details}`))
+      logger.warn(`  ${diff.details}`)
     }
   }
 }
