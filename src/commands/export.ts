@@ -7,8 +7,8 @@ import type {
   Label,
   RepoSettings,
 } from '~/types'
-import { colors } from '~/utils/colors'
 import { getRepoInfo, ghApiGet } from '~/utils/gh'
+import { logger } from '~/utils/logger'
 
 interface GitHubRepo {
   description: string | null
@@ -66,13 +66,13 @@ export async function exportCommand(options: ExportOptions): Promise<void> {
   const repoInfo = getRepoInfo(options.repo)
   const { owner, name } = repoInfo
 
-  console.log(colors.blue(`Exporting settings from ${owner}/${name}...`))
+  logger.info(`Exporting settings from ${owner}/${name}...`)
 
   const config = await fetchCurrentConfig(owner, name, options.includeSecrets)
 
   if (options.dir) {
     writeDirectoryConfig(options.dir, config)
-    console.log(colors.green(`Settings exported to ${options.dir}/`))
+    logger.success(`Settings exported to ${options.dir}/`)
   } else if (options.single) {
     const yamlContent = yaml.dump(config, {
       indent: 2,
@@ -80,7 +80,7 @@ export async function exportCommand(options: ExportOptions): Promise<void> {
       noRefs: true,
     })
     writeFileSync(options.single, yamlContent)
-    console.log(colors.green(`Settings exported to ${options.single}`))
+    logger.success(`Settings exported to ${options.single}`)
   } else {
     // Output to stdout
     const yamlContent = yaml.dump(config, {
@@ -88,7 +88,7 @@ export async function exportCommand(options: ExportOptions): Promise<void> {
       lineWidth: -1,
       noRefs: true,
     })
-    console.log(`\n${yamlContent}`)
+    logger.log(`\n${yamlContent}`)
   }
 }
 

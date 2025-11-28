@@ -1,28 +1,28 @@
 import type { DiffItem } from '~/types'
-import { colors } from '~/utils/colors'
+import { colors, logger } from '~/utils/logger'
 
 export function printDiff(diffs: DiffItem[]): void {
   if (diffs.length === 0) {
-    console.log(colors.green('No changes detected.'))
+    logger.success('No changes detected.')
     return
   }
 
-  console.log(colors.bold('\nPlanned changes:\n'))
+  logger.heading('\nPlanned changes:\n')
 
   const grouped = groupBy(diffs, (d) => d.type)
 
   for (const [type, items] of Object.entries(grouped)) {
-    console.log(colors.cyanBold(`[${type}]`))
+    logger.section(`[${type}]`)
 
     for (const item of items) {
       const icon = getActionIcon(item.action)
       const color = getActionColor(item.action)
-      console.log(`  ${icon} ${color(item.details)}`)
+      logger.log(`  ${icon} ${color(item.details)}`)
       if (item.apiCall) {
-        console.log(colors.gray(`    API: ${item.apiCall}`))
+        logger.debug(`    API: ${item.apiCall}`)
       }
     }
-    console.log()
+    logger.log('')
   }
 }
 

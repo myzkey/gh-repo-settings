@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import yaml from 'js-yaml'
 import type { Config, ValidationResult } from '~/types'
-import { colors } from '~/utils/colors'
+import { logger } from '~/utils/logger'
 import { validateConfig } from '~/utils/schema'
 
 const DEFAULT_DIR = '.github/repo-settings'
@@ -83,11 +83,7 @@ function loadFromDirectory(dirPath: string): Config {
 
     switch (baseName) {
       case 'repo':
-        if (parsed.repo) {
-          config.repo = parsed.repo as Config['repo']
-        } else {
-          config.repo = parsed as Config['repo']
-        }
+        config.repo = (parsed.repo ?? parsed) as Config['repo']
         break
       case 'topics':
         if (Array.isArray(parsed.topics)) {
@@ -97,34 +93,18 @@ function loadFromDirectory(dirPath: string): Config {
         }
         break
       case 'labels':
-        if (parsed.labels) {
-          config.labels = parsed.labels as Config['labels']
-        } else if (parsed.items) {
-          config.labels = parsed as Config['labels']
-        }
+        config.labels = (parsed.labels ?? parsed) as Config['labels']
         break
       case 'branch-protection':
       case 'branch_protection':
-        if (parsed.branch_protection) {
-          config.branch_protection =
-            parsed.branch_protection as Config['branch_protection']
-        } else {
-          config.branch_protection = parsed as Config['branch_protection']
-        }
+        config.branch_protection = (parsed.branch_protection ??
+          parsed) as Config['branch_protection']
         break
       case 'secrets':
-        if (parsed.secrets) {
-          config.secrets = parsed.secrets as Config['secrets']
-        } else {
-          config.secrets = parsed as Config['secrets']
-        }
+        config.secrets = (parsed.secrets ?? parsed) as Config['secrets']
         break
       case 'env':
-        if (parsed.env) {
-          config.env = parsed.env as Config['env']
-        } else {
-          config.env = parsed as Config['env']
-        }
+        config.env = (parsed.env ?? parsed) as Config['env']
         break
       default:
         // For any other file, merge at top level
@@ -157,10 +137,10 @@ export function loadAndValidateConfig(options: LoadConfigOptions): Config {
 }
 
 export function printValidationErrors(result: ValidationResult): void {
-  console.error(colors.red('\nConfig validation failed:\n'))
+  logger.error('\nConfig validation failed:\n')
   for (const error of result.errors) {
     const path = error.path || '(root)'
-    console.error(colors.red(`  - ${path}: ${error.message}`))
+    logger.error(`  - ${path}: ${error.message}`)
   }
-  console.error()
+  logger.log('')
 }
