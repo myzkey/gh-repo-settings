@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ValidationResult, Config } from "../types.js";
+import type { ValidationResult, Config } from "~/types";
 
 // Hex color validation (6 characters, no #)
 const hexColorSchema = z

@@ -1,13 +1,13 @@
-import chalk from "chalk";
-import type { Config, DiffItem, ValidationResult } from "../types.js";
+import type { Config, DiffItem, ValidationResult } from "~/types";
+import { colors } from "~/utils/colors";
 import {
   loadConfig,
   loadAndValidateConfig,
   printValidationErrors,
-} from "../utils/config.js";
-import { validateConfig } from "../utils/schema.js";
-import { printDiff } from "../utils/diff.js";
-import { ghApiGet, getRepoInfo } from "../utils/gh.js";
+} from "~/utils/config";
+import { validateConfig } from "~/utils/schema";
+import { printDiff } from "~/utils/diff";
+import { ghApiGet, getRepoInfo } from "~/utils/gh";
 
 interface CheckOptions {
   repo?: string;
@@ -75,7 +75,7 @@ export async function checkCommand(options: CheckOptions): Promise<void> {
   });
 
   // Step 1: Schema validation
-  console.log(chalk.blue("Validating YAML schema..."));
+  console.log(colors.blue("Validating YAML schema..."));
   const validationResult = validateConfig(rawConfig);
 
   if (!validationResult.valid) {
@@ -83,7 +83,7 @@ export async function checkCommand(options: CheckOptions): Promise<void> {
     process.exit(1);
   }
 
-  console.log(chalk.green("Schema validation passed.\n"));
+  console.log(colors.green("Schema validation passed.\n"));
 
   // If schema-only mode, stop here
   if (options.schemaOnly) {
@@ -93,7 +93,7 @@ export async function checkCommand(options: CheckOptions): Promise<void> {
   const repoInfo = getRepoInfo(options.repo);
   const { owner, name } = repoInfo;
 
-  console.log(chalk.blue(`Checking settings for ${owner}/${name}...`));
+  console.log(colors.blue(`Checking settings for ${owner}/${name}...`));
 
   const diffs: DiffItem[] = [];
 
@@ -114,11 +114,11 @@ export async function checkCommand(options: CheckOptions): Promise<void> {
   }
 
   if (diffs.length === 0) {
-    console.log(chalk.green("\nAll settings are in sync!"));
+    console.log(colors.green("\nAll settings are in sync!"));
     return;
   }
 
-  console.log(chalk.yellow(`\nFound ${diffs.length} difference(s):\n`));
+  console.log(colors.yellow(`\nFound ${diffs.length} difference(s):\n`));
   printDiff(diffs);
 
   // Exit with error if there are issues
@@ -138,7 +138,7 @@ async function checkSecrets(
   const diffs: DiffItem[] = [];
 
   if (!config.secrets?.required || config.secrets.required.length === 0) {
-    console.log(chalk.gray("No required secrets defined in config."));
+    console.log(colors.gray("No required secrets defined in config."));
     return diffs;
   }
 
@@ -161,7 +161,7 @@ async function checkSecrets(
     }
 
     if (diffs.length === 0) {
-      console.log(chalk.green("All required secrets are present."));
+      console.log(colors.green("All required secrets are present."));
     }
   } catch {
     diffs.push({
@@ -182,7 +182,7 @@ async function checkEnv(
   const diffs: DiffItem[] = [];
 
   if (!config.env?.required || config.env.required.length === 0) {
-    console.log(chalk.gray("No required environment variables defined in config."));
+    console.log(colors.gray("No required environment variables defined in config."));
     return diffs;
   }
 
@@ -205,7 +205,7 @@ async function checkEnv(
     }
 
     if (diffs.length === 0) {
-      console.log(chalk.green("All required environment variables are present."));
+      console.log(colors.green("All required environment variables are present."));
     }
   } catch {
     diffs.push({

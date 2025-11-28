@@ -1,5 +1,5 @@
 import { execSync, spawnSync } from "node:child_process";
-import type { RepoInfo } from "../types.js";
+import type { RepoInfo } from "~/types";
 
 export function ghApi<T>(
   method: string,
