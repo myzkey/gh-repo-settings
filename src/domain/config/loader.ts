@@ -1,9 +1,4 @@
-import {
-  existsSync,
-  join,
-  readFileSync,
-  readdirSync,
-} from '~/infra/fs'
+import { existsSync, join, readdirSync, readFileSync } from '~/infra/fs'
 import { parse, stringify } from '~/infra/yaml'
 import type { Config } from '../types'
 

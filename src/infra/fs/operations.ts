@@ -23,7 +23,10 @@ export function readdirSync(path: string): string[] {
   return nodeReaddirSync(path)
 }
 
-export function mkdirSync(path: string, options?: { recursive?: boolean }): void {
+export function mkdirSync(
+  path: string,
+  options?: { recursive?: boolean },
+): void {
   nodeMkdirSync(path, options)
 }
 
