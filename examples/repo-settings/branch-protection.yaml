@@ -1,0 +1,10 @@
+# Branch protection rules
+branch_protection:
+  main:
+    required_reviews: 1
+    dismiss_stale_reviews: true
+    require_status_checks: true
+    status_checks:
+      - ci/test
+      - ci/lint
+    enforce_admins: true

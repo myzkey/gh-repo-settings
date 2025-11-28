@@ -1,0 +1,32 @@
+{
+  "name": "gh-repo-settings",
+  "version": "0.1.0",
+  "description": "GitHub CLI extension to manage repository settings via YAML",
+  "type": "module",
+  "bin": {
+    "gh-repo-settings": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": ["github", "gh", "cli", "extension", "settings", "yaml"],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.14.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^14.0.2",
+    "js-yaml": "^4.1.1"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^24.10.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}

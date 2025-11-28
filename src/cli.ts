@@ -1,0 +1,83 @@
+import { Command } from "commander";
+import { exportCommand } from "./commands/export.js";
+import { applyCommand } from "./commands/apply.js";
+import { checkCommand } from "./commands/check.js";
+
+const program = new Command();
+
+program
+  .name("gh-repo-settings")
+  .description("Manage GitHub repository settings via YAML configuration")
+  .version("0.1.0");
+
+program
+  .command("export")
+  .description("Export current GitHub repository settings to YAML")
+  .option("-r, --repo <owner/name>", "Target repository (default: current repo)")
+  .option("-d, --dir <path>", "Export to directory (multiple YAML files)")
+  .option("-s, --single <path>", "Export to single YAML file")
+  .option("--include-secrets", "Include secret names in export")
+  .action(async (options) => {
+    try {
+      await exportCommand({
+        repo: options.repo,
+        dir: options.dir,
+        single: options.single,
+        includeSecrets: options.includeSecrets,
+      });
+    } catch (error) {
+      console.error(
+        "Error:",
+        error instanceof Error ? error.message : String(error)
+      );
+      process.exit(1);
+    }
+  });
+
+program
+  .command("apply")
+  .description("Apply YAML configuration to GitHub repository")
+  .option("-r, --repo <owner/name>", "Target repository (default: current repo)")
+  .option("-c, --config <path>", "Path to single YAML config file")
+  .option("-d, --dir <path>", "Path to config directory")
+  .option("--dry-run", "Show planned changes without applying")
+  .action(async (options) => {
+    try {
+      await applyCommand({
+        repo: options.repo,
+        config: options.config,
+        dir: options.dir,
+        dryRun: options.dryRun,
+      });
+    } catch (error) {
+      console.error(
+        "Error:",
+        error instanceof Error ? error.message : String(error)
+      );
+      process.exit(1);
+    }
+  });
+
+program
+  .command("check")
+  .description("Compare YAML configuration with current GitHub settings")
+  .option("-r, --repo <owner/name>", "Target repository (default: current repo)")
+  .option("-c, --config <path>", "Path to single YAML config file")
+  .option("-d, --dir <path>", "Path to config directory")
+  .action(async (options) => {
+    try {
+      await checkCommand({
+        repo: options.repo,
+        config: options.config,
+        dir: options.dir,
+      });
+    } catch (error) {
+      console.error(
+        "Error:",
+        error instanceof Error ? error.message : String(error)
+      );
+      process.exit(1);
+    }
+  });
+
+program.parse();

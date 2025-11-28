@@ -1,0 +1,13 @@
+# Label configuration
+labels:
+  replace_default: true
+  items:
+    - name: bug
+      color: ff0000
+      description: Something isn't working
+    - name: feature
+      color: 0e8a16
+      description: New feature request
+    - name: chore
+      color: 0366d6
+      description: Maintenance tasks
