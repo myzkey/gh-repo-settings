@@ -1,7 +1,7 @@
 import { Command } from "commander";
-import { exportCommand } from "./commands/export.js";
-import { applyCommand } from "./commands/apply.js";
-import { checkCommand } from "./commands/check.js";
+import { exportCommand } from "~/commands/export";
+import { applyCommand } from "~/commands/apply";
+import { checkCommand } from "~/commands/check";
 
 const program = new Command();
 

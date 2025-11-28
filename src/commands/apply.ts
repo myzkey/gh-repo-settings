@@ -1,14 +1,14 @@
-import chalk from "chalk";
 import type {
   Config,
   DiffItem,
   RepoInfo,
   Label,
   BranchProtectionConfig,
-} from "../types.js";
-import { loadConfig, printValidationErrors } from "../utils/config.js";
-import { validateConfig } from "../utils/schema.js";
-import { printDiff } from "../utils/diff.js";
+} from "~/types";
+import { colors } from "~/utils/colors";
+import { loadConfig, printValidationErrors } from "~/utils/config";
+import { validateConfig } from "~/utils/schema";
+import { printDiff } from "~/utils/diff";
 import {
   ghApiGet,
   ghApiPatch,
@@ -16,7 +16,7 @@ import {
   ghApiPost,
   ghApiDelete,
   getRepoInfo,
-} from "../utils/gh.js";
+} from "~/utils/gh";
 
 interface ApplyOptions {
   repo?: string;
@@ -55,7 +55,7 @@ export async function applyCommand(options: ApplyOptions): Promise<void> {
   const repoInfo = getRepoInfo(options.repo);
   const { owner, name } = repoInfo;
 
-  console.log(chalk.blue(`Loading config for ${owner}/${name}...`));
+  console.log(colors.blue(`Loading config for ${owner}/${name}...`));
 
   const config = loadConfig({
     dir: options.dir,
@@ -63,7 +63,7 @@ export async function applyCommand(options: ApplyOptions): Promise<void> {
   });
 
   // Validate config before applying
-  console.log(chalk.blue("Validating config schema..."));
+  console.log(colors.blue("Validating config schema..."));
   const validationResult = validateConfig(config);
 
   if (!validationResult.valid) {
@@ -71,27 +71,27 @@ export async function applyCommand(options: ApplyOptions): Promise<void> {
     process.exit(1);
   }
 
-  console.log(chalk.green("Schema validation passed.\n"));
+  console.log(colors.green("Schema validation passed.\n"));
 
   const diffs = await calculateDiffs(owner, name, config);
 
   if (options.dryRun) {
-    console.log(chalk.yellow("\n[DRY RUN] No changes will be made.\n"));
+    console.log(colors.yellow("\n[DRY RUN] No changes will be made.\n"));
     printDiff(diffs);
     return;
   }
 
   if (diffs.length === 0) {
-    console.log(chalk.green("No changes to apply."));
+    console.log(colors.green("No changes to apply."));
     return;
   }
 
   printDiff(diffs);
-  console.log(chalk.blue("\nApplying changes...\n"));
+  console.log(colors.blue("\nApplying changes...\n"));
 
   await applyChanges(repoInfo, config, diffs);
 
-  console.log(chalk.green("\nAll changes applied successfully!"));
+  console.log(colors.green("\nAll changes applied successfully!"));
 }
 
 async function calculateDiffs(
@@ -264,21 +264,21 @@ async function applyChanges(
 
   // 1. Apply repo metadata
   if (config.repo && diffs.some((d) => d.type === "repo")) {
-    console.log(chalk.blue("Updating repository settings..."));
+    console.log(colors.blue("Updating repository settings..."));
     ghApiPatch(`/repos/${owner}/${name}`, config.repo as Record<string, unknown>);
-    console.log(chalk.green("  Repository settings updated"));
+    console.log(colors.green("  Repository settings updated"));
   }
 
   // 2. Apply topics
   if (config.topics && diffs.some((d) => d.type === "topics")) {
-    console.log(chalk.blue("Updating topics..."));
+    console.log(colors.blue("Updating topics..."));
     ghApiPut(`/repos/${owner}/${name}/topics`, { names: config.topics });
-    console.log(chalk.green("  Topics updated"));
+    console.log(colors.green("  Topics updated"));
   }
 
   // 3. Apply labels
   if (config.labels && diffs.some((d) => d.type === "labels")) {
-    console.log(chalk.blue("Updating labels..."));
+    console.log(colors.blue("Updating labels..."));
 
     const currentLabels = ghApiGet<GitHubLabel[]>(
       `/repos/${owner}/${name}/labels`
@@ -293,7 +293,7 @@ async function applyChanges(
           ghApiDelete(
             `/repos/${owner}/${name}/labels/${encodeURIComponent(label.name)}`
           );
-          console.log(chalk.red(`  Deleted label: ${label.name}`));
+          console.log(colors.red(`  Deleted label: ${label.name}`));
         }
       }
     }
@@ -311,7 +311,7 @@ async function applyChanges(
 
       if (!current) {
         ghApiPost(`/repos/${owner}/${name}/labels`, labelData);
-        console.log(chalk.green(`  Created label: ${label.name}`));
+        console.log(colors.green(`  Created label: ${label.name}`));
       } else if (
         current.color !== label.color ||
         (current.description || "") !== (label.description || "")
@@ -320,14 +320,14 @@ async function applyChanges(
           `/repos/${owner}/${name}/labels/${encodeURIComponent(label.name)}`,
           labelData
         );
-        console.log(chalk.yellow(`  Updated label: ${label.name}`));
+        console.log(colors.yellow(`  Updated label: ${label.name}`));
       }
     }
   }
 
   // 4. Apply branch protection
   if (config.branch_protection?.main) {
-    console.log(chalk.blue("Updating branch protection for main..."));
+    console.log(colors.blue("Updating branch protection for main..."));
     const bp = config.branch_protection.main;
 
     const protectionData: Record<string, unknown> = {
@@ -351,24 +351,24 @@ async function applyChanges(
     };
 
     ghApiPut(`/repos/${owner}/${name}/branches/main/protection`, protectionData);
-    console.log(chalk.green("  Branch protection updated"));
+    console.log(colors.green("  Branch protection updated"));
   }
 
   // 5. Check secrets (no changes, just warnings)
   const secretDiffs = diffs.filter((d) => d.type === "secrets");
   if (secretDiffs.length > 0) {
-    console.log(chalk.yellow("\nSecret warnings:"));
+    console.log(colors.yellow("\nSecret warnings:"));
     for (const diff of secretDiffs) {
-      console.log(chalk.yellow(`  ${diff.details}`));
+      console.log(colors.yellow(`  ${diff.details}`));
     }
   }
 
   // 6. Check env variables (no changes, just warnings)
   const envDiffs = diffs.filter((d) => d.type === "env");
   if (envDiffs.length > 0) {
-    console.log(chalk.yellow("\nEnvironment variable warnings:"));
+    console.log(colors.yellow("\nEnvironment variable warnings:"));
     for (const diff of envDiffs) {
-      console.log(chalk.yellow(`  ${diff.details}`));
+      console.log(colors.yellow(`  ${diff.details}`));
     }
   }
 }

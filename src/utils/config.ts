@@ -1,9 +1,9 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
-import chalk from "chalk";
-import type { Config, ValidationResult } from "../types.js";
-import { validateConfig } from "./schema.js";
+import { colors } from "~/utils/colors";
+import type { Config, ValidationResult } from "~/types";
+import { validateConfig } from "~/utils/schema";
 
 const DEFAULT_DIR = ".github/repo-settings";
 const DEFAULT_SINGLE_FILE = ".github/repo-settings.yaml";
@@ -157,10 +157,10 @@ export function loadAndValidateConfig(options: LoadConfigOptions): Config {
 }
 
 export function printValidationErrors(result: ValidationResult): void {
-  console.error(chalk.red("\nConfig validation failed:\n"));
+  console.error(colors.red("\nConfig validation failed:\n"));
   for (const error of result.errors) {
     const path = error.path || "(root)";
-    console.error(chalk.red(`  - ${path}: ${error.message}`));
+    console.error(colors.red(`  - ${path}: ${error.message}`));
   }
   console.error();
 }

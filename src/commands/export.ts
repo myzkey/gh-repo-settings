@@ -1,14 +1,14 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import chalk from "chalk";
 import yaml from "js-yaml";
 import type {
   Config,
   RepoSettings,
   Label,
   BranchProtectionConfig,
-} from "../types.js";
-import { ghApiGet, getRepoInfo } from "../utils/gh.js";
+} from "~/types";
+import { colors } from "~/utils/colors";
+import { ghApiGet, getRepoInfo } from "~/utils/gh";
 
 interface GitHubRepo {
   description: string | null;
@@ -66,13 +66,13 @@ export async function exportCommand(options: ExportOptions): Promise<void> {
   const repoInfo = getRepoInfo(options.repo);
   const { owner, name } = repoInfo;
 
-  console.log(chalk.blue(`Exporting settings from ${owner}/${name}...`));
+  console.log(colors.blue(`Exporting settings from ${owner}/${name}...`));
 
   const config = await fetchCurrentConfig(owner, name, options.includeSecrets);
 
   if (options.dir) {
     writeDirectoryConfig(options.dir, config);
-    console.log(chalk.green(`Settings exported to ${options.dir}/`));
+    console.log(colors.green(`Settings exported to ${options.dir}/`));
   } else if (options.single) {
     const yamlContent = yaml.dump(config, {
       indent: 2,
@@ -80,7 +80,7 @@ export async function exportCommand(options: ExportOptions): Promise<void> {
       noRefs: true,
     });
     writeFileSync(options.single, yamlContent);
-    console.log(chalk.green(`Settings exported to ${options.single}`));
+    console.log(colors.green(`Settings exported to ${options.single}`));
   } else {
     // Output to stdout
     const yamlContent = yaml.dump(config, {
