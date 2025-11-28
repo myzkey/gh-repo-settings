@@ -1,19 +1,19 @@
-import { defineConfig } from "tsup";
+import { defineConfig } from 'tsup'
 
 export default defineConfig({
-  entry: ["src/cli.ts"],
-  format: ["esm"],
-  target: "node18",
-  outDir: "dist",
+  entry: ['src/cli.ts'],
+  format: ['esm'],
+  target: 'node18',
+  outDir: 'dist',
   clean: true,
   sourcemap: true,
   dts: false,
   banner: {
-    js: "#!/usr/bin/env node",
+    js: '#!/usr/bin/env node',
   },
   esbuildOptions(options) {
     options.alias = {
-      "~": "./src",
-    };
+      '~': './src',
+    }
   },
-});
+})
