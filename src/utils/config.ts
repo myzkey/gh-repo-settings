@@ -1,15 +1,20 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
-import type { Config } from "../types.js";
+import chalk from "chalk";
+import type { Config, ValidationResult } from "../types.js";
+import { validateConfig } from "./schema.js";
 
 const DEFAULT_DIR = ".github/repo-settings";
 const DEFAULT_SINGLE_FILE = ".github/repo-settings.yaml";
 
-export function loadConfig(options: {
+export interface LoadConfigOptions {
   dir?: string;
   config?: string;
-}): Config {
+  validate?: boolean;
+}
+
+export function loadConfig(options: LoadConfigOptions): Config {
   // Priority: --dir > --config > default dir > default single file
   if (options.dir) {
     return loadFromDirectory(options.dir);
@@ -114,6 +119,13 @@ function loadFromDirectory(dirPath: string): Config {
           config.secrets = parsed as Config["secrets"];
         }
         break;
+      case "env":
+        if (parsed.env) {
+          config.env = parsed.env as Config["env"];
+        } else {
+          config.env = parsed as Config["env"];
+        }
+        break;
       default:
         // For any other file, merge at top level
         Object.assign(config, parsed);
@@ -130,4 +142,25 @@ export function configToYaml(config: Config): string {
     noRefs: true,
     sortKeys: false,
   });
+}
+
+export function loadAndValidateConfig(options: LoadConfigOptions): Config {
+  const config = loadConfig(options);
+  const result = validateConfig(config);
+
+  if (!result.valid) {
+    printValidationErrors(result);
+    throw new Error("Config validation failed");
+  }
+
+  return config;
+}
+
+export function printValidationErrors(result: ValidationResult): void {
+  console.error(chalk.red("\nConfig validation failed:\n"));
+  for (const error of result.errors) {
+    const path = error.path || "(root)";
+    console.error(chalk.red(`  - ${path}: ${error.message}`));
+  }
+  console.error();
 }

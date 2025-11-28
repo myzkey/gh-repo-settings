@@ -35,6 +35,10 @@ export interface SecretsConfig {
   required?: string[];
 }
 
+export interface EnvConfig {
+  required?: string[];
+}
+
 export interface Config {
   repo?: RepoSettings;
   topics?: string[];
@@ -43,6 +47,7 @@ export interface Config {
     [branch: string]: BranchProtectionConfig;
   };
   secrets?: SecretsConfig;
+  env?: EnvConfig;
 }
 
 export interface RepoInfo {
@@ -51,8 +56,18 @@ export interface RepoInfo {
 }
 
 export interface DiffItem {
-  type: "repo" | "topics" | "labels" | "branch_protection" | "secrets";
+  type: "repo" | "topics" | "labels" | "branch_protection" | "secrets" | "env";
   action: "create" | "update" | "delete" | "check";
   details: string;
   apiCall?: string;
+}
+
+export interface ValidationError {
+  path: string;
+  message: string;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  errors: ValidationError[];
 }

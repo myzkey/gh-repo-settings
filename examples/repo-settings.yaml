@@ -48,3 +48,8 @@ secrets:
   required:
     - API_TOKEN
     - SLACK_WEBHOOK
+
+env:
+  required:
+    - DATABASE_URL
+    - SENTRY_DSN
