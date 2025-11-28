@@ -1,6 +1,3 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import yaml from 'js-yaml'
 import type {
   BranchProtectionConfig,
   Config,
@@ -8,7 +5,9 @@ import type {
   Label,
   RepoSettings,
 } from '~/domain'
+import { existsSync, join, mkdirSync, writeFileSync } from '~/infra/fs'
 import { createClient, getRepoInfo } from '~/infra/github'
+import { stringify } from '~/infra/yaml'
 import { logger } from '~/utils/logger'
 
 interface ExportOptions {
@@ -31,21 +30,11 @@ export async function exportCommand(options: ExportOptions): Promise<void> {
     writeDirectoryConfig(options.dir, config)
     logger.success(`Settings exported to ${options.dir}/`)
   } else if (options.single) {
-    const yamlContent = yaml.dump(config, {
-      indent: 2,
-      lineWidth: -1,
-      noRefs: true,
-    })
-    writeFileSync(options.single, yamlContent)
+    writeFileSync(options.single, stringify(config))
     logger.success(`Settings exported to ${options.single}`)
   } else {
     // Output to stdout
-    const yamlContent = yaml.dump(config, {
-      indent: 2,
-      lineWidth: -1,
-      noRefs: true,
-    })
-    logger.log(`\n${yamlContent}`)
+    logger.log(`\n${stringify(config)}`)
   }
 }
 
@@ -164,40 +153,35 @@ function writeDirectoryConfig(dirPath: string, config: Config): void {
     mkdirSync(dirPath, { recursive: true })
   }
 
-  const dumpOptions = { indent: 2, lineWidth: -1, noRefs: true }
-
   if (config.repo) {
-    writeFileSync(
-      join(dirPath, 'repo.yaml'),
-      yaml.dump({ repo: config.repo }, dumpOptions),
-    )
+    writeFileSync(join(dirPath, 'repo.yaml'), stringify({ repo: config.repo }))
   }
 
   if (config.topics) {
     writeFileSync(
       join(dirPath, 'topics.yaml'),
-      yaml.dump({ topics: config.topics }, dumpOptions),
+      stringify({ topics: config.topics }),
     )
   }
 
   if (config.labels) {
     writeFileSync(
       join(dirPath, 'labels.yaml'),
-      yaml.dump({ labels: config.labels }, dumpOptions),
+      stringify({ labels: config.labels }),
     )
   }
 
   if (config.branch_protection) {
     writeFileSync(
       join(dirPath, 'branch-protection.yaml'),
-      yaml.dump({ branch_protection: config.branch_protection }, dumpOptions),
+      stringify({ branch_protection: config.branch_protection }),
     )
   }
 
   if (config.secrets) {
     writeFileSync(
       join(dirPath, 'secrets.yaml'),
-      yaml.dump({ secrets: config.secrets }, dumpOptions),
+      stringify({ secrets: config.secrets }),
     )
   }
 }

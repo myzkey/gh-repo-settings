@@ -1,6 +1,10 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import yaml from 'js-yaml'
+import {
+  existsSync,
+  join,
+  readFileSync,
+  readdirSync,
+} from '~/infra/fs'
+import { parse, stringify } from '~/infra/yaml'
 import type { Config } from '../types'
 
 const DEFAULT_DIR = '.github/repo-settings'
@@ -42,7 +46,7 @@ function loadSingleFile(filePath: string): Config {
   }
 
   const content = readFileSync(filePath, 'utf-8')
-  const config = yaml.load(content) as Config
+  const config = parse<Config>(content)
 
   if (!config || typeof config !== 'object') {
     throw new Error(`Invalid config in ${filePath}`)
@@ -69,7 +73,7 @@ function loadFromDirectory(dirPath: string): Config {
   for (const file of files) {
     const filePath = join(dirPath, file)
     const content = readFileSync(filePath, 'utf-8')
-    const parsed = yaml.load(content) as Record<string, unknown>
+    const parsed = parse<Record<string, unknown>>(content)
 
     if (!parsed || typeof parsed !== 'object') {
       continue
@@ -113,10 +117,5 @@ function loadFromDirectory(dirPath: string): Config {
 }
 
 export function configToYaml(config: Config): string {
-  return yaml.dump(config, {
-    indent: 2,
-    lineWidth: -1,
-    noRefs: true,
-    sortKeys: false,
-  })
+  return stringify(config)
 }
