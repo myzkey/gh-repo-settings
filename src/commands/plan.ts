@@ -14,7 +14,7 @@ import {
 import { createClient, getRepoInfo } from '~/infra/github'
 import { logger } from '~/utils/logger'
 
-interface CheckOptions {
+interface PlanOptions {
   repo?: string
   config?: string
   dir?: string
@@ -23,7 +23,7 @@ interface CheckOptions {
   schemaOnly?: boolean
 }
 
-export async function checkCommand(options: CheckOptions): Promise<void> {
+export async function planCommand(options: PlanOptions): Promise<void> {
   // Load config first (without validation to show all errors)
   const rawConfig = loadConfig({
     dir: options.dir,
@@ -50,21 +50,21 @@ export async function checkCommand(options: CheckOptions): Promise<void> {
   const client = createClient(options.repo)
   const { owner, name } = repoInfo
 
-  logger.info(`Checking settings for ${owner}/${name}...`)
+  logger.info(`Planning changes for ${owner}/${name}...`)
 
   const diffs: DiffItem[] = []
 
   // Check secrets only
   if (options.secrets) {
-    const secretDiffs = checkSecrets(client, rawConfig)
+    const secretDiffs = verifySecrets(client, rawConfig)
     diffs.push(...secretDiffs)
   }
   // Check env only
   else if (options.env) {
-    const envDiffs = checkEnv(client, rawConfig)
+    const envDiffs = verifyEnv(client, rawConfig)
     diffs.push(...envDiffs)
   }
-  // Full check
+  // Full plan
   else {
     const allDiffs = calculateDetailedDiffs(client, repoInfo, rawConfig)
     diffs.push(...allDiffs)
@@ -87,7 +87,7 @@ export async function checkCommand(options: CheckOptions): Promise<void> {
   }
 }
 
-function checkSecrets(client: IGitHubClient, config: Config): DiffItem[] {
+function verifySecrets(client: IGitHubClient, config: Config): DiffItem[] {
   if (!config.secrets?.required || config.secrets.required.length === 0) {
     logger.debug('No required secrets defined in config.')
     return []
@@ -113,7 +113,7 @@ function checkSecrets(client: IGitHubClient, config: Config): DiffItem[] {
   }
 }
 
-function checkEnv(client: IGitHubClient, config: Config): DiffItem[] {
+function verifyEnv(client: IGitHubClient, config: Config): DiffItem[] {
   if (!config.env?.required || config.env.required.length === 0) {
     logger.debug('No required environment variables defined in config.')
     return []
@@ -192,12 +192,12 @@ function calculateDetailedDiffs(
     }
   }
 
-  // Check secrets
-  const secretDiffs = checkSecrets(client, config)
+  // Verify secrets
+  const secretDiffs = verifySecrets(client, config)
   diffs.push(...secretDiffs)
 
-  // Check env
-  const envDiffs = checkEnv(client, config)
+  // Verify env
+  const envDiffs = verifyEnv(client, config)
   diffs.push(...envDiffs)
 
   return diffs

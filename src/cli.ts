@@ -1,7 +1,7 @@
 import { Command } from 'commander'
 import { applyCommand } from '~/commands/apply'
-import { checkCommand } from '~/commands/check'
 import { exportCommand } from '~/commands/export'
+import { planCommand } from '~/commands/plan'
 import { logger, setLogLevel } from '~/utils/logger'
 
 const program = new Command()
@@ -74,8 +74,8 @@ program
   })
 
 program
-  .command('check')
-  .description('Validate config and compare with current GitHub settings')
+  .command('plan')
+  .description('Validate config and show planned changes')
   .option(
     '-r, --repo <owner/name>',
     'Target repository (default: current repo)',
@@ -87,7 +87,7 @@ program
   .option('--schema-only', 'Only validate YAML schema (no GitHub API calls)')
   .action(async (options) => {
     try {
-      await checkCommand({
+      await planCommand({
         repo: options.repo,
         config: options.config,
         dir: options.dir,
