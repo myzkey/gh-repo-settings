@@ -1,16 +1,17 @@
-import type { Config, DiffItem, RepoInfo } from '~/types'
-import { loadConfig, printValidationErrors } from '~/utils/config'
-import { printDiff } from '~/utils/diff'
+import type { Config, DiffItem, IGitHubClient, RepoIdentifier } from '~/domain'
 import {
-  getRepoInfo,
-  ghApiDelete,
-  ghApiGet,
-  ghApiPatch,
-  ghApiPost,
-  ghApiPut,
-} from '~/utils/gh'
+  calculateEnvDiffs,
+  calculateLabelsDiffs,
+  calculateRepoDiffs,
+  calculateSecretsDiffs,
+  calculateTopicsDiffs,
+  loadConfig,
+  printDiff,
+  printValidationErrors,
+  validateConfig,
+} from '~/domain'
+import { createClient, getRepoInfo } from '~/infra/github'
 import { logger } from '~/utils/logger'
-import { validateConfig } from '~/utils/schema'
 
 interface ApplyOptions {
   repo?: string
@@ -19,34 +20,9 @@ interface ApplyOptions {
   dryRun?: boolean
 }
 
-interface GitHubRepo {
-  description: string | null
-  homepage: string | null
-  visibility: string
-  allow_merge_commit: boolean
-  allow_rebase_merge: boolean
-  allow_squash_merge: boolean
-  delete_branch_on_merge: boolean
-  allow_update_branch: boolean
-  topics: string[]
-}
-
-interface GitHubLabel {
-  name: string
-  color: string
-  description: string | null
-}
-
-interface GitHubSecret {
-  name: string
-}
-
-interface GitHubEnvVariable {
-  name: string
-}
-
 export async function applyCommand(options: ApplyOptions): Promise<void> {
   const repoInfo = getRepoInfo(options.repo)
+  const client = createClient(options.repo)
   const { owner, name } = repoInfo
 
   logger.info(`Loading config for ${owner}/${name}...`)
@@ -67,7 +43,7 @@ export async function applyCommand(options: ApplyOptions): Promise<void> {
 
   logger.success('Schema validation passed.\n')
 
-  const diffs = await calculateDiffs(owner, name, config)
+  const diffs = calculateDiffs(client, repoInfo, config)
 
   if (options.dryRun) {
     logger.warn('\n[DRY RUN] No changes will be made.\n')
@@ -83,101 +59,39 @@ export async function applyCommand(options: ApplyOptions): Promise<void> {
   printDiff(diffs)
   logger.info('\nApplying changes...\n')
 
-  await applyChanges(repoInfo, config, diffs)
+  applyChanges(client, config, diffs)
 
   logger.success('\nAll changes applied successfully!')
 }
 
-async function calculateDiffs(
-  owner: string,
-  name: string,
+function calculateDiffs(
+  client: IGitHubClient,
+  repoInfo: RepoIdentifier,
   config: Config,
-): Promise<DiffItem[]> {
+): DiffItem[] {
   const diffs: DiffItem[] = []
+  const { owner, name } = repoInfo
+  const diffContext = { client, owner, name }
 
   // Repo metadata
   if (config.repo) {
-    const currentRepo = ghApiGet<GitHubRepo>(`/repos/${owner}/${name}`)
-
-    for (const [key, value] of Object.entries(config.repo)) {
-      if (value === undefined) continue
-
-      const currentValue = currentRepo[key as keyof GitHubRepo]
-      if (currentValue !== value) {
-        diffs.push({
-          type: 'repo',
-          action: 'update',
-          details: `${key}: ${JSON.stringify(currentValue)} -> ${JSON.stringify(value)}`,
-          apiCall: `PATCH /repos/${owner}/${name}`,
-        })
-      }
-    }
+    const currentRepo = client.getRepo()
+    const repoDiffs = calculateRepoDiffs(config, currentRepo, diffContext)
+    diffs.push(...repoDiffs)
   }
 
   // Topics
   if (config.topics) {
-    const currentRepo = ghApiGet<GitHubRepo>(`/repos/${owner}/${name}`)
-    const currentTopics = currentRepo.topics || []
-    const newTopics = config.topics
-
-    const added = newTopics.filter((t) => !currentTopics.includes(t))
-    const removed = currentTopics.filter((t) => !newTopics.includes(t))
-
-    if (added.length > 0 || removed.length > 0) {
-      diffs.push({
-        type: 'topics',
-        action: 'update',
-        details: `Set topics to: [${newTopics.join(', ')}]`,
-        apiCall: `PUT /repos/${owner}/${name}/topics`,
-      })
-    }
+    const currentRepo = client.getRepo()
+    const topicsDiffs = calculateTopicsDiffs(config, currentRepo, diffContext)
+    diffs.push(...topicsDiffs)
   }
 
   // Labels
   if (config.labels) {
-    const currentLabels = ghApiGet<GitHubLabel[]>(
-      `/repos/${owner}/${name}/labels`,
-    )
-    const currentLabelMap = new Map(currentLabels.map((l) => [l.name, l]))
-    const configLabelMap = new Map(config.labels.items.map((l) => [l.name, l]))
-
-    if (config.labels.replace_default) {
-      // Delete labels not in config
-      for (const label of currentLabels) {
-        if (!configLabelMap.has(label.name)) {
-          diffs.push({
-            type: 'labels',
-            action: 'delete',
-            details: `Delete label: ${label.name}`,
-            apiCall: `DELETE /repos/${owner}/${name}/labels/${encodeURIComponent(label.name)}`,
-          })
-        }
-      }
-    }
-
-    // Create or update labels
-    for (const label of config.labels.items) {
-      const current = currentLabelMap.get(label.name)
-
-      if (!current) {
-        diffs.push({
-          type: 'labels',
-          action: 'create',
-          details: `Create label: ${label.name} (#${label.color})`,
-          apiCall: `POST /repos/${owner}/${name}/labels`,
-        })
-      } else if (
-        current.color !== label.color ||
-        (current.description || '') !== (label.description || '')
-      ) {
-        diffs.push({
-          type: 'labels',
-          action: 'update',
-          details: `Update label: ${label.name}`,
-          apiCall: `PATCH /repos/${owner}/${name}/labels/${encodeURIComponent(label.name)}`,
-        })
-      }
-    }
+    const currentLabels = client.getLabels()
+    const labelsDiffs = calculateLabelsDiffs(config, currentLabels, diffContext)
+    diffs.push(...labelsDiffs)
   }
 
   // Branch protection (main only for v0)
@@ -185,7 +99,7 @@ async function calculateDiffs(
     diffs.push({
       type: 'branch_protection',
       action: 'update',
-      details: `Set branch protection for main`,
+      details: 'Set branch protection for main',
       apiCall: `PUT /repos/${owner}/${name}/branches/main/protection`,
     })
   }
@@ -193,27 +107,14 @@ async function calculateDiffs(
   // Secrets (existence check only)
   if (config.secrets?.required) {
     try {
-      const secretsResponse = ghApiGet<{ secrets: GitHubSecret[] }>(
-        `/repos/${owner}/${name}/actions/secrets`,
-      )
-      const existingSecrets = new Set(
-        secretsResponse.secrets?.map((s) => s.name) || [],
-      )
-
-      for (const secretName of config.secrets.required) {
-        if (!existingSecrets.has(secretName)) {
-          diffs.push({
-            type: 'secrets',
-            action: 'check',
-            details: `Missing secret: ${secretName} (use 'gh secret set ${secretName}' to add)`,
-          })
-        }
-      }
+      const existingSecretNames = client.getSecretNames()
+      const secretDiffs = calculateSecretsDiffs(config, existingSecretNames)
+      diffs.push(...secretDiffs)
     } catch {
       diffs.push({
         type: 'secrets',
         action: 'check',
-        details: `Could not verify secrets (API access may be restricted)`,
+        details: 'Could not verify secrets (API access may be restricted)',
       })
     }
   }
@@ -221,27 +122,15 @@ async function calculateDiffs(
   // Env (existence check only)
   if (config.env?.required) {
     try {
-      const envResponse = ghApiGet<{ variables: GitHubEnvVariable[] }>(
-        `/repos/${owner}/${name}/actions/variables`,
-      )
-      const existingVars = new Set(
-        envResponse.variables?.map((v) => v.name) || [],
-      )
-
-      for (const varName of config.env.required) {
-        if (!existingVars.has(varName)) {
-          diffs.push({
-            type: 'env',
-            action: 'check',
-            details: `Missing env variable: ${varName} (use 'gh variable set ${varName}' to add)`,
-          })
-        }
-      }
+      const existingVarNames = client.getVariableNames()
+      const envDiffs = calculateEnvDiffs(config, existingVarNames)
+      diffs.push(...envDiffs)
     } catch {
       diffs.push({
         type: 'env',
         action: 'check',
-        details: `Could not verify env variables (API access may be restricted)`,
+        details:
+          'Could not verify env variables (API access may be restricted)',
       })
     }
   }
@@ -249,27 +138,22 @@ async function calculateDiffs(
   return diffs
 }
 
-async function applyChanges(
-  repoInfo: RepoInfo,
+function applyChanges(
+  client: IGitHubClient,
   config: Config,
   diffs: DiffItem[],
-): Promise<void> {
-  const { owner, name } = repoInfo
-
+): void {
   // 1. Apply repo metadata
   if (config.repo && diffs.some((d) => d.type === 'repo')) {
     logger.info('Updating repository settings...')
-    ghApiPatch(
-      `/repos/${owner}/${name}`,
-      config.repo as Record<string, unknown>,
-    )
+    client.updateRepo(config.repo)
     logger.success('  Repository settings updated')
   }
 
   // 2. Apply topics
   if (config.topics && diffs.some((d) => d.type === 'topics')) {
     logger.info('Updating topics...')
-    ghApiPut(`/repos/${owner}/${name}/topics`, { names: config.topics })
+    client.setTopics(config.topics)
     logger.success('  Topics updated')
   }
 
@@ -277,9 +161,7 @@ async function applyChanges(
   if (config.labels && diffs.some((d) => d.type === 'labels')) {
     logger.info('Updating labels...')
 
-    const currentLabels = ghApiGet<GitHubLabel[]>(
-      `/repos/${owner}/${name}/labels`,
-    )
+    const currentLabels = client.getLabels()
     const currentLabelMap = new Map(currentLabels.map((l) => [l.name, l]))
     const configLabelMap = new Map(config.labels.items.map((l) => [l.name, l]))
 
@@ -287,9 +169,7 @@ async function applyChanges(
     if (config.labels.replace_default) {
       for (const label of currentLabels) {
         if (!configLabelMap.has(label.name)) {
-          ghApiDelete(
-            `/repos/${owner}/${name}/labels/${encodeURIComponent(label.name)}`,
-          )
+          client.deleteLabel(label.name)
           logger.error(`  Deleted label: ${label.name}`)
         }
       }
@@ -298,25 +178,15 @@ async function applyChanges(
     // Create or update labels
     for (const label of config.labels.items) {
       const current = currentLabelMap.get(label.name)
-      const labelData: Record<string, string> = {
-        name: label.name,
-        color: label.color,
-      }
-      if (label.description) {
-        labelData.description = label.description
-      }
 
       if (!current) {
-        ghApiPost(`/repos/${owner}/${name}/labels`, labelData)
+        client.createLabel(label)
         logger.success(`  Created label: ${label.name}`)
       } else if (
         current.color !== label.color ||
         (current.description || '') !== (label.description || '')
       ) {
-        ghApiPatch(
-          `/repos/${owner}/${name}/labels/${encodeURIComponent(label.name)}`,
-          labelData,
-        )
+        client.updateLabel(label.name, label)
         logger.warn(`  Updated label: ${label.name}`)
       }
     }
@@ -325,29 +195,7 @@ async function applyChanges(
   // 4. Apply branch protection
   if (config.branch_protection?.main) {
     logger.info('Updating branch protection for main...')
-    const bp = config.branch_protection.main
-
-    const protectionData: Record<string, unknown> = {
-      required_status_checks: bp.require_status_checks
-        ? {
-            strict: true,
-            contexts: bp.status_checks || [],
-          }
-        : null,
-      enforce_admins: bp.enforce_admins ?? false,
-      required_pull_request_reviews: bp.required_reviews
-        ? {
-            required_approving_review_count: bp.required_reviews,
-            dismiss_stale_reviews: bp.dismiss_stale_reviews ?? false,
-          }
-        : null,
-      restrictions: null,
-      required_linear_history: bp.require_linear_history ?? false,
-      allow_force_pushes: bp.allow_force_pushes ?? false,
-      allow_deletions: bp.allow_deletions ?? false,
-    }
-
-    ghApiPut(`/repos/${owner}/${name}/branches/main/protection`, protectionData)
+    client.setBranchProtection('main', config.branch_protection.main)
     logger.success('  Branch protection updated')
   }
 

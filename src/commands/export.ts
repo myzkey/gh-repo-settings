@@ -4,56 +4,12 @@ import yaml from 'js-yaml'
 import type {
   BranchProtectionConfig,
   Config,
+  IGitHubClient,
   Label,
   RepoSettings,
-} from '~/types'
-import { getRepoInfo, ghApiGet } from '~/utils/gh'
+} from '~/domain'
+import { createClient, getRepoInfo } from '~/infra/github'
 import { logger } from '~/utils/logger'
-
-interface GitHubRepo {
-  description: string | null
-  homepage: string | null
-  visibility: string
-  allow_merge_commit: boolean
-  allow_rebase_merge: boolean
-  allow_squash_merge: boolean
-  delete_branch_on_merge: boolean
-  allow_update_branch: boolean
-  topics: string[]
-}
-
-interface GitHubLabel {
-  name: string
-  color: string
-  description: string | null
-}
-
-interface GitHubBranchProtection {
-  required_pull_request_reviews?: {
-    required_approving_review_count?: number
-    dismiss_stale_reviews?: boolean
-  }
-  required_status_checks?: {
-    strict?: boolean
-    contexts?: string[]
-  }
-  enforce_admins?: {
-    enabled: boolean
-  }
-  required_linear_history?: {
-    enabled: boolean
-  }
-  allow_force_pushes?: {
-    enabled: boolean
-  }
-  allow_deletions?: {
-    enabled: boolean
-  }
-}
-
-interface GitHubSecret {
-  name: string
-}
 
 interface ExportOptions {
   repo?: string
@@ -64,11 +20,12 @@ interface ExportOptions {
 
 export async function exportCommand(options: ExportOptions): Promise<void> {
   const repoInfo = getRepoInfo(options.repo)
+  const client = createClient(options.repo)
   const { owner, name } = repoInfo
 
   logger.info(`Exporting settings from ${owner}/${name}...`)
 
-  const config = await fetchCurrentConfig(owner, name, options.includeSecrets)
+  const config = fetchCurrentConfig(client, options.includeSecrets)
 
   if (options.dir) {
     writeDirectoryConfig(options.dir, config)
@@ -92,15 +49,14 @@ export async function exportCommand(options: ExportOptions): Promise<void> {
   }
 }
 
-async function fetchCurrentConfig(
-  owner: string,
-  name: string,
+function fetchCurrentConfig(
+  client: IGitHubClient,
   includeSecrets?: boolean,
-): Promise<Config> {
+): Config {
   const config: Config = {}
 
   // Fetch repo metadata
-  const repoData = ghApiGet<GitHubRepo>(`/repos/${owner}/${name}`)
+  const repoData = client.getRepo()
 
   config.repo = {
     description: repoData.description || undefined,
@@ -124,7 +80,7 @@ async function fetchCurrentConfig(
   }
 
   // Fetch labels
-  const labels = ghApiGet<GitHubLabel[]>(`/repos/${owner}/${name}/labels`)
+  const labels = client.getLabels()
   if (labels.length > 0) {
     config.labels = {
       replace_default: false,
@@ -144,9 +100,7 @@ async function fetchCurrentConfig(
 
   // Fetch branch protection for main
   try {
-    const protection = ghApiGet<GitHubBranchProtection>(
-      `/repos/${owner}/${name}/branches/main/protection`,
-    )
+    const protection = client.getBranchProtection('main')
 
     const branchConfig: BranchProtectionConfig = {}
 
@@ -191,12 +145,10 @@ async function fetchCurrentConfig(
   // Fetch secrets (names only)
   if (includeSecrets) {
     try {
-      const secretsResponse = ghApiGet<{ secrets: GitHubSecret[] }>(
-        `/repos/${owner}/${name}/actions/secrets`,
-      )
-      if (secretsResponse.secrets && secretsResponse.secrets.length > 0) {
+      const secretNames = client.getSecretNames()
+      if (secretNames.length > 0) {
         config.secrets = {
-          required: secretsResponse.secrets.map((s) => s.name),
+          required: secretNames,
         }
       }
     } catch {

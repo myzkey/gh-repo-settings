@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validateConfig } from '~/utils/schema'
+import { validateConfig } from './schema/config'
 
 describe('validateConfig', () => {
   it('should validate empty config', () => {

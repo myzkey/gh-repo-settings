@@ -1,9 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import yaml from 'js-yaml'
-import type { Config, ValidationResult } from '~/types'
-import { logger } from '~/utils/logger'
-import { validateConfig } from '~/utils/schema'
+import type { Config } from '../types'
 
 const DEFAULT_DIR = '.github/repo-settings'
 const DEFAULT_SINGLE_FILE = '.github/repo-settings.yaml'
@@ -11,7 +9,6 @@ const DEFAULT_SINGLE_FILE = '.github/repo-settings.yaml'
 export interface LoadConfigOptions {
   dir?: string
   config?: string
-  validate?: boolean
 }
 
 export function loadConfig(options: LoadConfigOptions): Config {
@@ -122,25 +119,4 @@ export function configToYaml(config: Config): string {
     noRefs: true,
     sortKeys: false,
   })
-}
-
-export function loadAndValidateConfig(options: LoadConfigOptions): Config {
-  const config = loadConfig(options)
-  const result = validateConfig(config)
-
-  if (!result.valid) {
-    printValidationErrors(result)
-    throw new Error('Config validation failed')
-  }
-
-  return config
-}
-
-export function printValidationErrors(result: ValidationResult): void {
-  logger.error('\nConfig validation failed:\n')
-  for (const error of result.errors) {
-    const path = error.path || '(root)'
-    logger.error(`  - ${path}: ${error.message}`)
-  }
-  logger.log('')
 }

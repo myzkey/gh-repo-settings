@@ -1,5 +1,5 @@
-import type { DiffItem } from '~/types'
 import { colors, logger } from '~/utils/logger'
+import type { DiffItem } from '../types'
 
 export function printDiff(diffs: DiffItem[]): void {
   if (diffs.length === 0) {
