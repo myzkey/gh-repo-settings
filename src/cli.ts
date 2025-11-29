@@ -1,6 +1,7 @@
 import { Command } from 'commander'
 import { applyCommand } from '~/commands/apply'
 import { exportCommand } from '~/commands/export'
+import { initCommand } from '~/commands/init'
 import { planCommand } from '~/commands/plan'
 import { logger, setLogLevel } from '~/utils/logger'
 
@@ -96,6 +97,33 @@ program
         schemaOnly: options.schemaOnly,
       })
     } catch (error) {
+      logger.error(
+        `Error: ${error instanceof Error ? error.message : String(error)}`,
+      )
+      process.exit(1)
+    }
+  })
+
+program
+  .command('init')
+  .description('Initialize a new configuration file interactively')
+  .option(
+    '-o, --output <path>',
+    'Output file path',
+    '.github/repo-settings.yaml',
+  )
+  .option('-f, --force', 'Overwrite existing file')
+  .action(async (options) => {
+    try {
+      await initCommand({
+        output: options.output,
+        force: options.force,
+      })
+    } catch (error) {
+      if ((error as { name?: string }).name === 'ExitPromptError') {
+        logger.info('\nInit cancelled.')
+        process.exit(0)
+      }
       logger.error(
         `Error: ${error instanceof Error ? error.message : String(error)}`,
       )

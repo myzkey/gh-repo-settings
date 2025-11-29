@@ -22,17 +22,36 @@ gh extension install myzkey/gh-repo-settings
 ## 快速开始
 
 ```bash
-# 将当前仓库设置导出为 YAML
-gh repo-settings export -s repo-settings.yaml
+# 交互式创建配置文件
+gh repo-settings init
 
 # 预览变更（类似 terraform plan）
-gh repo-settings plan -c repo-settings.yaml
+gh repo-settings plan
 
 # 应用变更
-gh repo-settings apply -c repo-settings.yaml
+gh repo-settings apply
 ```
 
+默认配置文件路径（按优先级）：
+1. `.github/repo-settings/`（目录）
+2. `.github/repo-settings.yaml`（单文件）
+
 ## 命令
+
+### `init` - 初始化配置文件
+
+交互式创建配置文件。
+
+```bash
+# 交互式创建 .github/repo-settings.yaml
+gh repo-settings init
+
+# 指定输出路径
+gh repo-settings init -o config.yaml
+
+# 覆盖现有文件
+gh repo-settings init -f
+```
 
 ### `export` - 导出仓库设置
 
@@ -60,8 +79,11 @@ gh repo-settings export -r owner/repo -s settings.yaml
 验证配置并显示计划的变更，不实际应用。
 
 ```bash
-# 预览所有变更
-gh repo-settings plan -c .github/repo-settings.yaml
+# 预览所有变更（使用默认配置路径）
+gh repo-settings plan
+
+# 指定配置文件
+gh repo-settings plan -c custom-config.yaml
 
 # 使用目录配置预览
 gh repo-settings plan -d .github/repo-settings/
@@ -81,11 +103,14 @@ gh repo-settings plan --env
 将 YAML 配置应用到 GitHub 仓库。
 
 ```bash
-# 应用变更
-gh repo-settings apply -c .github/repo-settings.yaml
+# 应用变更（使用默认配置路径）
+gh repo-settings apply
 
 # 演练模式（与 plan 相同）
 gh repo-settings apply --dry-run
+
+# 指定配置文件
+gh repo-settings apply -c custom-config.yaml
 
 # 从目录应用
 gh repo-settings apply -d .github/repo-settings/
