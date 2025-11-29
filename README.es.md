@@ -30,13 +30,13 @@ Descarga el binario más reciente desde [Releases](https://github.com/myzkey/gh-
 
 ```bash
 # Crear archivo de configuración interactivamente
-gh repo-settings init
+gh rset init
 
 # Previsualizar cambios (como terraform plan)
-gh repo-settings plan
+gh rset plan
 
 # Aplicar cambios
-gh repo-settings apply
+gh rset apply
 ```
 
 Rutas de configuración por defecto (en orden de prioridad):
@@ -51,13 +51,13 @@ Crea un archivo de configuración interactivamente.
 
 ```bash
 # Crear .github/repo-settings.yaml interactivamente
-gh repo-settings init
+gh rset init
 
 # Especificar ruta de salida
-gh repo-settings init -o config.yaml
+gh rset init -o config.yaml
 
 # Sobrescribir archivo existente
-gh repo-settings init -f
+gh rset init -f
 ```
 
 ### `export` - Exportar configuración del repositorio
@@ -66,19 +66,19 @@ Exporta la configuración actual del repositorio de GitHub en formato YAML.
 
 ```bash
 # Exportar a stdout
-gh repo-settings export
+gh rset export
 
 # Exportar a archivo único
-gh repo-settings export -s .github/repo-settings.yaml
+gh rset export -s .github/repo-settings.yaml
 
 # Exportar a directorio (múltiples archivos)
-gh repo-settings export -d .github/repo-settings/
+gh rset export -d .github/repo-settings/
 
 # Incluir nombres de secrets
-gh repo-settings export -s settings.yaml --include-secrets
+gh rset export -s settings.yaml --include-secrets
 
 # Exportar desde repositorio específico
-gh repo-settings export -r owner/repo -s settings.yaml
+gh rset export -r owner/repo -s settings.yaml
 ```
 
 ### `plan` - Previsualizar cambios
@@ -87,22 +87,22 @@ Valida la configuración y muestra los cambios planificados sin aplicarlos.
 
 ```bash
 # Previsualizar todos los cambios (usa ruta por defecto)
-gh repo-settings plan
+gh rset plan
 
 # Especificar archivo de configuración
-gh repo-settings plan -c custom-config.yaml
+gh rset plan -c custom-config.yaml
 
 # Previsualizar con configuración de directorio
-gh repo-settings plan -d .github/repo-settings/
+gh rset plan -d .github/repo-settings/
 
 # Solo validación de esquema (sin llamadas API)
-gh repo-settings plan --schema-only
+gh rset plan --schema-only
 
 # Verificar solo existencia de secrets
-gh repo-settings plan --secrets
+gh rset plan --secrets
 
 # Verificar solo variables de entorno
-gh repo-settings plan --env
+gh rset plan --env
 ```
 
 ### `apply` - Aplicar cambios
@@ -111,16 +111,16 @@ Aplica la configuración YAML al repositorio de GitHub.
 
 ```bash
 # Aplicar cambios (usa ruta por defecto)
-gh repo-settings apply
+gh rset apply
 
 # Ejecución en seco (igual que plan)
-gh repo-settings apply --dry-run
+gh rset apply --dry-run
 
 # Especificar archivo de configuración
-gh repo-settings apply -c custom-config.yaml
+gh rset apply -c custom-config.yaml
 
 # Aplicar desde directorio
-gh repo-settings apply -d .github/repo-settings/
+gh rset apply -d .github/repo-settings/
 ```
 
 ## Configuración
@@ -356,7 +356,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check drift
-        run: gh repo-settings plan
+        run: gh rset plan
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```

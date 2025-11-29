@@ -1,9 +1,9 @@
 .PHONY: build install install-local clean test lint
 
-BINARY_NAME=gh-repo-settings
+BINARY_NAME=gh-rset
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS=-ldflags "-X main.version=$(VERSION)"
-GH_EXTENSION_DIR=$(HOME)/.local/share/gh/extensions/gh-repo-settings
+GH_EXTENSION_DIR=$(HOME)/.local/share/gh/extensions/gh-rset
 
 build:
 	go build $(LDFLAGS) -o $(BINARY_NAME) .

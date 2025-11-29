@@ -7,7 +7,8 @@ before:
     - go mod tidy
 
 builds:
-  - env:
+  - binary: gh-rset
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
