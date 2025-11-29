@@ -6,16 +6,16 @@ import (
 
 // MockClient is a mock implementation of GitHubClient for testing
 type MockClient struct {
-	RepoData                 *RepoData
-	Labels                   []LabelData
-	BranchProtections        map[string]*BranchProtectionData
-	Secrets                  []string
-	Variables                []string
-	ActionsPermissions       *ActionsPermissionsData
-	ActionsSelected          *ActionsSelectedData
-	ActionsWorkflowPerms     *ActionsWorkflowPermissionsData
-	Owner                    string
-	Name                     string
+	RepoData             *RepoData
+	Labels               []LabelData
+	BranchProtections    map[string]*BranchProtectionData
+	Secrets              []string
+	Variables            []string
+	ActionsPermissions   *ActionsPermissionsData
+	ActionsSelected      *ActionsSelectedData
+	ActionsWorkflowPerms *ActionsWorkflowPermissionsData
+	Owner                string
+	Name                 string
 
 	// Error fields for testing error scenarios
 	GetRepoError                       error
@@ -37,15 +37,15 @@ type MockClient struct {
 	UpdateActionsWorkflowPermsError    error
 
 	// Call tracking
-	UpdateRepoCalls                  []map[string]interface{}
-	SetTopicsCalls                   [][]string
-	CreateLabelCalls                 []LabelCall
-	UpdateLabelCalls                 []UpdateLabelCall
-	DeleteLabelCalls                 []string
-	UpdateBranchProtectionCalls      []BranchProtectionCall
-	UpdateActionsPermissionsCalls    []ActionsPermissionsCall
-	UpdateActionsSelectedCalls       []*ActionsSelectedData
-	UpdateActionsWorkflowPermsCalls  []ActionsWorkflowPermsCall
+	UpdateRepoCalls                 []map[string]interface{}
+	SetTopicsCalls                  [][]string
+	CreateLabelCalls                []LabelCall
+	UpdateLabelCalls                []UpdateLabelCall
+	DeleteLabelCalls                []string
+	UpdateBranchProtectionCalls     []BranchProtectionCall
+	UpdateActionsPermissionsCalls   []ActionsPermissionsCall
+	UpdateActionsSelectedCalls      []*ActionsSelectedData
+	UpdateActionsWorkflowPermsCalls []ActionsWorkflowPermsCall
 }
 
 // ActionsPermissionsCall tracks UpdateActionsPermissions calls

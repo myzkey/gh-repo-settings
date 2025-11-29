@@ -185,30 +185,6 @@ func loadFromDirectory(dirPath string) (*Config, error) {
 	return config, nil
 }
 
-func mergeConfig(dst, src *Config) {
-	if src.Repo != nil {
-		dst.Repo = src.Repo
-	}
-	if src.Topics != nil {
-		dst.Topics = src.Topics
-	}
-	if src.Labels != nil {
-		dst.Labels = src.Labels
-	}
-	if src.BranchProtection != nil {
-		dst.BranchProtection = src.BranchProtection
-	}
-	if src.Secrets != nil {
-		dst.Secrets = src.Secrets
-	}
-	if src.Env != nil {
-		dst.Env = src.Env
-	}
-	if src.Actions != nil {
-		dst.Actions = src.Actions
-	}
-}
-
 // ToYAML converts config to YAML string
 func (c *Config) ToYAML() (string, error) {
 	data, err := yaml.Marshal(c)
