@@ -87,11 +87,11 @@ jobs:
           git tag "$TAG" "$MERGE_SHA"
           git push origin "$TAG"
 
-      # - name: Run GoReleaser
-      #   if: steps.meta.outputs.skip == 'false'
-      #   uses: goreleaser/goreleaser-action@v6
-      #   with:
-      #     version: latest
-      #     args: release --clean
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run GoReleaser
+        if: steps.meta.outputs.skip == 'false'
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
