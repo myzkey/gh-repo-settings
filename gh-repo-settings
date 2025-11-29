@@ -1,2 +1,10 @@
-#!/usr/bin/env node
-import "./dist/cli.js";
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Auto-build if dist/cli.js doesn't exist
+if [ ! -f "$SCRIPT_DIR/dist/cli.js" ]; then
+  echo "Building gh-repo-settings..."
+  (cd "$SCRIPT_DIR" && pnpm install --silent && pnpm run build --silent)
+fi
+
+node "$SCRIPT_DIR/dist/cli.js" "$@"
