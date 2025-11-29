@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/myzkey/gh-repo-settings/internal/logger"
 	"github.com/spf13/cobra"
 )
 
@@ -17,6 +18,16 @@ var rootCmd = &cobra.Command{
 	Short:   "Manage GitHub repository settings via YAML configuration",
 	Long:    `A GitHub CLI extension to manage repository settings via YAML configuration. Inspired by Terraform's workflow.`,
 	Version: "0.1.0",
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Set log level based on flags
+		if quiet {
+			logger.SetDefaultLevel(logger.LevelQuiet)
+		} else if verbose {
+			logger.SetDefaultLevel(logger.LevelVerbose)
+		} else {
+			logger.SetDefaultLevel(logger.LevelNormal)
+		}
+	},
 }
 
 func Execute() {
