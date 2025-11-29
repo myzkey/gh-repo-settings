@@ -1,0 +1,308 @@
+# gh-repo-settings
+
+[English](./README.md) | [日本語](./README.ja.md) | [简体中文](./README.zh-CN.md) | [한국어](./README.ko.md)
+
+Una extensión de GitHub CLI para gestionar la configuración de repositorios mediante YAML. Inspirado en el flujo de trabajo de Terraform: define el estado deseado en código, previsualiza los cambios y aplícalos.
+
+## Características
+
+- **Infraestructura como Código**: Define la configuración del repositorio en archivos YAML
+- **Flujo de trabajo estilo Terraform**: `plan` para previsualizar, `apply` para ejecutar
+- **Exportar configuración existente**: Genera YAML desde la configuración actual del repositorio
+- **Validación de esquema**: Valida la configuración antes de aplicar
+- **Múltiples formatos de configuración**: Archivo único o configuración basada en directorios
+- **Verificación de Secrets/Env**: Verifica que existan los secrets y variables de entorno requeridos
+
+## Instalación
+
+```bash
+gh extension install myzkey/gh-repo-settings
+```
+
+## Inicio Rápido
+
+```bash
+# Exportar configuración actual del repositorio a YAML
+gh repo-settings export -s repo-settings.yaml
+
+# Previsualizar cambios (como terraform plan)
+gh repo-settings plan -c repo-settings.yaml
+
+# Aplicar cambios
+gh repo-settings apply -c repo-settings.yaml
+```
+
+## Comandos
+
+### `export` - Exportar configuración del repositorio
+
+Exporta la configuración actual del repositorio de GitHub en formato YAML.
+
+```bash
+# Exportar a stdout
+gh repo-settings export
+
+# Exportar a archivo único
+gh repo-settings export -s .github/repo-settings.yaml
+
+# Exportar a directorio (múltiples archivos)
+gh repo-settings export -d .github/repo-settings/
+
+# Incluir nombres de secrets
+gh repo-settings export -s settings.yaml --include-secrets
+
+# Exportar desde repositorio específico
+gh repo-settings export -r owner/repo -s settings.yaml
+```
+
+### `plan` - Previsualizar cambios
+
+Valida la configuración y muestra los cambios planificados sin aplicarlos.
+
+```bash
+# Previsualizar todos los cambios
+gh repo-settings plan -c .github/repo-settings.yaml
+
+# Previsualizar con configuración de directorio
+gh repo-settings plan -d .github/repo-settings/
+
+# Solo validación de esquema (sin llamadas API)
+gh repo-settings plan --schema-only
+
+# Verificar solo existencia de secrets
+gh repo-settings plan --secrets
+
+# Verificar solo variables de entorno
+gh repo-settings plan --env
+```
+
+### `apply` - Aplicar cambios
+
+Aplica la configuración YAML al repositorio de GitHub.
+
+```bash
+# Aplicar cambios
+gh repo-settings apply -c .github/repo-settings.yaml
+
+# Ejecución en seco (igual que plan)
+gh repo-settings apply --dry-run
+
+# Aplicar desde directorio
+gh repo-settings apply -d .github/repo-settings/
+```
+
+## Configuración
+
+### Archivo Único
+
+Crear `.github/repo-settings.yaml`:
+
+```yaml
+repo:
+  description: "Mi proyecto increíble"
+  homepage: "https://example.com"
+  visibility: public
+  allow_merge_commit: false
+  allow_rebase_merge: true
+  allow_squash_merge: true
+  delete_branch_on_merge: true
+
+topics:
+  - typescript
+  - cli
+  - github
+
+labels:
+  replace_default: true
+  items:
+    - name: bug
+      color: ff0000
+      description: Algo no funciona
+    - name: feature
+      color: 0e8a16
+      description: Solicitud de nueva funcionalidad
+
+branch_protection:
+  main:
+    required_reviews: 1
+    dismiss_stale_reviews: true
+    require_status_checks: true
+    status_checks:
+      - ci/test
+      - ci/lint
+    enforce_admins: false
+
+secrets:
+  required:
+    - API_TOKEN
+    - DEPLOY_KEY
+
+env:
+  required:
+    - DATABASE_URL
+```
+
+### Estructura de Directorios
+
+También puedes dividir la configuración en múltiples archivos:
+
+```
+.github/repo-settings/
+├── repo.yaml
+├── topics.yaml
+├── labels.yaml
+├── branch-protection.yaml
+├── secrets.yaml
+└── env.yaml
+```
+
+## Referencia de Configuración
+
+### `repo` - Configuración del Repositorio
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `description` | string | Descripción del repositorio |
+| `homepage` | string | URL de la página principal |
+| `visibility` | `public` \| `private` \| `internal` | Visibilidad del repositorio |
+| `allow_merge_commit` | boolean | Permitir merge commits |
+| `allow_rebase_merge` | boolean | Permitir rebase merge |
+| `allow_squash_merge` | boolean | Permitir squash merge |
+| `delete_branch_on_merge` | boolean | Eliminar rama automáticamente después del merge |
+| `allow_update_branch` | boolean | Permitir actualizar rama del PR |
+
+### `topics` - Temas del Repositorio
+
+Array de strings de temas:
+
+```yaml
+topics:
+  - javascript
+  - nodejs
+  - cli
+```
+
+### `labels` - Etiquetas de Issues
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `replace_default` | boolean | Eliminar etiquetas que no están en la configuración |
+| `items` | array | Lista de definiciones de etiquetas |
+| `items[].name` | string | Nombre de la etiqueta |
+| `items[].color` | string | Color hexadecimal (sin `#`) |
+| `items[].description` | string | Descripción de la etiqueta |
+
+### `branch_protection` - Reglas de Protección de Rama
+
+```yaml
+branch_protection:
+  <nombre_rama>:
+    required_reviews: 1          # Número de aprobaciones requeridas
+    dismiss_stale_reviews: true  # Descartar aprobaciones en nuevos commits
+    require_code_owner: false    # Requerir revisión de CODEOWNERS
+    require_status_checks: true  # Requerir checks de estado
+    status_checks:               # Nombres de checks requeridos
+      - ci/test
+    strict_status_checks: false  # Requerir rama actualizada
+    enforce_admins: false        # Incluir administradores
+    restrict_pushes: false       # Restringir quién puede hacer push
+    allow_force_pushes: false    # Permitir force push
+    allow_deletions: false       # Permitir eliminación de rama
+```
+
+### `secrets` - Secrets Requeridos
+
+Verifica que existan los secrets requeridos del repositorio (no gestiona valores):
+
+```yaml
+secrets:
+  required:
+    - API_TOKEN
+    - DEPLOY_KEY
+```
+
+### `env` - Variables de Entorno Requeridas
+
+Verifica que existan las variables requeridas del repositorio:
+
+```yaml
+env:
+  required:
+    - DATABASE_URL
+    - SENTRY_DSN
+```
+
+## Integración CI/CD
+
+### Flujo de Trabajo de GitHub Actions
+
+```yaml
+name: Repo Settings Check
+
+on:
+  pull_request:
+    paths:
+      - ".github/repo-settings.yaml"
+      - ".github/repo-settings/**"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install gh-repo-settings
+        run: gh extension install myzkey/gh-repo-settings
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validar esquema
+        run: gh repo-settings plan --schema-only
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verificar diferencias de configuración
+        run: gh repo-settings plan
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+## Opciones Globales
+
+| Opción | Descripción |
+|--------|-------------|
+| `-v, --verbose` | Mostrar salida de depuración |
+| `-q, --quiet` | Mostrar solo errores |
+| `-r, --repo <owner/name>` | Repositorio destino (predeterminado: actual) |
+
+## Desarrollo
+
+```bash
+# Instalar dependencias
+pnpm install
+
+# Compilar
+pnpm build
+
+# Ejecutar tests
+pnpm test
+
+# Lint
+pnpm lint
+
+# Verificación de tipos
+pnpm typecheck
+```
+
+## Licencia
+
+MIT

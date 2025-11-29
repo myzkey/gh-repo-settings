@@ -27,30 +27,30 @@ jobs:
 
       - name: Install gh-repo-settings
         run: |
-          gh extension install <owner>/gh-repo-settings
+          gh extension install myzkey/gh-repo-settings
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Validate config schema
         run: |
-          gh repo-settings check --schema-only
+          gh repo-settings plan --schema-only
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check settings diff
         run: |
-          gh repo-settings check
+          gh repo-settings plan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check secrets
         run: |
-          gh repo-settings check --secrets
+          gh repo-settings plan --secrets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check environment variables
         run: |
-          gh repo-settings check --env
+          gh repo-settings plan --env
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
