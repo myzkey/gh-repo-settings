@@ -15,9 +15,15 @@ A GitHub CLI extension to manage repository settings via YAML configuration. Ins
 
 ## Installation
 
+### Via GitHub CLI (Recommended)
+
 ```bash
 gh extension install myzkey/gh-repo-settings
 ```
+
+### Manual Installation
+
+Download the latest binary from [Releases](https://github.com/myzkey/gh-repo-settings/releases) and add it to your PATH.
 
 ## Quick Start
 
@@ -294,25 +300,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
       - name: Install gh-repo-settings
         run: gh extension install myzkey/gh-repo-settings
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Validate schema
-        run: gh repo-settings plan --schema-only
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check drift
         run: gh repo-settings plan
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Global Options
@@ -326,20 +322,20 @@ jobs:
 ## Development
 
 ```bash
-# Install dependencies
-pnpm install
-
 # Build
-pnpm build
+make build
 
 # Run tests
-pnpm test
+make test
 
-# Lint
-pnpm lint
+# Lint (requires golangci-lint)
+make lint
 
-# Type check
-pnpm typecheck
+# Build for all platforms
+make build-all
+
+# Clean build artifacts
+make clean
 ```
 
 ## License

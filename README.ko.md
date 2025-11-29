@@ -15,9 +15,15 @@ YAML 설정을 통해 GitHub 저장소 설정을 관리하는 GitHub CLI 확장 
 
 ## 설치
 
+### GitHub CLI를 통해 (권장)
+
 ```bash
 gh extension install myzkey/gh-repo-settings
 ```
+
+### 수동 설치
+
+[Releases](https://github.com/myzkey/gh-repo-settings/releases)에서 최신 바이너리를 다운로드하고 PATH에 추가하세요.
 
 ## 빠른 시작
 
@@ -294,25 +300,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
       - name: Install gh-repo-settings
         run: gh extension install myzkey/gh-repo-settings
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 스키마 검증
-        run: gh repo-settings plan --schema-only
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 설정 차이 확인
+      - name: Check drift
         run: gh repo-settings plan
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## 전역 옵션
@@ -326,20 +322,20 @@ jobs:
 ## 개발
 
 ```bash
-# 의존성 설치
-pnpm install
-
 # 빌드
-pnpm build
+make build
 
 # 테스트 실행
-pnpm test
+make test
 
-# 린트
-pnpm lint
+# 린트 (golangci-lint 필요)
+make lint
 
-# 타입 체크
-pnpm typecheck
+# 전체 플랫폼 빌드
+make build-all
+
+# 빌드 아티팩트 정리
+make clean
 ```
 
 ## 라이선스

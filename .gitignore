@@ -3,6 +3,9 @@ node_modules/
 
 # Build output
 dist/
+gh-repo-settings
+gh-repo-settings-go
+gh-repo-settings.exe
 
 # IDE
 .idea/
