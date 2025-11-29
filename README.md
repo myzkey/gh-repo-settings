@@ -1,6 +1,13 @@
 # gh-repo-settings
 
+[![CI](https://github.com/myzkey/gh-repo-settings/actions/workflows/lint.yml/badge.svg)](https://github.com/myzkey/gh-repo-settings/actions/workflows/lint.yml)
+[![Test](https://github.com/myzkey/gh-repo-settings/actions/workflows/test.yml/badge.svg)](https://github.com/myzkey/gh-repo-settings/actions/workflows/test.yml)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/myzkey/gh-repo-settings)](https://github.com/myzkey/gh-repo-settings)
+[![Release](https://img.shields.io/github/v/release/myzkey/gh-repo-settings)](https://github.com/myzkey/gh-repo-settings/releases)
+
 [日本語](./README.ja.md) | [简体中文](./README.zh-CN.md) | [한국어](./README.ko.md) | [Español](./README.es.md)
+
+**Keep your repo settings, labels and branch protections in sync across dozens of repositories via YAML + GitHub CLI.**
 
 A GitHub CLI extension to manage repository settings via YAML configuration. Inspired by Terraform's workflow - define your desired state in code, see planned changes, and apply them.
 
@@ -318,6 +325,28 @@ jobs:
 | `-v, --verbose` | Show debug output |
 | `-q, --quiet` | Only show errors |
 | `-r, --repo <owner/name>` | Target repository (default: current) |
+
+## Authentication & Permissions
+
+This extension uses the GitHub CLI (`gh`) for authentication. Make sure you're logged in:
+
+```bash
+gh auth login
+```
+
+### Required Token Permissions
+
+| Feature | Required Scopes |
+|---------|-----------------|
+| Repository settings | `repo` |
+| Branch protection | `repo` (admin access to repository) |
+| Secrets check | `repo`, `admin:repo_hook` |
+| Environment variables | `repo` |
+
+### Token Types
+
+- **`GITHUB_TOKEN` (GitHub Actions)**: Works for most operations within the same repository. However, branch protection rules require admin access, which `GITHUB_TOKEN` may not have by default.
+- **Personal Access Token (PAT)**: Required for cross-repository operations or when `GITHUB_TOKEN` lacks sufficient permissions. Use a fine-grained PAT with `Repository administration` permission for full functionality.
 
 ## Development
 
