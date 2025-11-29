@@ -24,26 +24,50 @@ type LoadOptions struct {
 
 // Load loads configuration from file or directory
 func Load(opts LoadOptions) (*Config, error) {
+	var config *Config
+	var basePath string
+	var err error
+
 	// Priority: --dir > --config > default dir > default single file
 	if opts.Dir != "" {
-		return loadFromDirectory(opts.Dir)
+		config, err = loadFromDirectory(opts.Dir)
+		basePath = opts.Dir
+	} else if opts.Config != "" {
+		config, err = loadSingleFile(opts.Config)
+		basePath = filepath.Dir(opts.Config)
+	} else if info, err := os.Stat(DefaultDir); err == nil && info.IsDir() {
+		config, err = loadFromDirectory(DefaultDir)
+		basePath = DefaultDir
+	} else if _, err := os.Stat(DefaultSingleFile); err == nil {
+		config, err = loadSingleFile(DefaultSingleFile)
+		basePath = filepath.Dir(DefaultSingleFile)
+	} else {
+		return nil, fmt.Errorf("no config found. Create %s/ or %s", DefaultDir, DefaultSingleFile)
 	}
 
-	if opts.Config != "" {
-		return loadSingleFile(opts.Config)
+	if err != nil {
+		return nil, err
 	}
 
-	// Check default directory
-	if info, err := os.Stat(DefaultDir); err == nil && info.IsDir() {
-		return loadFromDirectory(DefaultDir)
+	// Resolve extends
+	if len(config.Extends) > 0 {
+		visited := make(map[string]bool)
+		config, err = resolveExtends(config, basePath, visited)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	// Check default single file
-	if _, err := os.Stat(DefaultSingleFile); err == nil {
-		return loadSingleFile(DefaultSingleFile)
-	}
+	return config, nil
+}
 
-	return nil, fmt.Errorf("no config found. Create %s/ or %s", DefaultDir, DefaultSingleFile)
+// ToYAML converts config to YAML string
+func (c *Config) ToYAML() (string, error) {
+	data, err := yaml.Marshal(c)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 func loadSingleFile(filePath string) (*Config, error) {
@@ -183,13 +207,4 @@ func loadFromDirectory(dirPath string) (*Config, error) {
 	}
 
 	return config, nil
-}
-
-// ToYAML converts config to YAML string
-func (c *Config) ToYAML() (string, error) {
-	data, err := yaml.Marshal(c)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
 }

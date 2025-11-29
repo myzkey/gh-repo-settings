@@ -2,6 +2,7 @@ package config
 
 // Config represents the full configuration for repository settings
 type Config struct {
+	Extends          []string               `yaml:"extends,omitempty" json:"extends,omitempty" jsonschema:"description=List of preset URLs or file paths to inherit from"`
 	Repo             *RepoConfig            `yaml:"repo,omitempty" json:"repo,omitempty" jsonschema:"description=Repository settings"`
 	Topics           []string               `yaml:"topics,omitempty" json:"topics,omitempty" jsonschema:"description=Repository topics"`
 	Labels           *LabelsConfig          `yaml:"labels,omitempty" json:"labels,omitempty" jsonschema:"description=Issue labels configuration"`

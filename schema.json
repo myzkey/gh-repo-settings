@@ -239,6 +239,13 @@
     }
   },
   "properties": {
+    "extends": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "description": "List of preset URLs or file paths to inherit from"
+    },
     "repo": {
       "$ref": "#/$defs/RepoConfig",
       "description": "Repository settings"
