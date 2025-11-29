@@ -1,19 +1,23 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/myzkey/gh-repo-settings/internal/config"
 	"github.com/myzkey/gh-repo-settings/internal/github"
+	"github.com/myzkey/gh-repo-settings/internal/logger"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
 
 var (
-	exportDir           string
-	exportSingle        string
+	exportDir            string
+	exportSingle         string
 	exportIncludeSecrets bool
 )
 
@@ -32,17 +36,32 @@ func init() {
 }
 
 func runExport(cmd *cobra.Command, args []string) error {
-	client, err := github.NewClient(repo)
+	// Setup context with cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle interrupt signals
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		logger.Info("Received interrupt, cancelling...")
+		cancel()
+	}()
+
+	logger.Debug("Starting export command")
+
+	client, err := github.NewClientWithContext(ctx, repo)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Exporting settings from %s/%s...\n", client.Repo.Owner, client.Repo.Name)
+	logger.Info("Exporting settings from %s/%s...", client.RepoOwner(), client.RepoName())
 
 	cfg := &config.Config{}
 
 	// Get repo settings
-	repoData, err := client.GetRepo()
+	repoData, err := client.GetRepo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get repo settings: %w", err)
 	}
@@ -64,7 +83,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get labels
-	labels, err := client.GetLabels()
+	labels, err := client.GetLabels(ctx)
 	if err == nil && len(labels) > 0 {
 		cfg.Labels = &config.LabelsConfig{
 			ReplaceDefault: false,
@@ -81,14 +100,14 @@ func runExport(cmd *cobra.Command, args []string) error {
 
 	// Get secrets if requested
 	if exportIncludeSecrets {
-		secrets, err := client.GetSecrets()
+		secrets, err := client.GetSecrets(ctx)
 		if err == nil && len(secrets) > 0 {
 			cfg.Secrets = &config.SecretsConfig{
 				Required: secrets,
 			}
 		}
 
-		vars, err := client.GetVariables()
+		vars, err := client.GetVariables(ctx)
 		if err == nil && len(vars) > 0 {
 			cfg.Env = &config.EnvConfig{
 				Required: vars,
@@ -115,7 +134,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 }
 
 func exportToDirectory(cfg *config.Config, dir string) error {
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 
@@ -154,7 +173,7 @@ func exportToDirectory(cfg *config.Config, dir string) error {
 		}
 	}
 
-	fmt.Printf("Exported to %s/\n", dir)
+	logger.Success("Exported to %s/", dir)
 	return nil
 }
 
@@ -162,7 +181,7 @@ func exportToSingleFile(cfg *config.Config, path string) error {
 	if err := writeYAMLFile(path, cfg); err != nil {
 		return err
 	}
-	fmt.Printf("Exported to %s\n", path)
+	logger.Success("Exported to %s", path)
 	return nil
 }
 
@@ -171,5 +190,5 @@ func writeYAMLFile(path string, data interface{}) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, yamlData, 0644)
+	return os.WriteFile(path, yamlData, 0o644)
 }
