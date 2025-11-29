@@ -122,6 +122,7 @@ func applyChanges(ctx context.Context, client *github.Client, cfg *config.Config
 	var topicsChanged bool
 	var labelChanges []diff.Change
 	branchProtectionChanges := make(map[string][]diff.Change)
+	var actionsChanges []diff.Change
 
 	for _, change := range plan.Changes {
 		switch change.Category {
@@ -135,6 +136,8 @@ func applyChanges(ctx context.Context, client *github.Client, cfg *config.Config
 			// Extract branch name from key (format: "branch.setting")
 			branchName := extractBranchName(change.Key)
 			branchProtectionChanges[branchName] = append(branchProtectionChanges[branchName], change)
+		case "actions":
+			actionsChanges = append(actionsChanges, change)
 		}
 	}
 
@@ -215,8 +218,89 @@ func applyChanges(ctx context.Context, client *github.Client, cfg *config.Config
 		fmt.Println(green("✓"))
 	}
 
+	// Apply actions changes
+	if len(actionsChanges) > 0 && cfg.Actions != nil {
+		if err := applyActionsChanges(ctx, client, cfg, actionsChanges, green, red); err != nil {
+			return err
+		}
+	}
+
 	fmt.Println()
 	logger.Success("Apply complete!")
+
+	return nil
+}
+
+func applyActionsChanges(ctx context.Context, client *github.Client, cfg *config.Config, changes []diff.Change, green, red func(a ...interface{}) string) error {
+	// Check which settings need updating
+	needsPermissionsUpdate := false
+	needsSelectedUpdate := false
+	needsWorkflowUpdate := false
+
+	for _, change := range changes {
+		switch change.Key {
+		case "enabled", "allowed_actions":
+			needsPermissionsUpdate = true
+		case "github_owned_allowed", "verified_allowed", "patterns_allowed":
+			needsSelectedUpdate = true
+		case "default_workflow_permissions", "can_approve_pull_request_reviews":
+			needsWorkflowUpdate = true
+		}
+	}
+
+	// Update actions permissions
+	if needsPermissionsUpdate {
+		fmt.Print("  Updating actions permissions... ")
+		enabled := true
+		if cfg.Actions.Enabled != nil {
+			enabled = *cfg.Actions.Enabled
+		}
+		allowedActions := "all"
+		if cfg.Actions.AllowedActions != nil {
+			allowedActions = *cfg.Actions.AllowedActions
+		}
+		if err := client.UpdateActionsPermissions(ctx, enabled, allowedActions); err != nil {
+			fmt.Println(red("✗"))
+			return fmt.Errorf("failed to update actions permissions: %w", err)
+		}
+		fmt.Println(green("✓"))
+	}
+
+	// Update selected actions
+	if needsSelectedUpdate && cfg.Actions.SelectedActions != nil {
+		fmt.Print("  Updating selected actions... ")
+		settings := &github.ActionsSelectedData{}
+		if cfg.Actions.SelectedActions.GithubOwnedAllowed != nil {
+			settings.GithubOwnedAllowed = *cfg.Actions.SelectedActions.GithubOwnedAllowed
+		}
+		if cfg.Actions.SelectedActions.VerifiedAllowed != nil {
+			settings.VerifiedAllowed = *cfg.Actions.SelectedActions.VerifiedAllowed
+		}
+		settings.PatternsAllowed = cfg.Actions.SelectedActions.PatternsAllowed
+		if err := client.UpdateActionsSelectedActions(ctx, settings); err != nil {
+			fmt.Println(red("✗"))
+			return fmt.Errorf("failed to update selected actions: %w", err)
+		}
+		fmt.Println(green("✓"))
+	}
+
+	// Update workflow permissions
+	if needsWorkflowUpdate {
+		fmt.Print("  Updating workflow permissions... ")
+		permissions := "read"
+		if cfg.Actions.DefaultWorkflowPermissions != nil {
+			permissions = *cfg.Actions.DefaultWorkflowPermissions
+		}
+		canApprove := false
+		if cfg.Actions.CanApprovePullRequestReviews != nil {
+			canApprove = *cfg.Actions.CanApprovePullRequestReviews
+		}
+		if err := client.UpdateActionsWorkflowPermissions(ctx, permissions, canApprove); err != nil {
+			fmt.Println(red("✗"))
+			return fmt.Errorf("failed to update workflow permissions: %w", err)
+		}
+		fmt.Println(green("✓"))
+	}
 
 	return nil
 }

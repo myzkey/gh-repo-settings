@@ -25,6 +25,14 @@ type GitHubClient interface {
 	GetSecrets(ctx context.Context) ([]string, error)
 	GetVariables(ctx context.Context) ([]string, error)
 
+	// Actions permissions
+	GetActionsPermissions(ctx context.Context) (*ActionsPermissionsData, error)
+	UpdateActionsPermissions(ctx context.Context, enabled bool, allowedActions string) error
+	GetActionsSelectedActions(ctx context.Context) (*ActionsSelectedData, error)
+	UpdateActionsSelectedActions(ctx context.Context, settings *ActionsSelectedData) error
+	GetActionsWorkflowPermissions(ctx context.Context) (*ActionsWorkflowPermissionsData, error)
+	UpdateActionsWorkflowPermissions(ctx context.Context, permissions string, canApprove bool) error
+
 	// Repository info
 	RepoOwner() string
 	RepoName() string

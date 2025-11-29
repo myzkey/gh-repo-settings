@@ -343,3 +343,209 @@ func TestToYAML(t *testing.T) {
 func parseYAML(data []byte, v interface{}) error {
 	return nil // Simplified for test
 }
+
+func TestLoadActionsConfig(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "config-actions-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tests := []struct {
+		name        string
+		content     string
+		wantErr     bool
+		checkConfig func(*testing.T, *Config)
+	}{
+		{
+			name: "full actions config",
+			content: `
+actions:
+  enabled: true
+  allowed_actions: selected
+  selected_actions:
+    github_owned_allowed: true
+    verified_allowed: false
+    patterns_allowed:
+      - "actions/*"
+      - "github/codeql-action/*"
+  default_workflow_permissions: read
+  can_approve_pull_request_reviews: false
+`,
+			wantErr: false,
+			checkConfig: func(t *testing.T, cfg *Config) {
+				if cfg.Actions == nil {
+					t.Error("expected actions config")
+					return
+				}
+				if cfg.Actions.Enabled == nil || !*cfg.Actions.Enabled {
+					t.Error("expected enabled to be true")
+				}
+				if cfg.Actions.AllowedActions == nil || *cfg.Actions.AllowedActions != "selected" {
+					t.Error("expected allowed_actions to be 'selected'")
+				}
+				if cfg.Actions.SelectedActions == nil {
+					t.Error("expected selected_actions config")
+					return
+				}
+				if cfg.Actions.SelectedActions.GithubOwnedAllowed == nil || !*cfg.Actions.SelectedActions.GithubOwnedAllowed {
+					t.Error("expected github_owned_allowed to be true")
+				}
+				if cfg.Actions.SelectedActions.VerifiedAllowed == nil || *cfg.Actions.SelectedActions.VerifiedAllowed {
+					t.Error("expected verified_allowed to be false")
+				}
+				if len(cfg.Actions.SelectedActions.PatternsAllowed) != 2 {
+					t.Errorf("expected 2 patterns, got %d", len(cfg.Actions.SelectedActions.PatternsAllowed))
+				}
+				if cfg.Actions.DefaultWorkflowPermissions == nil || *cfg.Actions.DefaultWorkflowPermissions != "read" {
+					t.Error("expected default_workflow_permissions to be 'read'")
+				}
+				if cfg.Actions.CanApprovePullRequestReviews == nil || *cfg.Actions.CanApprovePullRequestReviews {
+					t.Error("expected can_approve_pull_request_reviews to be false")
+				}
+			},
+		},
+		{
+			name: "minimal actions config",
+			content: `
+actions:
+  enabled: false
+`,
+			wantErr: false,
+			checkConfig: func(t *testing.T, cfg *Config) {
+				if cfg.Actions == nil {
+					t.Error("expected actions config")
+					return
+				}
+				if cfg.Actions.Enabled == nil || *cfg.Actions.Enabled {
+					t.Error("expected enabled to be false")
+				}
+			},
+		},
+		{
+			name: "actions with workflow permissions only",
+			content: `
+actions:
+  default_workflow_permissions: write
+  can_approve_pull_request_reviews: true
+`,
+			wantErr: false,
+			checkConfig: func(t *testing.T, cfg *Config) {
+				if cfg.Actions == nil {
+					t.Error("expected actions config")
+					return
+				}
+				if cfg.Actions.DefaultWorkflowPermissions == nil || *cfg.Actions.DefaultWorkflowPermissions != "write" {
+					t.Error("expected default_workflow_permissions to be 'write'")
+				}
+				if cfg.Actions.CanApprovePullRequestReviews == nil || !*cfg.Actions.CanApprovePullRequestReviews {
+					t.Error("expected can_approve_pull_request_reviews to be true")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filePath := filepath.Join(tmpDir, tt.name+".yaml")
+			if err := os.WriteFile(filePath, []byte(tt.content), 0644); err != nil {
+				t.Fatalf("failed to write test file: %v", err)
+			}
+
+			cfg, err := loadSingleFile(filePath)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+			if tt.checkConfig != nil {
+				tt.checkConfig(t, cfg)
+			}
+		})
+	}
+}
+
+func TestLoadUnknownFieldError(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "config-unknown-field-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	content := `
+repo:
+  description: "Test"
+unknown_field:
+  some_setting: true
+`
+	filePath := filepath.Join(tmpDir, "unknown.yaml")
+	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	_, err = loadSingleFile(filePath)
+	if err == nil {
+		t.Error("expected error for unknown field, got nil")
+	}
+}
+
+func TestLoadActionsFromDirectory(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "config-actions-dir-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	actionsContent := `
+actions:
+  enabled: true
+  allowed_actions: all
+  default_workflow_permissions: read
+`
+	path := filepath.Join(tmpDir, "actions.yaml")
+	if err := os.WriteFile(path, []byte(actionsContent), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	cfg, err := loadFromDirectory(tmpDir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.Actions == nil {
+		t.Error("expected actions config")
+		return
+	}
+	if cfg.Actions.Enabled == nil || !*cfg.Actions.Enabled {
+		t.Error("expected enabled to be true")
+	}
+	if cfg.Actions.AllowedActions == nil || *cfg.Actions.AllowedActions != "all" {
+		t.Error("expected allowed_actions to be 'all'")
+	}
+}
+
+func TestLoadUnknownFileInDirectory(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "config-unknown-file-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	unknownContent := `
+some_config: true
+`
+	path := filepath.Join(tmpDir, "unknown.yaml")
+	if err := os.WriteFile(path, []byte(unknownContent), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	_, err = loadFromDirectory(tmpDir)
+	if err == nil {
+		t.Error("expected error for unknown file, got nil")
+	}
+}

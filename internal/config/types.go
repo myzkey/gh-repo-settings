@@ -8,6 +8,7 @@ type Config struct {
 	BranchProtection map[string]*BranchRule `yaml:"branch_protection,omitempty"`
 	Secrets          *SecretsConfig         `yaml:"secrets,omitempty"`
 	Env              *EnvConfig             `yaml:"env,omitempty"`
+	Actions          *ActionsConfig         `yaml:"actions,omitempty"`
 }
 
 // RepoConfig represents repository settings
@@ -70,4 +71,27 @@ type SecretsConfig struct {
 // EnvConfig represents environment variables configuration
 type EnvConfig struct {
 	Required []string `yaml:"required,omitempty"`
+}
+
+// ActionsConfig represents GitHub Actions permissions configuration
+type ActionsConfig struct {
+	// Enabled controls whether GitHub Actions is enabled for the repository
+	Enabled *bool `yaml:"enabled,omitempty"`
+
+	// AllowedActions specifies which actions are allowed: "all", "local_only", "selected"
+	AllowedActions *string `yaml:"allowed_actions,omitempty"`
+
+	// SelectedActions specifies patterns for allowed actions when AllowedActions is "selected"
+	SelectedActions *SelectedActionsConfig `yaml:"selected_actions,omitempty"`
+
+	// Workflow permissions
+	DefaultWorkflowPermissions   *string `yaml:"default_workflow_permissions,omitempty"` // "read" or "write"
+	CanApprovePullRequestReviews *bool   `yaml:"can_approve_pull_request_reviews,omitempty"`
+}
+
+// SelectedActionsConfig represents the configuration for selected actions
+type SelectedActionsConfig struct {
+	GithubOwnedAllowed *bool    `yaml:"github_owned_allowed,omitempty"`
+	VerifiedAllowed    *bool    `yaml:"verified_allowed,omitempty"`
+	PatternsAllowed    []string `yaml:"patterns_allowed,omitempty"`
 }

@@ -53,3 +53,22 @@ type BranchProtectionData struct {
 		Enabled bool `json:"enabled"`
 	} `json:"required_signatures"`
 }
+
+// ActionsPermissionsData represents GitHub Actions permissions from API
+type ActionsPermissionsData struct {
+	Enabled        bool   `json:"enabled"`
+	AllowedActions string `json:"allowed_actions"` // "all", "local_only", "selected"
+}
+
+// ActionsSelectedData represents selected actions configuration from API
+type ActionsSelectedData struct {
+	GithubOwnedAllowed bool     `json:"github_owned_allowed"`
+	VerifiedAllowed    bool     `json:"verified_allowed"`
+	PatternsAllowed    []string `json:"patterns_allowed"`
+}
+
+// ActionsWorkflowPermissionsData represents workflow permissions from API
+type ActionsWorkflowPermissionsData struct {
+	DefaultWorkflowPermissions   string `json:"default_workflow_permissions"` // "read" or "write"
+	CanApprovePullRequestReviews bool   `json:"can_approve_pull_request_reviews"`
+}

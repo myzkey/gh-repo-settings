@@ -359,3 +359,102 @@ func (c *Client) UpdateBranchProtection(ctx context.Context, branch string, sett
 	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "PUT", "-H", "Accept: application/vnd.github+json")
 	return err
 }
+
+// GetActionsPermissions fetches Actions permissions for the repository
+func (c *Client) GetActionsPermissions(ctx context.Context) (*ActionsPermissionsData, error) {
+	endpoint := fmt.Sprintf("repos/%s/%s/actions/permissions", c.Repo.Owner, c.Repo.Name)
+	out, err := c.ghAPI(ctx, endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get actions permissions: %w", err)
+	}
+
+	var data ActionsPermissionsData
+	if err := json.Unmarshal(out, &data); err != nil {
+		return nil, fmt.Errorf("failed to parse actions permissions: %w", err)
+	}
+
+	return &data, nil
+}
+
+// UpdateActionsPermissions updates Actions permissions for the repository
+func (c *Client) UpdateActionsPermissions(ctx context.Context, enabled bool, allowedActions string) error {
+	endpoint := fmt.Sprintf("repos/%s/%s/actions/permissions", c.Repo.Owner, c.Repo.Name)
+
+	payload := map[string]interface{}{
+		"enabled": enabled,
+	}
+	if enabled && allowedActions != "" {
+		payload["allowed_actions"] = allowedActions
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "PUT", "-H", "Accept: application/vnd.github+json")
+	return err
+}
+
+// GetActionsSelectedActions fetches selected actions configuration
+func (c *Client) GetActionsSelectedActions(ctx context.Context) (*ActionsSelectedData, error) {
+	endpoint := fmt.Sprintf("repos/%s/%s/actions/permissions/selected-actions", c.Repo.Owner, c.Repo.Name)
+	out, err := c.ghAPI(ctx, endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get selected actions: %w", err)
+	}
+
+	var data ActionsSelectedData
+	if err := json.Unmarshal(out, &data); err != nil {
+		return nil, fmt.Errorf("failed to parse selected actions: %w", err)
+	}
+
+	return &data, nil
+}
+
+// UpdateActionsSelectedActions updates selected actions configuration
+func (c *Client) UpdateActionsSelectedActions(ctx context.Context, settings *ActionsSelectedData) error {
+	endpoint := fmt.Sprintf("repos/%s/%s/actions/permissions/selected-actions", c.Repo.Owner, c.Repo.Name)
+
+	jsonData, err := json.Marshal(settings)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "PUT", "-H", "Accept: application/vnd.github+json")
+	return err
+}
+
+// GetActionsWorkflowPermissions fetches workflow permissions
+func (c *Client) GetActionsWorkflowPermissions(ctx context.Context) (*ActionsWorkflowPermissionsData, error) {
+	endpoint := fmt.Sprintf("repos/%s/%s/actions/permissions/workflow", c.Repo.Owner, c.Repo.Name)
+	out, err := c.ghAPI(ctx, endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get workflow permissions: %w", err)
+	}
+
+	var data ActionsWorkflowPermissionsData
+	if err := json.Unmarshal(out, &data); err != nil {
+		return nil, fmt.Errorf("failed to parse workflow permissions: %w", err)
+	}
+
+	return &data, nil
+}
+
+// UpdateActionsWorkflowPermissions updates workflow permissions
+func (c *Client) UpdateActionsWorkflowPermissions(ctx context.Context, permissions string, canApprove bool) error {
+	endpoint := fmt.Sprintf("repos/%s/%s/actions/permissions/workflow", c.Repo.Owner, c.Repo.Name)
+
+	payload := map[string]interface{}{
+		"default_workflow_permissions":     permissions,
+		"can_approve_pull_request_reviews": canApprove,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "PUT", "-H", "Accept: application/vnd.github+json")
+	return err
+}

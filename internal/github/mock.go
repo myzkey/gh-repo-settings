@@ -6,34 +6,58 @@ import (
 
 // MockClient is a mock implementation of GitHubClient for testing
 type MockClient struct {
-	RepoData          *RepoData
-	Labels            []LabelData
-	BranchProtections map[string]*BranchProtectionData
-	Secrets           []string
-	Variables         []string
-	Owner             string
-	Name              string
+	RepoData                 *RepoData
+	Labels                   []LabelData
+	BranchProtections        map[string]*BranchProtectionData
+	Secrets                  []string
+	Variables                []string
+	ActionsPermissions       *ActionsPermissionsData
+	ActionsSelected          *ActionsSelectedData
+	ActionsWorkflowPerms     *ActionsWorkflowPermissionsData
+	Owner                    string
+	Name                     string
 
 	// Error fields for testing error scenarios
-	GetRepoError                error
-	UpdateRepoError             error
-	GetLabelsError              error
-	CreateLabelError            error
-	UpdateLabelError            error
-	DeleteLabelError            error
-	SetTopicsError              error
-	GetBranchProtectionError    error
-	UpdateBranchProtectionError error
-	GetSecretsError             error
-	GetVariablesError           error
+	GetRepoError                       error
+	UpdateRepoError                    error
+	GetLabelsError                     error
+	CreateLabelError                   error
+	UpdateLabelError                   error
+	DeleteLabelError                   error
+	SetTopicsError                     error
+	GetBranchProtectionError           error
+	UpdateBranchProtectionError        error
+	GetSecretsError                    error
+	GetVariablesError                  error
+	GetActionsPermissionsError         error
+	UpdateActionsPermissionsError      error
+	GetActionsSelectedActionsError     error
+	UpdateActionsSelectedActionsError  error
+	GetActionsWorkflowPermissionsError error
+	UpdateActionsWorkflowPermsError    error
 
 	// Call tracking
-	UpdateRepoCalls             []map[string]interface{}
-	SetTopicsCalls              [][]string
-	CreateLabelCalls            []LabelCall
-	UpdateLabelCalls            []UpdateLabelCall
-	DeleteLabelCalls            []string
-	UpdateBranchProtectionCalls []BranchProtectionCall
+	UpdateRepoCalls                  []map[string]interface{}
+	SetTopicsCalls                   [][]string
+	CreateLabelCalls                 []LabelCall
+	UpdateLabelCalls                 []UpdateLabelCall
+	DeleteLabelCalls                 []string
+	UpdateBranchProtectionCalls      []BranchProtectionCall
+	UpdateActionsPermissionsCalls    []ActionsPermissionsCall
+	UpdateActionsSelectedCalls       []*ActionsSelectedData
+	UpdateActionsWorkflowPermsCalls  []ActionsWorkflowPermsCall
+}
+
+// ActionsPermissionsCall tracks UpdateActionsPermissions calls
+type ActionsPermissionsCall struct {
+	Enabled        bool
+	AllowedActions string
+}
+
+// ActionsWorkflowPermsCall tracks UpdateActionsWorkflowPermissions calls
+type ActionsWorkflowPermsCall struct {
+	Permissions string
+	CanApprove  bool
 }
 
 // LabelCall tracks CreateLabel calls
@@ -187,6 +211,72 @@ func (m *MockClient) GetVariables(ctx context.Context) ([]string, error) {
 		return nil, m.GetVariablesError
 	}
 	return m.Variables, nil
+}
+
+// GetActionsPermissions returns mock actions permissions
+func (m *MockClient) GetActionsPermissions(ctx context.Context) (*ActionsPermissionsData, error) {
+	if m.GetActionsPermissionsError != nil {
+		return nil, m.GetActionsPermissionsError
+	}
+	if m.ActionsPermissions == nil {
+		return &ActionsPermissionsData{Enabled: true, AllowedActions: "all"}, nil
+	}
+	return m.ActionsPermissions, nil
+}
+
+// UpdateActionsPermissions records the update call
+func (m *MockClient) UpdateActionsPermissions(ctx context.Context, enabled bool, allowedActions string) error {
+	if m.UpdateActionsPermissionsError != nil {
+		return m.UpdateActionsPermissionsError
+	}
+	m.UpdateActionsPermissionsCalls = append(m.UpdateActionsPermissionsCalls, ActionsPermissionsCall{
+		Enabled:        enabled,
+		AllowedActions: allowedActions,
+	})
+	return nil
+}
+
+// GetActionsSelectedActions returns mock selected actions
+func (m *MockClient) GetActionsSelectedActions(ctx context.Context) (*ActionsSelectedData, error) {
+	if m.GetActionsSelectedActionsError != nil {
+		return nil, m.GetActionsSelectedActionsError
+	}
+	if m.ActionsSelected == nil {
+		return &ActionsSelectedData{}, nil
+	}
+	return m.ActionsSelected, nil
+}
+
+// UpdateActionsSelectedActions records the update call
+func (m *MockClient) UpdateActionsSelectedActions(ctx context.Context, settings *ActionsSelectedData) error {
+	if m.UpdateActionsSelectedActionsError != nil {
+		return m.UpdateActionsSelectedActionsError
+	}
+	m.UpdateActionsSelectedCalls = append(m.UpdateActionsSelectedCalls, settings)
+	return nil
+}
+
+// GetActionsWorkflowPermissions returns mock workflow permissions
+func (m *MockClient) GetActionsWorkflowPermissions(ctx context.Context) (*ActionsWorkflowPermissionsData, error) {
+	if m.GetActionsWorkflowPermissionsError != nil {
+		return nil, m.GetActionsWorkflowPermissionsError
+	}
+	if m.ActionsWorkflowPerms == nil {
+		return &ActionsWorkflowPermissionsData{DefaultWorkflowPermissions: "read", CanApprovePullRequestReviews: false}, nil
+	}
+	return m.ActionsWorkflowPerms, nil
+}
+
+// UpdateActionsWorkflowPermissions records the update call
+func (m *MockClient) UpdateActionsWorkflowPermissions(ctx context.Context, permissions string, canApprove bool) error {
+	if m.UpdateActionsWorkflowPermsError != nil {
+		return m.UpdateActionsWorkflowPermsError
+	}
+	m.UpdateActionsWorkflowPermsCalls = append(m.UpdateActionsWorkflowPermsCalls, ActionsWorkflowPermsCall{
+		Permissions: permissions,
+		CanApprove:  canApprove,
+	})
+	return nil
 }
 
 // Ensure MockClient implements GitHubClient
