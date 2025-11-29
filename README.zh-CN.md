@@ -327,6 +327,35 @@ actions:
 | `default_workflow_permissions` | `read` \| `write` | GITHUB_TOKEN 默认权限 |
 | `can_approve_pull_request_reviews` | boolean | 允许 Actions 批准 PR |
 
+## 编辑器集成 (VSCode)
+
+本项目提供 JSON Schema 用于 VSCode 中的 YAML 验证和自动补全。
+
+### 设置
+
+1. 安装 [YAML 扩展](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)
+
+2. 添加到 `.vscode/settings.json`:
+
+```json
+{
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/myzkey/gh-repo-settings/main/schema.json": [
+      ".github/repo-settings.yaml",
+      ".github/repo-settings/*.yaml"
+    ]
+  }
+}
+```
+
+### 功能
+
+- 所有字段的自动补全
+- 悬停显示文档
+- 枚举值建议（`public`/`private`/`internal`、`read`/`write` 等）
+- 未知字段检测
+- 类型验证
+
 ## CI/CD 集成
 
 ### GitHub Actions 工作流

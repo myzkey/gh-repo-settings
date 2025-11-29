@@ -1,4 +1,4 @@
-.PHONY: build install install-local clean test lint
+.PHONY: build install install-local clean test lint schema
 
 BINARY_NAME=gh-rset
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -33,3 +33,7 @@ build-all:
 	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY_NAME)-linux-amd64 .
 	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o dist/$(BINARY_NAME)-linux-arm64 .
 	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY_NAME)-windows-amd64.exe .
+
+# Generate JSON Schema from Go types
+schema:
+	go run ./cmd/schema/main.go > schema.json

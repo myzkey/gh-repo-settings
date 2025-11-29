@@ -327,6 +327,35 @@ actions:
 | `default_workflow_permissions` | `read` \| `write` | Permisos predeterminados de GITHUB_TOKEN |
 | `can_approve_pull_request_reviews` | boolean | Permitir que Actions apruebe PRs |
 
+## Integración con Editor (VSCode)
+
+Este proyecto proporciona un JSON Schema para validación y autocompletado de YAML en VSCode.
+
+### Configuración
+
+1. Instala la [extensión YAML](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)
+
+2. Agrega a tu `.vscode/settings.json`:
+
+```json
+{
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/myzkey/gh-repo-settings/main/schema.json": [
+      ".github/repo-settings.yaml",
+      ".github/repo-settings/*.yaml"
+    ]
+  }
+}
+```
+
+### Características
+
+- Autocompletado para todos los campos
+- Documentación al pasar el cursor
+- Sugerencias de enum (`public`/`private`/`internal`, `read`/`write`, etc.)
+- Detección de campos desconocidos
+- Validación de tipos
+
 ## Integración CI/CD
 
 ### Flujo de Trabajo de GitHub Actions
