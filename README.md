@@ -19,6 +19,7 @@ A GitHub CLI extension to manage repository settings via YAML configuration. Ins
 - **Schema validation**: Validate configuration before applying
 - **Multiple config formats**: Single file or directory-based configuration
 - **Secrets/Env check**: Verify required secrets and environment variables exist
+- **Actions permissions**: Configure GitHub Actions permissions and workflow settings
 
 ## Installation
 
@@ -178,6 +179,17 @@ secrets:
 env:
   required:
     - DATABASE_URL
+
+actions:
+  enabled: true
+  allowed_actions: selected
+  selected_actions:
+    github_owned_allowed: true
+    verified_allowed: true
+    patterns_allowed:
+      - "actions/*"
+  default_workflow_permissions: read
+  can_approve_pull_request_reviews: false
 ```
 
 ### Directory Structure
@@ -191,7 +203,8 @@ Alternatively, split configuration into multiple files:
 ├── labels.yaml
 ├── branch-protection.yaml
 ├── secrets.yaml
-└── env.yaml
+├── env.yaml
+└── actions.yaml
 ```
 
 ## Configuration Reference
@@ -284,6 +297,43 @@ env:
     - SENTRY_DSN
 ```
 
+### `actions` - GitHub Actions Permissions
+
+Configure GitHub Actions permissions for the repository:
+
+```yaml
+actions:
+  # Enable/disable GitHub Actions
+  enabled: true
+
+  # Which actions can be used: "all", "local_only", "selected"
+  allowed_actions: selected
+
+  # When allowed_actions is "selected"
+  selected_actions:
+    github_owned_allowed: true    # Allow actions from GitHub
+    verified_allowed: true        # Allow actions from verified creators
+    patterns_allowed:             # Allow specific action patterns
+      - "actions/*"
+      - "github/codeql-action/*"
+
+  # Default GITHUB_TOKEN permissions: "read" or "write"
+  default_workflow_permissions: read
+
+  # Allow GitHub Actions to create/approve pull requests
+  can_approve_pull_request_reviews: false
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | boolean | Enable GitHub Actions for this repository |
+| `allowed_actions` | `all` \| `local_only` \| `selected` | Which actions are allowed |
+| `selected_actions.github_owned_allowed` | boolean | Allow actions created by GitHub |
+| `selected_actions.verified_allowed` | boolean | Allow actions from verified creators |
+| `selected_actions.patterns_allowed` | array | Patterns for allowed actions |
+| `default_workflow_permissions` | `read` \| `write` | Default GITHUB_TOKEN permissions |
+| `can_approve_pull_request_reviews` | boolean | Allow Actions to approve PRs |
+
 ## CI/CD Integration
 
 ### GitHub Actions Workflow
@@ -342,6 +392,7 @@ gh auth login
 | Branch protection | `repo` (admin access to repository) |
 | Secrets check | `repo`, `admin:repo_hook` |
 | Environment variables | `repo` |
+| Actions permissions | `repo`, `admin:repo_hook` |
 
 ### Token Types
 

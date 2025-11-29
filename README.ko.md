@@ -12,6 +12,7 @@ YAML 설정을 통해 GitHub 저장소 설정을 관리하는 GitHub CLI 확장 
 - **스키마 검증**: 적용 전 설정 검증
 - **다양한 설정 형식**: 단일 파일 또는 디렉토리 기반 설정
 - **Secrets/Env 확인**: 필수 시크릿 및 환경 변수 존재 확인
+- **Actions 권한 설정**: GitHub Actions 권한 및 워크플로우 설정 관리
 
 ## 설치
 
@@ -171,6 +172,17 @@ secrets:
 env:
   required:
     - DATABASE_URL
+
+actions:
+  enabled: true
+  allowed_actions: selected
+  selected_actions:
+    github_owned_allowed: true
+    verified_allowed: true
+    patterns_allowed:
+      - "actions/*"
+  default_workflow_permissions: read
+  can_approve_pull_request_reviews: false
 ```
 
 ### 디렉토리 구조
@@ -184,7 +196,8 @@ env:
 ├── labels.yaml
 ├── branch-protection.yaml
 ├── secrets.yaml
-└── env.yaml
+├── env.yaml
+└── actions.yaml
 ```
 
 ## 설정 레퍼런스
@@ -276,6 +289,43 @@ env:
     - DATABASE_URL
     - SENTRY_DSN
 ```
+
+### `actions` - GitHub Actions 권한 설정
+
+저장소의 GitHub Actions 권한을 설정합니다:
+
+```yaml
+actions:
+  # GitHub Actions 활성화/비활성화
+  enabled: true
+
+  # 허용되는 actions: "all", "local_only", "selected"
+  allowed_actions: selected
+
+  # allowed_actions가 "selected"인 경우
+  selected_actions:
+    github_owned_allowed: true    # GitHub 공식 actions 허용
+    verified_allowed: true        # 인증된 제작자의 actions 허용
+    patterns_allowed:             # 허용되는 action 패턴
+      - "actions/*"
+      - "github/codeql-action/*"
+
+  # 기본 GITHUB_TOKEN 권한: "read" 또는 "write"
+  default_workflow_permissions: read
+
+  # GitHub Actions의 PR 생성/승인 허용
+  can_approve_pull_request_reviews: false
+```
+
+| 필드 | 타입 | 설명 |
+|-----|------|------|
+| `enabled` | boolean | GitHub Actions 활성화 |
+| `allowed_actions` | `all` \| `local_only` \| `selected` | 허용되는 actions |
+| `selected_actions.github_owned_allowed` | boolean | GitHub 공식 actions 허용 |
+| `selected_actions.verified_allowed` | boolean | 인증된 제작자 허용 |
+| `selected_actions.patterns_allowed` | array | 허용되는 action 패턴 |
+| `default_workflow_permissions` | `read` \| `write` | GITHUB_TOKEN 기본 권한 |
+| `can_approve_pull_request_reviews` | boolean | Actions의 PR 승인 허용 |
 
 ## CI/CD 통합
 

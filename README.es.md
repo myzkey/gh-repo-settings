@@ -12,6 +12,7 @@ Una extensión de GitHub CLI para gestionar la configuración de repositorios me
 - **Validación de esquema**: Valida la configuración antes de aplicar
 - **Múltiples formatos de configuración**: Archivo único o configuración basada en directorios
 - **Verificación de Secrets/Env**: Verifica que existan los secrets y variables de entorno requeridos
+- **Permisos de Actions**: Configura permisos de GitHub Actions y ajustes de flujos de trabajo
 
 ## Instalación
 
@@ -171,6 +172,17 @@ secrets:
 env:
   required:
     - DATABASE_URL
+
+actions:
+  enabled: true
+  allowed_actions: selected
+  selected_actions:
+    github_owned_allowed: true
+    verified_allowed: true
+    patterns_allowed:
+      - "actions/*"
+  default_workflow_permissions: read
+  can_approve_pull_request_reviews: false
 ```
 
 ### Estructura de Directorios
@@ -184,7 +196,8 @@ También puedes dividir la configuración en múltiples archivos:
 ├── labels.yaml
 ├── branch-protection.yaml
 ├── secrets.yaml
-└── env.yaml
+├── env.yaml
+└── actions.yaml
 ```
 
 ## Referencia de Configuración
@@ -276,6 +289,43 @@ env:
     - DATABASE_URL
     - SENTRY_DSN
 ```
+
+### `actions` - Permisos de GitHub Actions
+
+Configura los permisos de GitHub Actions para el repositorio:
+
+```yaml
+actions:
+  # Habilitar/deshabilitar GitHub Actions
+  enabled: true
+
+  # Qué actions están permitidas: "all", "local_only", "selected"
+  allowed_actions: selected
+
+  # Cuando allowed_actions es "selected"
+  selected_actions:
+    github_owned_allowed: true    # Permitir actions de GitHub
+    verified_allowed: true        # Permitir actions de creadores verificados
+    patterns_allowed:             # Patrones de actions permitidas
+      - "actions/*"
+      - "github/codeql-action/*"
+
+  # Permisos predeterminados de GITHUB_TOKEN: "read" o "write"
+  default_workflow_permissions: read
+
+  # Permitir que GitHub Actions cree/apruebe pull requests
+  can_approve_pull_request_reviews: false
+```
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `enabled` | boolean | Habilitar GitHub Actions |
+| `allowed_actions` | `all` \| `local_only` \| `selected` | Actions permitidas |
+| `selected_actions.github_owned_allowed` | boolean | Permitir actions de GitHub |
+| `selected_actions.verified_allowed` | boolean | Permitir creadores verificados |
+| `selected_actions.patterns_allowed` | array | Patrones de actions permitidas |
+| `default_workflow_permissions` | `read` \| `write` | Permisos predeterminados de GITHUB_TOKEN |
+| `can_approve_pull_request_reviews` | boolean | Permitir que Actions apruebe PRs |
 
 ## Integración CI/CD
 
