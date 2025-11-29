@@ -29,5 +29,12 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Test
-        run: pnpm test
+      - name: Test with Coverage
+        run: pnpm vitest run --coverage
+
+      - name: Coverage Report
+        uses: davelosert/vitest-coverage-report-action@v2
+        if: always()
+        with:
+          json-summary-path: ./coverage/coverage-summary.json
+          json-final-path: ./coverage/coverage-final.json
