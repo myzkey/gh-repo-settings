@@ -327,6 +327,35 @@ actions:
 | `default_workflow_permissions` | `read` \| `write` | GITHUB_TOKEN 기본 권한 |
 | `can_approve_pull_request_reviews` | boolean | Actions의 PR 승인 허용 |
 
+## 에디터 연동 (VSCode)
+
+VSCode에서 YAML 검증 및 자동 완성을 위한 JSON Schema를 제공합니다.
+
+### 설정
+
+1. [YAML 확장 프로그램](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) 설치
+
+2. `.vscode/settings.json`에 추가:
+
+```json
+{
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/myzkey/gh-repo-settings/main/schema.json": [
+      ".github/repo-settings.yaml",
+      ".github/repo-settings/*.yaml"
+    ]
+  }
+}
+```
+
+### 기능
+
+- 모든 필드 자동 완성
+- 호버 시 문서 표시
+- enum 값 제안 (`public`/`private`/`internal`, `read`/`write` 등)
+- 알 수 없는 필드 감지
+- 타입 검증
+
 ## CI/CD 통합
 
 ### GitHub Actions 워크플로우

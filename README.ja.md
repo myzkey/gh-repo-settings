@@ -327,6 +327,35 @@ actions:
 | `default_workflow_permissions` | `read` \| `write` | GITHUB_TOKEN のデフォルト権限 |
 | `can_approve_pull_request_reviews` | boolean | Actions による PR 承認を許可 |
 
+## エディタ連携 (VSCode)
+
+VSCode での YAML 検証と自動補完のための JSON Schema を提供しています。
+
+### セットアップ
+
+1. [YAML 拡張機能](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)をインストール
+
+2. `.vscode/settings.json` に追加:
+
+```json
+{
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/myzkey/gh-repo-settings/main/schema.json": [
+      ".github/repo-settings.yaml",
+      ".github/repo-settings/*.yaml"
+    ]
+  }
+}
+```
+
+### 機能
+
+- すべてのフィールドの自動補完
+- ホバーでドキュメント表示
+- enum の候補表示（`public`/`private`/`internal`、`read`/`write` など）
+- 未知のフィールドの検出
+- 型の検証
+
 ## CI/CD 連携
 
 ### GitHub Actions ワークフロー
