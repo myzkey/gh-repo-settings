@@ -32,17 +32,17 @@ type GitHubClient interface {
 
 // BranchProtectionSettings represents settings to update branch protection
 type BranchProtectionSettings struct {
-	RequiredReviews            *int     `json:"required_approving_review_count,omitempty"`
-	DismissStaleReviews        *bool    `json:"dismiss_stale_reviews,omitempty"`
-	RequireCodeOwnerReviews    *bool    `json:"require_code_owner_reviews,omitempty"`
-	RequireStatusChecks        *bool    `json:"-"`
-	StatusChecks               []string `json:"contexts,omitempty"`
-	StrictStatusChecks         *bool    `json:"strict,omitempty"`
-	EnforceAdmins              *bool    `json:"enforce_admins,omitempty"`
-	RequireLinearHistory       *bool    `json:"required_linear_history,omitempty"`
-	AllowForcePushes           *bool    `json:"allow_force_pushes,omitempty"`
-	AllowDeletions             *bool    `json:"allow_deletions,omitempty"`
-	RequireSignedCommits       *bool    `json:"required_signatures,omitempty"`
+	RequiredReviews         *int     `json:"required_approving_review_count,omitempty"`
+	DismissStaleReviews     *bool    `json:"dismiss_stale_reviews,omitempty"`
+	RequireCodeOwnerReviews *bool    `json:"require_code_owner_reviews,omitempty"`
+	RequireStatusChecks     *bool    `json:"-"`
+	StatusChecks            []string `json:"contexts,omitempty"`
+	StrictStatusChecks      *bool    `json:"strict,omitempty"`
+	EnforceAdmins           *bool    `json:"enforce_admins,omitempty"`
+	RequireLinearHistory    *bool    `json:"required_linear_history,omitempty"`
+	AllowForcePushes        *bool    `json:"allow_force_pushes,omitempty"`
+	AllowDeletions          *bool    `json:"allow_deletions,omitempty"`
+	RequireSignedCommits    *bool    `json:"required_signatures,omitempty"`
 }
 
 // Ensure Client implements GitHubClient

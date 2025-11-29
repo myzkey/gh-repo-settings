@@ -2,12 +2,12 @@ package config
 
 // Config represents the full configuration
 type Config struct {
-	Repo             *RepoConfig             `yaml:"repo,omitempty"`
-	Topics           []string                `yaml:"topics,omitempty"`
-	Labels           *LabelsConfig           `yaml:"labels,omitempty"`
-	BranchProtection map[string]*BranchRule  `yaml:"branch_protection,omitempty"`
-	Secrets          *SecretsConfig          `yaml:"secrets,omitempty"`
-	Env              *EnvConfig              `yaml:"env,omitempty"`
+	Repo             *RepoConfig            `yaml:"repo,omitempty"`
+	Topics           []string               `yaml:"topics,omitempty"`
+	Labels           *LabelsConfig          `yaml:"labels,omitempty"`
+	BranchProtection map[string]*BranchRule `yaml:"branch_protection,omitempty"`
+	Secrets          *SecretsConfig         `yaml:"secrets,omitempty"`
+	Env              *EnvConfig             `yaml:"env,omitempty"`
 }
 
 // RepoConfig represents repository settings
@@ -51,8 +51,8 @@ type BranchRule struct {
 	RequiredDeployments []string `yaml:"required_deployments,omitempty"`
 
 	// Commit requirements
-	RequireSignedCommits  *bool `yaml:"require_signed_commits,omitempty"`
-	RequireLinearHistory  *bool `yaml:"require_linear_history,omitempty"`
+	RequireSignedCommits *bool `yaml:"require_signed_commits,omitempty"`
+	RequireLinearHistory *bool `yaml:"require_linear_history,omitempty"`
 
 	// Push/merge restrictions
 	EnforceAdmins     *bool `yaml:"enforce_admins,omitempty"`

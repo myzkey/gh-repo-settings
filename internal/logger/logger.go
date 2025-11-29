@@ -55,14 +55,14 @@ func (l *Logger) SetErrorOutput(w io.Writer) {
 func (l *Logger) Debug(format string, args ...interface{}) {
 	if l.level >= LevelVerbose {
 		gray := color.New(color.FgHiBlack).SprintFunc()
-		fmt.Fprintf(l.out, gray("[DEBUG] "+format)+"\n", args...)
+		_, _ = fmt.Fprintf(l.out, gray("[DEBUG] "+format)+"\n", args...)
 	}
 }
 
 // Info prints info messages (normal and verbose mode)
 func (l *Logger) Info(format string, args ...interface{}) {
 	if l.level >= LevelNormal {
-		fmt.Fprintf(l.out, format+"\n", args...)
+		_, _ = fmt.Fprintf(l.out, format+"\n", args...)
 	}
 }
 
@@ -70,7 +70,7 @@ func (l *Logger) Info(format string, args ...interface{}) {
 func (l *Logger) Success(format string, args ...interface{}) {
 	if l.level >= LevelNormal {
 		green := color.New(color.FgGreen).SprintFunc()
-		fmt.Fprintf(l.out, green("✓")+" "+format+"\n", args...)
+		_, _ = fmt.Fprintf(l.out, green("✓")+" "+format+"\n", args...)
 	}
 }
 
@@ -78,34 +78,34 @@ func (l *Logger) Success(format string, args ...interface{}) {
 func (l *Logger) Warn(format string, args ...interface{}) {
 	if l.level >= LevelNormal {
 		yellow := color.New(color.FgYellow).SprintFunc()
-		fmt.Fprintf(l.errOut, yellow("⚠")+" "+format+"\n", args...)
+		_, _ = fmt.Fprintf(l.errOut, yellow("⚠")+" "+format+"\n", args...)
 	}
 }
 
 // Error prints error messages (always shown)
 func (l *Logger) Error(format string, args ...interface{}) {
 	red := color.New(color.FgRed).SprintFunc()
-	fmt.Fprintf(l.errOut, red("✗")+" "+format+"\n", args...)
+	_, _ = fmt.Fprintf(l.errOut, red("✗")+" "+format+"\n", args...)
 }
 
 // Print prints messages without any formatting
 func (l *Logger) Print(format string, args ...interface{}) {
 	if l.level >= LevelNormal {
-		fmt.Fprintf(l.out, format, args...)
+		_, _ = fmt.Fprintf(l.out, format, args...)
 	}
 }
 
 // Println prints messages with newline
 func (l *Logger) Println(args ...interface{}) {
 	if l.level >= LevelNormal {
-		fmt.Fprintln(l.out, args...)
+		_, _ = fmt.Fprintln(l.out, args...)
 	}
 }
 
 // Progress prints inline progress (no newline)
 func (l *Logger) Progress(format string, args ...interface{}) {
 	if l.level >= LevelNormal {
-		fmt.Fprintf(l.out, format, args...)
+		_, _ = fmt.Fprintf(l.out, format, args...)
 	}
 }
 
@@ -113,7 +113,7 @@ func (l *Logger) Progress(format string, args ...interface{}) {
 func (l *Logger) ProgressDone() {
 	if l.level >= LevelNormal {
 		green := color.New(color.FgGreen).SprintFunc()
-		fmt.Fprintln(l.out, green("✓"))
+		_, _ = fmt.Fprintln(l.out, green("✓"))
 	}
 }
 
@@ -121,7 +121,7 @@ func (l *Logger) ProgressDone() {
 func (l *Logger) ProgressFail() {
 	if l.level >= LevelNormal {
 		red := color.New(color.FgRed).SprintFunc()
-		fmt.Fprintln(l.out, red("✗"))
+		_, _ = fmt.Fprintln(l.out, red("✗"))
 	}
 }
 

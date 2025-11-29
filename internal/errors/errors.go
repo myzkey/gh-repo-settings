@@ -7,16 +7,16 @@ import (
 
 // Sentinel errors
 var (
-	ErrConfigNotFound      = errors.New("configuration not found")
-	ErrInvalidConfig       = errors.New("invalid configuration")
-	ErrRepoNotFound        = errors.New("repository not found")
-	ErrBranchNotFound      = errors.New("branch not found")
-	ErrPermissionDenied    = errors.New("permission denied")
-	ErrRateLimited         = errors.New("rate limit exceeded")
-	ErrNetworkError        = errors.New("network error")
-	ErrSecretMissing       = errors.New("required secret is missing")
-	ErrVariableMissing     = errors.New("required variable is missing")
-	ErrBranchNotProtected  = errors.New("branch protection not enabled")
+	ErrConfigNotFound     = errors.New("configuration not found")
+	ErrInvalidConfig      = errors.New("invalid configuration")
+	ErrRepoNotFound       = errors.New("repository not found")
+	ErrBranchNotFound     = errors.New("branch not found")
+	ErrPermissionDenied   = errors.New("permission denied")
+	ErrRateLimited        = errors.New("rate limit exceeded")
+	ErrNetworkError       = errors.New("network error")
+	ErrSecretMissing      = errors.New("required secret is missing")
+	ErrVariableMissing    = errors.New("required variable is missing")
+	ErrBranchNotProtected = errors.New("branch protection not enabled")
 )
 
 // ConfigError represents a configuration error

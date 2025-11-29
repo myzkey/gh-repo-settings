@@ -11,9 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var (
-	initOutput string
-)
+var initOutput string
 
 var initCmd = &cobra.Command{
 	Use:   "init",
@@ -35,36 +33,44 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// Repository settings
 	var configureRepo bool
-	survey.AskOne(&survey.Confirm{
+	if err := survey.AskOne(&survey.Confirm{
 		Message: "Configure repository settings?",
 		Default: true,
-	}, &configureRepo)
+	}, &configureRepo); err != nil {
+		return fmt.Errorf("prompt failed: %w", err)
+	}
 
 	if configureRepo {
 		cfg.Repo = &config.RepoConfig{}
 
 		var description string
-		survey.AskOne(&survey.Input{
+		if err := survey.AskOne(&survey.Input{
 			Message: "Repository description:",
-		}, &description)
+		}, &description); err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
 		if description != "" {
 			cfg.Repo.Description = &description
 		}
 
 		var visibility string
-		survey.AskOne(&survey.Select{
+		if err := survey.AskOne(&survey.Select{
 			Message: "Visibility:",
 			Options: []string{"public", "private", "internal"},
 			Default: "public",
-		}, &visibility)
+		}, &visibility); err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
 		cfg.Repo.Visibility = &visibility
 
 		var mergeOptions []string
-		survey.AskOne(&survey.MultiSelect{
+		if err := survey.AskOne(&survey.MultiSelect{
 			Message: "Allowed merge methods:",
 			Options: []string{"merge commit", "squash merge", "rebase merge"},
 			Default: []string{"merge commit", "squash merge"},
-		}, &mergeOptions)
+		}, &mergeOptions); err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
 
 		allowMerge := contains(mergeOptions, "merge commit")
 		allowSquash := contains(mergeOptions, "squash merge")
@@ -74,32 +80,40 @@ func runInit(cmd *cobra.Command, args []string) error {
 		cfg.Repo.AllowRebaseMerge = &allowRebase
 
 		var deleteBranch bool
-		survey.AskOne(&survey.Confirm{
+		if err := survey.AskOne(&survey.Confirm{
 			Message: "Delete branch on merge?",
 			Default: true,
-		}, &deleteBranch)
+		}, &deleteBranch); err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
 		cfg.Repo.DeleteBranchOnMerge = &deleteBranch
 
 		var allowUpdate bool
-		survey.AskOne(&survey.Confirm{
+		if err := survey.AskOne(&survey.Confirm{
 			Message: "Allow update branch button?",
 			Default: true,
-		}, &allowUpdate)
+		}, &allowUpdate); err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
 		cfg.Repo.AllowUpdateBranch = &allowUpdate
 	}
 
 	// Topics
 	var configureTopics bool
-	survey.AskOne(&survey.Confirm{
+	if err := survey.AskOne(&survey.Confirm{
 		Message: "Configure topics?",
 		Default: false,
-	}, &configureTopics)
+	}, &configureTopics); err != nil {
+		return fmt.Errorf("prompt failed: %w", err)
+	}
 
 	if configureTopics {
 		var topics string
-		survey.AskOne(&survey.Input{
+		if err := survey.AskOne(&survey.Input{
 			Message: "Topics (comma-separated):",
-		}, &topics)
+		}, &topics); err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
 		if topics != "" {
 			cfg.Topics = splitAndTrim(topics)
 		}
@@ -107,18 +121,22 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// Labels
 	var configureLabels bool
-	survey.AskOne(&survey.Confirm{
+	if err := survey.AskOne(&survey.Confirm{
 		Message: "Configure labels?",
 		Default: false,
-	}, &configureLabels)
+	}, &configureLabels); err != nil {
+		return fmt.Errorf("prompt failed: %w", err)
+	}
 
 	if configureLabels {
 		var labelPreset string
-		survey.AskOne(&survey.Select{
+		if err := survey.AskOne(&survey.Select{
 			Message: "Label preset:",
 			Options: []string{"none", "semantic", "priority", "custom"},
 			Default: "none",
-		}, &labelPreset)
+		}, &labelPreset); err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
 
 		switch labelPreset {
 		case "semantic":
@@ -145,47 +163,57 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 		if cfg.Labels != nil {
 			var replaceDefault bool
-			survey.AskOne(&survey.Confirm{
+			if err := survey.AskOne(&survey.Confirm{
 				Message: "Replace default GitHub labels?",
 				Default: false,
-			}, &replaceDefault)
+			}, &replaceDefault); err != nil {
+				return fmt.Errorf("prompt failed: %w", err)
+			}
 			cfg.Labels.ReplaceDefault = replaceDefault
 		}
 	}
 
 	// Branch protection
 	var configureBranch bool
-	survey.AskOne(&survey.Confirm{
+	if err := survey.AskOne(&survey.Confirm{
 		Message: "Configure branch protection for 'main'?",
 		Default: false,
-	}, &configureBranch)
+	}, &configureBranch); err != nil {
+		return fmt.Errorf("prompt failed: %w", err)
+	}
 
 	if configureBranch {
 		cfg.BranchProtection = make(map[string]*config.BranchRule)
 		rule := &config.BranchRule{}
 
 		var requiredReviews int
-		survey.AskOne(&survey.Select{
+		if err := survey.AskOne(&survey.Select{
 			Message: "Required approving reviews:",
 			Options: []string{"0", "1", "2", "3"},
 			Default: "1",
-		}, &requiredReviews)
+		}, &requiredReviews); err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
 		if requiredReviews > 0 {
 			rule.RequiredReviews = &requiredReviews
 		}
 
 		var dismissStale bool
-		survey.AskOne(&survey.Confirm{
+		if err := survey.AskOne(&survey.Confirm{
 			Message: "Dismiss stale reviews?",
 			Default: true,
-		}, &dismissStale)
+		}, &dismissStale); err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
 		rule.DismissStaleReviews = &dismissStale
 
 		var enforceAdmins bool
-		survey.AskOne(&survey.Confirm{
+		if err := survey.AskOne(&survey.Confirm{
 			Message: "Enforce rules for administrators?",
 			Default: false,
-		}, &enforceAdmins)
+		}, &enforceAdmins); err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
 		rule.EnforceAdmins = &enforceAdmins
 
 		cfg.BranchProtection["main"] = rule
@@ -195,14 +223,16 @@ func runInit(cmd *cobra.Command, args []string) error {
 	outputPath := initOutput
 	if outputPath == "" {
 		var outputChoice string
-		survey.AskOne(&survey.Select{
+		if err := survey.AskOne(&survey.Select{
 			Message: "Output format:",
 			Options: []string{
 				".github/repo-settings.yaml (single file)",
 				".github/repo-settings/ (directory)",
 			},
 			Default: ".github/repo-settings.yaml (single file)",
-		}, &outputChoice)
+		}, &outputChoice); err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
 
 		if outputChoice == ".github/repo-settings.yaml (single file)" {
 			outputPath = ".github/repo-settings.yaml"
@@ -220,17 +250,17 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 func writeConfigToFile(cfg *config.Config, path string) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		return err
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
 	}
 
 	fmt.Printf("\n✓ Configuration written to %s\n", path)
@@ -238,28 +268,48 @@ func writeConfigToFile(cfg *config.Config, path string) error {
 }
 
 func writeConfigToDirectory(cfg *config.Config, dir string) error {
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	if cfg.Repo != nil {
-		data, _ := yaml.Marshal(map[string]interface{}{"repo": cfg.Repo})
-		os.WriteFile(filepath.Join(dir, "repo.yaml"), data, 0644)
+		data, err := yaml.Marshal(map[string]interface{}{"repo": cfg.Repo})
+		if err != nil {
+			return fmt.Errorf("failed to marshal repo config: %w", err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "repo.yaml"), data, 0o644); err != nil {
+			return fmt.Errorf("failed to write repo.yaml: %w", err)
+		}
 	}
 
 	if len(cfg.Topics) > 0 {
-		data, _ := yaml.Marshal(map[string]interface{}{"topics": cfg.Topics})
-		os.WriteFile(filepath.Join(dir, "topics.yaml"), data, 0644)
+		data, err := yaml.Marshal(map[string]interface{}{"topics": cfg.Topics})
+		if err != nil {
+			return fmt.Errorf("failed to marshal topics config: %w", err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "topics.yaml"), data, 0o644); err != nil {
+			return fmt.Errorf("failed to write topics.yaml: %w", err)
+		}
 	}
 
 	if cfg.Labels != nil {
-		data, _ := yaml.Marshal(map[string]interface{}{"labels": cfg.Labels})
-		os.WriteFile(filepath.Join(dir, "labels.yaml"), data, 0644)
+		data, err := yaml.Marshal(map[string]interface{}{"labels": cfg.Labels})
+		if err != nil {
+			return fmt.Errorf("failed to marshal labels config: %w", err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "labels.yaml"), data, 0o644); err != nil {
+			return fmt.Errorf("failed to write labels.yaml: %w", err)
+		}
 	}
 
 	if cfg.BranchProtection != nil {
-		data, _ := yaml.Marshal(map[string]interface{}{"branch_protection": cfg.BranchProtection})
-		os.WriteFile(filepath.Join(dir, "branch-protection.yaml"), data, 0644)
+		data, err := yaml.Marshal(map[string]interface{}{"branch_protection": cfg.BranchProtection})
+		if err != nil {
+			return fmt.Errorf("failed to marshal branch_protection config: %w", err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "branch-protection.yaml"), data, 0o644); err != nil {
+			return fmt.Errorf("failed to write branch-protection.yaml: %w", err)
+		}
 	}
 
 	fmt.Printf("\n✓ Configuration written to %s\n", dir)

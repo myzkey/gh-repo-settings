@@ -312,11 +312,11 @@ func (c *Client) UpdateBranchProtection(ctx context.Context, branch string, sett
 
 	// Build the protection payload
 	payload := map[string]interface{}{
-		"enforce_admins": settings.EnforceAdmins != nil && *settings.EnforceAdmins,
+		"enforce_admins":          settings.EnforceAdmins != nil && *settings.EnforceAdmins,
 		"required_linear_history": settings.RequireLinearHistory != nil && *settings.RequireLinearHistory,
-		"allow_force_pushes": settings.AllowForcePushes != nil && *settings.AllowForcePushes,
-		"allow_deletions": settings.AllowDeletions != nil && *settings.AllowDeletions,
-		"restrictions": nil,
+		"allow_force_pushes":      settings.AllowForcePushes != nil && *settings.AllowForcePushes,
+		"allow_deletions":         settings.AllowDeletions != nil && *settings.AllowDeletions,
+		"restrictions":            nil,
 	}
 
 	// Required pull request reviews

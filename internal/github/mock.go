@@ -6,33 +6,33 @@ import (
 
 // MockClient is a mock implementation of GitHubClient for testing
 type MockClient struct {
-	RepoData              *RepoData
-	Labels                []LabelData
-	BranchProtections     map[string]*BranchProtectionData
-	Secrets               []string
-	Variables             []string
-	Owner                 string
-	Name                  string
+	RepoData          *RepoData
+	Labels            []LabelData
+	BranchProtections map[string]*BranchProtectionData
+	Secrets           []string
+	Variables         []string
+	Owner             string
+	Name              string
 
 	// Error fields for testing error scenarios
-	GetRepoError              error
-	UpdateRepoError           error
-	GetLabelsError            error
-	CreateLabelError          error
-	UpdateLabelError          error
-	DeleteLabelError          error
-	SetTopicsError            error
-	GetBranchProtectionError  error
+	GetRepoError                error
+	UpdateRepoError             error
+	GetLabelsError              error
+	CreateLabelError            error
+	UpdateLabelError            error
+	DeleteLabelError            error
+	SetTopicsError              error
+	GetBranchProtectionError    error
 	UpdateBranchProtectionError error
-	GetSecretsError           error
-	GetVariablesError         error
+	GetSecretsError             error
+	GetVariablesError           error
 
 	// Call tracking
-	UpdateRepoCalls           []map[string]interface{}
-	SetTopicsCalls            [][]string
-	CreateLabelCalls          []LabelCall
-	UpdateLabelCalls          []UpdateLabelCall
-	DeleteLabelCalls          []string
+	UpdateRepoCalls             []map[string]interface{}
+	SetTopicsCalls              [][]string
+	CreateLabelCalls            []LabelCall
+	UpdateLabelCalls            []UpdateLabelCall
+	DeleteLabelCalls            []string
 	UpdateBranchProtectionCalls []BranchProtectionCall
 }
 

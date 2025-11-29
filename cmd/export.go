@@ -134,7 +134,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 }
 
 func exportToDirectory(cfg *config.Config, dir string) error {
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 
@@ -190,5 +190,5 @@ func writeYAMLFile(path string, data interface{}) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, yamlData, 0644)
+	return os.WriteFile(path, yamlData, 0o644)
 }

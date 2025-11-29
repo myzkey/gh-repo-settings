@@ -99,7 +99,7 @@ func runApply(cmd *cobra.Command, args []string) error {
 	if !autoApprove {
 		fmt.Print("Do you want to apply these changes? (yes/no): ")
 		var answer string
-		fmt.Scanln(&answer)
+		_, _ = fmt.Scanln(&answer)
 		if answer != "yes" && answer != "y" {
 			logger.Info("Apply cancelled.")
 			return nil
