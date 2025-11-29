@@ -31,8 +31,11 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	rootCmd.SilenceErrors = true
+	rootCmd.SilenceUsage = true
 	err := rootCmd.Execute()
 	if err != nil {
+		logger.Error("%v", err)
 		os.Exit(1)
 	}
 }

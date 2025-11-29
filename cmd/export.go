@@ -115,6 +115,34 @@ func runExport(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Get actions permissions
+	actionsPerms, err := client.GetActionsPermissions(ctx)
+	if err == nil {
+		cfg.Actions = &config.ActionsConfig{
+			Enabled:        &actionsPerms.Enabled,
+			AllowedActions: &actionsPerms.AllowedActions,
+		}
+
+		// Get selected actions if applicable
+		if actionsPerms.AllowedActions == "selected" {
+			selected, err := client.GetActionsSelectedActions(ctx)
+			if err == nil {
+				cfg.Actions.SelectedActions = &config.SelectedActionsConfig{
+					GithubOwnedAllowed: &selected.GithubOwnedAllowed,
+					VerifiedAllowed:    &selected.VerifiedAllowed,
+					PatternsAllowed:    selected.PatternsAllowed,
+				}
+			}
+		}
+
+		// Get workflow permissions
+		workflowPerms, err := client.GetActionsWorkflowPermissions(ctx)
+		if err == nil {
+			cfg.Actions.DefaultWorkflowPermissions = &workflowPerms.DefaultWorkflowPermissions
+			cfg.Actions.CanApprovePullRequestReviews = &workflowPerms.CanApprovePullRequestReviews
+		}
+	}
+
 	// Output
 	if exportDir != "" {
 		return exportToDirectory(cfg, exportDir)
@@ -169,6 +197,13 @@ func exportToDirectory(cfg *config.Config, dir string) error {
 	// Export env
 	if cfg.Env != nil && len(cfg.Env.Required) > 0 {
 		if err := writeYAMLFile(filepath.Join(dir, "env.yaml"), map[string]interface{}{"env": cfg.Env}); err != nil {
+			return err
+		}
+	}
+
+	// Export actions
+	if cfg.Actions != nil {
+		if err := writeYAMLFile(filepath.Join(dir, "actions.yaml"), map[string]interface{}{"actions": cfg.Actions}); err != nil {
 			return err
 		}
 	}

@@ -157,6 +157,15 @@ func (c *Calculator) CalculateWithOptions(ctx context.Context, opts CalculateOpt
 		plan.Changes = append(plan.Changes, changes...)
 	}
 
+	// Compare actions permissions
+	if c.config.Actions != nil {
+		changes, err := c.compareActions(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to compare actions permissions: %w", err)
+		}
+		plan.Changes = append(plan.Changes, changes...)
+	}
+
 	return plan, nil
 }
 
@@ -538,11 +547,32 @@ func formatBranchRule(rule *config.BranchRule) string {
 	if rule.RequiredReviews != nil {
 		parts = append(parts, fmt.Sprintf("required_reviews=%d", *rule.RequiredReviews))
 	}
+	if rule.DismissStaleReviews != nil && *rule.DismissStaleReviews {
+		parts = append(parts, "dismiss_stale_reviews=true")
+	}
+	if rule.RequireCodeOwner != nil && *rule.RequireCodeOwner {
+		parts = append(parts, "require_code_owner=true")
+	}
+	if rule.StrictStatusChecks != nil && *rule.StrictStatusChecks {
+		parts = append(parts, "strict_status_checks=true")
+	}
+	if len(rule.StatusChecks) > 0 {
+		parts = append(parts, fmt.Sprintf("status_checks=%v", rule.StatusChecks))
+	}
 	if rule.EnforceAdmins != nil && *rule.EnforceAdmins {
 		parts = append(parts, "enforce_admins=true")
 	}
 	if rule.RequireLinearHistory != nil && *rule.RequireLinearHistory {
 		parts = append(parts, "require_linear_history=true")
+	}
+	if rule.RequireSignedCommits != nil && *rule.RequireSignedCommits {
+		parts = append(parts, "require_signed_commits=true")
+	}
+	if rule.AllowForcePushes != nil && *rule.AllowForcePushes {
+		parts = append(parts, "allow_force_pushes=true")
+	}
+	if rule.AllowDeletions != nil && *rule.AllowDeletions {
+		parts = append(parts, "allow_deletions=true")
 	}
 	if len(parts) == 0 {
 		return "new protection"
@@ -636,4 +666,104 @@ func ptrVal(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+func (c *Calculator) compareActions(ctx context.Context) ([]Change, error) {
+	var changes []Change
+	cfg := c.config.Actions
+
+	// Get current permissions
+	currentPerms, err := c.client.GetActionsPermissions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Compare enabled
+	if cfg.Enabled != nil && *cfg.Enabled != currentPerms.Enabled {
+		changes = append(changes, Change{
+			Type:     ChangeUpdate,
+			Category: "actions",
+			Key:      "enabled",
+			Old:      currentPerms.Enabled,
+			New:      *cfg.Enabled,
+		})
+	}
+
+	// Compare allowed_actions
+	if cfg.AllowedActions != nil && *cfg.AllowedActions != currentPerms.AllowedActions {
+		changes = append(changes, Change{
+			Type:     ChangeUpdate,
+			Category: "actions",
+			Key:      "allowed_actions",
+			Old:      currentPerms.AllowedActions,
+			New:      *cfg.AllowedActions,
+		})
+	}
+
+	// Compare selected actions (only if allowed_actions is "selected")
+	if cfg.SelectedActions != nil {
+		currentSelected, err := c.client.GetActionsSelectedActions(ctx)
+		if err != nil {
+			// Ignore error if not applicable
+			currentSelected = &github.ActionsSelectedData{}
+		}
+
+		if cfg.SelectedActions.GithubOwnedAllowed != nil && *cfg.SelectedActions.GithubOwnedAllowed != currentSelected.GithubOwnedAllowed {
+			changes = append(changes, Change{
+				Type:     ChangeUpdate,
+				Category: "actions",
+				Key:      "github_owned_allowed",
+				Old:      currentSelected.GithubOwnedAllowed,
+				New:      *cfg.SelectedActions.GithubOwnedAllowed,
+			})
+		}
+
+		if cfg.SelectedActions.VerifiedAllowed != nil && *cfg.SelectedActions.VerifiedAllowed != currentSelected.VerifiedAllowed {
+			changes = append(changes, Change{
+				Type:     ChangeUpdate,
+				Category: "actions",
+				Key:      "verified_allowed",
+				Old:      currentSelected.VerifiedAllowed,
+				New:      *cfg.SelectedActions.VerifiedAllowed,
+			})
+		}
+
+		if len(cfg.SelectedActions.PatternsAllowed) > 0 && !reflect.DeepEqual(cfg.SelectedActions.PatternsAllowed, currentSelected.PatternsAllowed) {
+			changes = append(changes, Change{
+				Type:     ChangeUpdate,
+				Category: "actions",
+				Key:      "patterns_allowed",
+				Old:      currentSelected.PatternsAllowed,
+				New:      cfg.SelectedActions.PatternsAllowed,
+			})
+		}
+	}
+
+	// Compare workflow permissions
+	currentWorkflow, err := c.client.GetActionsWorkflowPermissions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.DefaultWorkflowPermissions != nil && *cfg.DefaultWorkflowPermissions != currentWorkflow.DefaultWorkflowPermissions {
+		changes = append(changes, Change{
+			Type:     ChangeUpdate,
+			Category: "actions",
+			Key:      "default_workflow_permissions",
+			Old:      currentWorkflow.DefaultWorkflowPermissions,
+			New:      *cfg.DefaultWorkflowPermissions,
+		})
+	}
+
+	if cfg.CanApprovePullRequestReviews != nil && *cfg.CanApprovePullRequestReviews != currentWorkflow.CanApprovePullRequestReviews {
+		changes = append(changes, Change{
+			Type:     ChangeUpdate,
+			Category: "actions",
+			Key:      "can_approve_pull_request_reviews",
+			Old:      currentWorkflow.CanApprovePullRequestReviews,
+			New:      *cfg.CanApprovePullRequestReviews,
+		})
+	}
+
+	return changes, nil
 }

@@ -1,14 +1,20 @@
-.PHONY: build install clean test lint
+.PHONY: build install install-local clean test lint
 
 BINARY_NAME=gh-repo-settings
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS=-ldflags "-X main.version=$(VERSION)"
+GH_EXTENSION_DIR=$(HOME)/.local/share/gh/extensions/gh-repo-settings
 
 build:
 	go build $(LDFLAGS) -o $(BINARY_NAME) .
 
 install:
 	go install $(LDFLAGS) .
+
+# Install to gh extension directory for local testing
+install-local:
+	@mkdir -p $(GH_EXTENSION_DIR)
+	go build $(LDFLAGS) -o $(GH_EXTENSION_DIR)/$(BINARY_NAME) .
 
 clean:
 	rm -f $(BINARY_NAME)

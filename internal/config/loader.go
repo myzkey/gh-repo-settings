@@ -1,7 +1,9 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,7 +53,13 @@ func loadSingleFile(filePath string) (*Config, error) {
 	}
 
 	var config Config
-	if err := yaml.Unmarshal(data, &config); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&config); err != nil {
+		if err == io.EOF {
+			// Empty file is valid, return empty config
+			return &config, nil
+		}
 		return nil, fmt.Errorf("failed to parse config file %s: %w", filePath, err)
 	}
 
@@ -157,37 +165,24 @@ func loadFromDirectory(dirPath string) (*Config, error) {
 					config.Env = &env
 				}
 			}
-		default:
-			// For any other file, try to merge at top level
-			var partial Config
-			if err := yaml.Unmarshal(data, &partial); err == nil {
-				mergeConfig(config, &partial)
+		case "actions":
+			var wrapper struct {
+				Actions *ActionsConfig `yaml:"actions"`
 			}
+			if err := yaml.Unmarshal(data, &wrapper); err == nil && wrapper.Actions != nil {
+				config.Actions = wrapper.Actions
+			} else {
+				var actions ActionsConfig
+				if err := yaml.Unmarshal(data, &actions); err == nil {
+					config.Actions = &actions
+				}
+			}
+		default:
+			return nil, fmt.Errorf("unknown config file: %s (valid names: repo, topics, labels, branch-protection, secrets, env, actions)", name)
 		}
 	}
 
 	return config, nil
-}
-
-func mergeConfig(dst, src *Config) {
-	if src.Repo != nil {
-		dst.Repo = src.Repo
-	}
-	if src.Topics != nil {
-		dst.Topics = src.Topics
-	}
-	if src.Labels != nil {
-		dst.Labels = src.Labels
-	}
-	if src.BranchProtection != nil {
-		dst.BranchProtection = src.BranchProtection
-	}
-	if src.Secrets != nil {
-		dst.Secrets = src.Secrets
-	}
-	if src.Env != nil {
-		dst.Env = src.Env
-	}
 }
 
 // ToYAML converts config to YAML string
