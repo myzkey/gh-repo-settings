@@ -22,17 +22,36 @@ gh extension install myzkey/gh-repo-settings
 ## Inicio Rápido
 
 ```bash
-# Exportar configuración actual del repositorio a YAML
-gh repo-settings export -s repo-settings.yaml
+# Crear archivo de configuración interactivamente
+gh repo-settings init
 
 # Previsualizar cambios (como terraform plan)
-gh repo-settings plan -c repo-settings.yaml
+gh repo-settings plan
 
 # Aplicar cambios
-gh repo-settings apply -c repo-settings.yaml
+gh repo-settings apply
 ```
 
+Rutas de configuración por defecto (en orden de prioridad):
+1. `.github/repo-settings/` (directorio)
+2. `.github/repo-settings.yaml` (archivo único)
+
 ## Comandos
+
+### `init` - Inicializar configuración
+
+Crea un archivo de configuración interactivamente.
+
+```bash
+# Crear .github/repo-settings.yaml interactivamente
+gh repo-settings init
+
+# Especificar ruta de salida
+gh repo-settings init -o config.yaml
+
+# Sobrescribir archivo existente
+gh repo-settings init -f
+```
 
 ### `export` - Exportar configuración del repositorio
 
@@ -60,8 +79,11 @@ gh repo-settings export -r owner/repo -s settings.yaml
 Valida la configuración y muestra los cambios planificados sin aplicarlos.
 
 ```bash
-# Previsualizar todos los cambios
-gh repo-settings plan -c .github/repo-settings.yaml
+# Previsualizar todos los cambios (usa ruta por defecto)
+gh repo-settings plan
+
+# Especificar archivo de configuración
+gh repo-settings plan -c custom-config.yaml
 
 # Previsualizar con configuración de directorio
 gh repo-settings plan -d .github/repo-settings/
@@ -81,11 +103,14 @@ gh repo-settings plan --env
 Aplica la configuración YAML al repositorio de GitHub.
 
 ```bash
-# Aplicar cambios
-gh repo-settings apply -c .github/repo-settings.yaml
+# Aplicar cambios (usa ruta por defecto)
+gh repo-settings apply
 
 # Ejecución en seco (igual que plan)
 gh repo-settings apply --dry-run
+
+# Especificar archivo de configuración
+gh repo-settings apply -c custom-config.yaml
 
 # Aplicar desde directorio
 gh repo-settings apply -d .github/repo-settings/

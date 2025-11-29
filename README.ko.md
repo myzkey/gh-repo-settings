@@ -22,17 +22,36 @@ gh extension install myzkey/gh-repo-settings
 ## 빠른 시작
 
 ```bash
-# 현재 저장소 설정을 YAML로 내보내기
-gh repo-settings export -s repo-settings.yaml
+# 대화형으로 설정 파일 생성
+gh repo-settings init
 
 # 변경 사항 미리보기 (terraform plan처럼)
-gh repo-settings plan -c repo-settings.yaml
+gh repo-settings plan
 
 # 변경 사항 적용
-gh repo-settings apply -c repo-settings.yaml
+gh repo-settings apply
 ```
 
+기본 설정 파일 경로 (우선순위 순):
+1. `.github/repo-settings/` (디렉토리)
+2. `.github/repo-settings.yaml` (단일 파일)
+
 ## 명령어
+
+### `init` - 설정 파일 초기화
+
+대화형으로 설정 파일을 생성합니다.
+
+```bash
+# .github/repo-settings.yaml을 대화형으로 생성
+gh repo-settings init
+
+# 출력 경로 지정
+gh repo-settings init -o config.yaml
+
+# 기존 파일 덮어쓰기
+gh repo-settings init -f
+```
 
 ### `export` - 저장소 설정 내보내기
 
@@ -60,8 +79,11 @@ gh repo-settings export -r owner/repo -s settings.yaml
 설정을 검증하고 적용하지 않고 계획된 변경 사항을 표시합니다.
 
 ```bash
-# 모든 변경 사항 미리보기
-gh repo-settings plan -c .github/repo-settings.yaml
+# 모든 변경 사항 미리보기 (기본 경로 사용)
+gh repo-settings plan
+
+# 설정 파일 지정
+gh repo-settings plan -c custom-config.yaml
 
 # 디렉토리 설정으로 미리보기
 gh repo-settings plan -d .github/repo-settings/
@@ -81,11 +103,14 @@ gh repo-settings plan --env
 YAML 설정을 GitHub 저장소에 적용합니다.
 
 ```bash
-# 변경 사항 적용
-gh repo-settings apply -c .github/repo-settings.yaml
+# 변경 사항 적용 (기본 경로 사용)
+gh repo-settings apply
 
 # 드라이 런 (plan과 동일)
 gh repo-settings apply --dry-run
+
+# 설정 파일 지정
+gh repo-settings apply -c custom-config.yaml
 
 # 디렉토리에서 적용
 gh repo-settings apply -d .github/repo-settings/

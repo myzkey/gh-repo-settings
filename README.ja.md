@@ -22,17 +22,36 @@ gh extension install myzkey/gh-repo-settings
 ## クイックスタート
 
 ```bash
-# 現在のリポジトリ設定を YAML にエクスポート
-gh repo-settings export -s repo-settings.yaml
+# 対話形式で設定ファイルを作成
+gh repo-settings init
 
 # 変更をプレビュー（terraform plan のように）
-gh repo-settings plan -c repo-settings.yaml
+gh repo-settings plan
 
 # 変更を適用
-gh repo-settings apply -c repo-settings.yaml
+gh repo-settings apply
 ```
 
+デフォルトの設定ファイルパス（優先順）:
+1. `.github/repo-settings/`（ディレクトリ）
+2. `.github/repo-settings.yaml`（単一ファイル）
+
 ## コマンド
+
+### `init` - 設定ファイルの初期化
+
+対話形式で設定ファイルを作成します。
+
+```bash
+# .github/repo-settings.yaml を対話形式で作成
+gh repo-settings init
+
+# 出力先を指定
+gh repo-settings init -o config.yaml
+
+# 既存ファイルを上書き
+gh repo-settings init -f
+```
 
 ### `export` - リポジトリ設定のエクスポート
 
@@ -60,8 +79,11 @@ gh repo-settings export -r owner/repo -s settings.yaml
 設定を検証し、適用せずに計画された変更を表示します。
 
 ```bash
-# すべての変更をプレビュー
-gh repo-settings plan -c .github/repo-settings.yaml
+# すべての変更をプレビュー（デフォルトパスを使用）
+gh repo-settings plan
+
+# 設定ファイルを指定
+gh repo-settings plan -c custom-config.yaml
 
 # ディレクトリ設定でプレビュー
 gh repo-settings plan -d .github/repo-settings/
@@ -81,11 +103,14 @@ gh repo-settings plan --env
 YAML 設定を GitHub リポジトリに適用します。
 
 ```bash
-# 変更を適用
-gh repo-settings apply -c .github/repo-settings.yaml
+# 変更を適用（デフォルトパスを使用）
+gh repo-settings apply
 
 # ドライラン（plan と同じ）
 gh repo-settings apply --dry-run
+
+# 設定ファイルを指定
+gh repo-settings apply -c custom-config.yaml
 
 # ディレクトリから適用
 gh repo-settings apply -d .github/repo-settings/
