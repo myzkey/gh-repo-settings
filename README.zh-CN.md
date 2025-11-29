@@ -222,14 +222,28 @@ topics:
 ```yaml
 branch_protection:
   <分支名>:
+    # 拉取请求审查
     required_reviews: 1          # 所需审批数
     dismiss_stale_reviews: true  # 新提交时撤销审批
     require_code_owner: false    # 需要 CODEOWNERS 审查
+
+    # 状态检查
     require_status_checks: true  # 需要状态检查
     status_checks:               # 必需的状态检查名称
       - ci/test
     strict_status_checks: false  # 需要最新分支
+
+    # 部署
+    required_deployments:        # 必需的部署环境
+      - production
+
+    # 提交要求
+    require_signed_commits: false # 需要签名提交
+    require_linear_history: false # 禁止合并提交
+
+    # 推送/合并限制
     enforce_admins: false        # 对管理员也适用
+    restrict_creations: false    # 限制分支创建
     restrict_pushes: false       # 限制推送
     allow_force_pushes: false    # 允许强制推送
     allow_deletions: false       # 允许删除分支

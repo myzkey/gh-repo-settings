@@ -222,14 +222,28 @@ topics:
 ```yaml
 branch_protection:
   <nombre_rama>:
+    # Revisiones de pull request
     required_reviews: 1          # Número de aprobaciones requeridas
     dismiss_stale_reviews: true  # Descartar aprobaciones en nuevos commits
     require_code_owner: false    # Requerir revisión de CODEOWNERS
+
+    # Checks de estado
     require_status_checks: true  # Requerir checks de estado
     status_checks:               # Nombres de checks requeridos
       - ci/test
     strict_status_checks: false  # Requerir rama actualizada
+
+    # Despliegues
+    required_deployments:        # Entornos de despliegue requeridos
+      - production
+
+    # Requisitos de commits
+    require_signed_commits: false # Requerir commits firmados
+    require_linear_history: false # Prohibir merge commits
+
+    # Restricciones de push/merge
     enforce_admins: false        # Incluir administradores
+    restrict_creations: false    # Restringir creación de ramas
     restrict_pushes: false       # Restringir quién puede hacer push
     allow_force_pushes: false    # Permitir force push
     allow_deletions: false       # Permitir eliminación de rama

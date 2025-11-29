@@ -222,14 +222,28 @@ topics:
 ```yaml
 branch_protection:
   <branch_name>:
+    # Pull request reviews
     required_reviews: 1          # Number of required approvals
     dismiss_stale_reviews: true  # Dismiss approvals on new commits
     require_code_owner: false    # Require CODEOWNERS review
+
+    # Status checks
     require_status_checks: true  # Require status checks
     status_checks:               # Required status check names
       - ci/test
     strict_status_checks: false  # Require up-to-date branches
+
+    # Deployments
+    required_deployments:        # Required deployment environments
+      - production
+
+    # Commit requirements
+    require_signed_commits: false # Require signed commits
+    require_linear_history: false # Prevent merge commits
+
+    # Push/merge restrictions
     enforce_admins: false        # Include administrators
+    restrict_creations: false    # Restrict branch creation
     restrict_pushes: false       # Restrict who can push
     allow_force_pushes: false    # Allow force pushes
     allow_deletions: false       # Allow branch deletion

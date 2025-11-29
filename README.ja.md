@@ -222,14 +222,28 @@ topics:
 ```yaml
 branch_protection:
   <ブランチ名>:
+    # プルリクエストレビュー
     required_reviews: 1          # 必要な承認数
     dismiss_stale_reviews: true  # 新しいコミットで承認を却下
     require_code_owner: false    # CODEOWNERS のレビューを必須
+
+    # ステータスチェック
     require_status_checks: true  # ステータスチェックを必須
     status_checks:               # 必須のステータスチェック名
       - ci/test
     strict_status_checks: false  # 最新ブランチを必須
+
+    # デプロイメント
+    required_deployments:        # 必須のデプロイ環境
+      - production
+
+    # コミット要件
+    require_signed_commits: false # 署名付きコミットを必須
+    require_linear_history: false # マージコミットを禁止
+
+    # プッシュ/マージ制限
     enforce_admins: false        # 管理者にも適用
+    restrict_creations: false    # ブランチ作成を制限
     restrict_pushes: false       # プッシュを制限
     allow_force_pushes: false    # 強制プッシュを許可
     allow_deletions: false       # ブランチ削除を許可
