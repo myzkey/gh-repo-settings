@@ -222,14 +222,28 @@ topics:
 ```yaml
 branch_protection:
   <브랜치명>:
+    # 풀 리퀘스트 리뷰
     required_reviews: 1          # 필요한 승인 수
     dismiss_stale_reviews: true  # 새 커밋 시 승인 취소
     require_code_owner: false    # CODEOWNERS 리뷰 필수
+
+    # 상태 체크
     require_status_checks: true  # 상태 체크 필수
     status_checks:               # 필수 상태 체크 이름
       - ci/test
     strict_status_checks: false  # 최신 브랜치 필수
+
+    # 배포
+    required_deployments:        # 필수 배포 환경
+      - production
+
+    # 커밋 요구사항
+    require_signed_commits: false # 서명된 커밋 필수
+    require_linear_history: false # 머지 커밋 금지
+
+    # 푸시/머지 제한
     enforce_admins: false        # 관리자에게도 적용
+    restrict_creations: false    # 브랜치 생성 제한
     restrict_pushes: false       # 푸시 제한
     allow_force_pushes: false    # 강제 푸시 허용
     allow_deletions: false       # 브랜치 삭제 허용
