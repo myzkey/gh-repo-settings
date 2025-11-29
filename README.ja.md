@@ -12,6 +12,7 @@ GitHub リポジトリの設定を YAML で管理する GitHub CLI 拡張機能�
 - **スキーマ検証**: 適用前に設定を検証
 - **複数の設定形式**: 単一ファイルまたはディレクトリベースの設定
 - **Secrets/Env チェック**: 必要なシークレットと環境変数の存在確認
+- **Actions 権限設定**: GitHub Actions の権限とワークフロー設定を管理
 
 ## インストール
 
@@ -171,6 +172,17 @@ secrets:
 env:
   required:
     - DATABASE_URL
+
+actions:
+  enabled: true
+  allowed_actions: selected
+  selected_actions:
+    github_owned_allowed: true
+    verified_allowed: true
+    patterns_allowed:
+      - "actions/*"
+  default_workflow_permissions: read
+  can_approve_pull_request_reviews: false
 ```
 
 ### ディレクトリ構造
@@ -184,7 +196,8 @@ env:
 ├── labels.yaml
 ├── branch-protection.yaml
 ├── secrets.yaml
-└── env.yaml
+├── env.yaml
+└── actions.yaml
 ```
 
 ## 設定リファレンス
@@ -276,6 +289,43 @@ env:
     - DATABASE_URL
     - SENTRY_DSN
 ```
+
+### `actions` - GitHub Actions 権限設定
+
+リポジトリの GitHub Actions 権限を設定:
+
+```yaml
+actions:
+  # GitHub Actions の有効/無効
+  enabled: true
+
+  # 使用可能なアクション: "all", "local_only", "selected"
+  allowed_actions: selected
+
+  # allowed_actions が "selected" の場合
+  selected_actions:
+    github_owned_allowed: true    # GitHub 製アクションを許可
+    verified_allowed: true        # 認証済み作成者のアクションを許可
+    patterns_allowed:             # 許可するアクションのパターン
+      - "actions/*"
+      - "github/codeql-action/*"
+
+  # デフォルトの GITHUB_TOKEN 権限: "read" または "write"
+  default_workflow_permissions: read
+
+  # GitHub Actions による PR 作成/承認を許可
+  can_approve_pull_request_reviews: false
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `enabled` | boolean | GitHub Actions を有効にする |
+| `allowed_actions` | `all` \| `local_only` \| `selected` | 許可するアクション |
+| `selected_actions.github_owned_allowed` | boolean | GitHub 製アクションを許可 |
+| `selected_actions.verified_allowed` | boolean | 認証済み作成者を許可 |
+| `selected_actions.patterns_allowed` | array | 許可するアクションのパターン |
+| `default_workflow_permissions` | `read` \| `write` | GITHUB_TOKEN のデフォルト権限 |
+| `can_approve_pull_request_reviews` | boolean | Actions による PR 承認を許可 |
 
 ## CI/CD 連携
 

@@ -12,6 +12,7 @@
 - **Schema 验证**: 应用前验证配置
 - **多种配置格式**: 单文件或目录结构配置
 - **Secrets/Env 检查**: 验证必需的密钥和环境变量是否存在
+- **Actions 权限设置**: 配置 GitHub Actions 权限和工作流设置
 
 ## 安装
 
@@ -171,6 +172,17 @@ secrets:
 env:
   required:
     - DATABASE_URL
+
+actions:
+  enabled: true
+  allowed_actions: selected
+  selected_actions:
+    github_owned_allowed: true
+    verified_allowed: true
+    patterns_allowed:
+      - "actions/*"
+  default_workflow_permissions: read
+  can_approve_pull_request_reviews: false
 ```
 
 ### 目录结构
@@ -184,7 +196,8 @@ env:
 ├── labels.yaml
 ├── branch-protection.yaml
 ├── secrets.yaml
-└── env.yaml
+├── env.yaml
+└── actions.yaml
 ```
 
 ## 配置参考
@@ -276,6 +289,43 @@ env:
     - DATABASE_URL
     - SENTRY_DSN
 ```
+
+### `actions` - GitHub Actions 权限设置
+
+配置仓库的 GitHub Actions 权限：
+
+```yaml
+actions:
+  # 启用/禁用 GitHub Actions
+  enabled: true
+
+  # 允许哪些 actions: "all", "local_only", "selected"
+  allowed_actions: selected
+
+  # 当 allowed_actions 为 "selected" 时
+  selected_actions:
+    github_owned_allowed: true    # 允许 GitHub 官方 actions
+    verified_allowed: true        # 允许已验证创建者的 actions
+    patterns_allowed:             # 允许的 action 模式
+      - "actions/*"
+      - "github/codeql-action/*"
+
+  # 默认 GITHUB_TOKEN 权限: "read" 或 "write"
+  default_workflow_permissions: read
+
+  # 允许 GitHub Actions 创建/批准拉取请求
+  can_approve_pull_request_reviews: false
+```
+
+| 字段 | 类型 | 描述 |
+|-----|------|------|
+| `enabled` | boolean | 启用 GitHub Actions |
+| `allowed_actions` | `all` \| `local_only` \| `selected` | 允许的 actions |
+| `selected_actions.github_owned_allowed` | boolean | 允许 GitHub 官方 actions |
+| `selected_actions.verified_allowed` | boolean | 允许已验证创建者 |
+| `selected_actions.patterns_allowed` | array | 允许的 action 模式 |
+| `default_workflow_permissions` | `read` \| `write` | GITHUB_TOKEN 默认权限 |
+| `can_approve_pull_request_reviews` | boolean | 允许 Actions 批准 PR |
 
 ## CI/CD 集成
 
