@@ -101,7 +101,7 @@ describe('applyCommand', () => {
   it('should exit with error on validation failure', async () => {
     mockValidateConfig.mockReturnValue({
       valid: false,
-      errors: [{ message: 'Invalid' }],
+      errors: [{ path: 'repo', message: 'Invalid' }],
     })
 
     const mockExit = vi

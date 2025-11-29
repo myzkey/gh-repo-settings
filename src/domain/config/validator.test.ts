@@ -41,8 +41,8 @@ describe('loadAndValidateConfig', () => {
   })
 
   it('should throw error when validation fails', () => {
-    const config = { repo: { visibility: 'invalid' } }
-    mockLoadConfig.mockReturnValue(config)
+    const config = { repo: { visibility: 'invalid' as const } }
+    mockLoadConfig.mockReturnValue(config as never)
     mockValidateConfig.mockReturnValue({
       valid: false,
       errors: [{ path: 'repo.visibility', message: 'Invalid value' }],
@@ -54,8 +54,8 @@ describe('loadAndValidateConfig', () => {
   })
 
   it('should print validation errors when validation fails', () => {
-    const config = { repo: { visibility: 'invalid' } }
-    mockLoadConfig.mockReturnValue(config)
+    const config = { repo: { visibility: 'invalid' as const } }
+    mockLoadConfig.mockReturnValue(config as never)
     mockValidateConfig.mockReturnValue({
       valid: false,
       errors: [{ path: 'repo.visibility', message: 'Invalid value' }],
@@ -109,7 +109,7 @@ describe('printValidationErrors', () => {
   it('should use (root) for errors without path', () => {
     const result = {
       valid: false,
-      errors: [{ message: 'Invalid config' }],
+      errors: [{ path: '', message: 'Invalid config' }],
     }
 
     printValidationErrors(result)

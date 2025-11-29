@@ -104,7 +104,7 @@ describe('planCommand', () => {
   it('should exit on validation failure', async () => {
     mockValidateConfig.mockReturnValue({
       valid: false,
-      errors: [{ message: 'Invalid' }],
+      errors: [{ path: 'repo', message: 'Invalid' }],
     })
 
     const mockExit = vi
