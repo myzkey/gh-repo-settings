@@ -7,7 +7,7 @@
     "gh-repo-settings": "./dist/cli.js"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && chmod +x dist/cli.js",
     "dev": "tsup --watch",
     "lint": "biome check",
     "lint:fix": "biome check --write",
