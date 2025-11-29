@@ -30,13 +30,13 @@ gh extension install myzkey/gh-repo-settings
 
 ```bash
 # 対話形式で設定ファイルを作成
-gh repo-settings init
+gh rset init
 
 # 変更をプレビュー（terraform plan のように）
-gh repo-settings plan
+gh rset plan
 
 # 変更を適用
-gh repo-settings apply
+gh rset apply
 ```
 
 デフォルトの設定ファイルパス（優先順）:
@@ -51,13 +51,13 @@ gh repo-settings apply
 
 ```bash
 # .github/repo-settings.yaml を対話形式で作成
-gh repo-settings init
+gh rset init
 
 # 出力先を指定
-gh repo-settings init -o config.yaml
+gh rset init -o config.yaml
 
 # 既存ファイルを上書き
-gh repo-settings init -f
+gh rset init -f
 ```
 
 ### `export` - リポジトリ設定のエクスポート
@@ -66,19 +66,19 @@ gh repo-settings init -f
 
 ```bash
 # 標準出力にエクスポート
-gh repo-settings export
+gh rset export
 
 # 単一ファイルにエクスポート
-gh repo-settings export -s .github/repo-settings.yaml
+gh rset export -s .github/repo-settings.yaml
 
 # ディレクトリにエクスポート（複数ファイル）
-gh repo-settings export -d .github/repo-settings/
+gh rset export -d .github/repo-settings/
 
 # シークレット名を含める
-gh repo-settings export -s settings.yaml --include-secrets
+gh rset export -s settings.yaml --include-secrets
 
 # 特定のリポジトリからエクスポート
-gh repo-settings export -r owner/repo -s settings.yaml
+gh rset export -r owner/repo -s settings.yaml
 ```
 
 ### `plan` - 変更のプレビュー
@@ -87,22 +87,22 @@ gh repo-settings export -r owner/repo -s settings.yaml
 
 ```bash
 # すべての変更をプレビュー（デフォルトパスを使用）
-gh repo-settings plan
+gh rset plan
 
 # 設定ファイルを指定
-gh repo-settings plan -c custom-config.yaml
+gh rset plan -c custom-config.yaml
 
 # ディレクトリ設定でプレビュー
-gh repo-settings plan -d .github/repo-settings/
+gh rset plan -d .github/repo-settings/
 
 # スキーマ検証のみ（API 呼び出しなし）
-gh repo-settings plan --schema-only
+gh rset plan --schema-only
 
 # シークレットの存在のみチェック
-gh repo-settings plan --secrets
+gh rset plan --secrets
 
 # 環境変数のみチェック
-gh repo-settings plan --env
+gh rset plan --env
 ```
 
 ### `apply` - 変更の適用
@@ -111,16 +111,16 @@ YAML 設定を GitHub リポジトリに適用します。
 
 ```bash
 # 変更を適用（デフォルトパスを使用）
-gh repo-settings apply
+gh rset apply
 
 # ドライラン（plan と同じ）
-gh repo-settings apply --dry-run
+gh rset apply --dry-run
 
 # 設定ファイルを指定
-gh repo-settings apply -c custom-config.yaml
+gh rset apply -c custom-config.yaml
 
 # ディレクトリから適用
-gh repo-settings apply -d .github/repo-settings/
+gh rset apply -d .github/repo-settings/
 ```
 
 ## 設定
@@ -356,7 +356,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check drift
-        run: gh repo-settings plan
+        run: gh rset plan
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```

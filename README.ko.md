@@ -30,13 +30,13 @@ gh extension install myzkey/gh-repo-settings
 
 ```bash
 # 대화형으로 설정 파일 생성
-gh repo-settings init
+gh rset init
 
 # 변경 사항 미리보기 (terraform plan처럼)
-gh repo-settings plan
+gh rset plan
 
 # 변경 사항 적용
-gh repo-settings apply
+gh rset apply
 ```
 
 기본 설정 파일 경로 (우선순위 순):
@@ -51,13 +51,13 @@ gh repo-settings apply
 
 ```bash
 # .github/repo-settings.yaml을 대화형으로 생성
-gh repo-settings init
+gh rset init
 
 # 출력 경로 지정
-gh repo-settings init -o config.yaml
+gh rset init -o config.yaml
 
 # 기존 파일 덮어쓰기
-gh repo-settings init -f
+gh rset init -f
 ```
 
 ### `export` - 저장소 설정 내보내기
@@ -66,19 +66,19 @@ gh repo-settings init -f
 
 ```bash
 # 표준 출력으로 내보내기
-gh repo-settings export
+gh rset export
 
 # 단일 파일로 내보내기
-gh repo-settings export -s .github/repo-settings.yaml
+gh rset export -s .github/repo-settings.yaml
 
 # 디렉토리로 내보내기 (여러 파일)
-gh repo-settings export -d .github/repo-settings/
+gh rset export -d .github/repo-settings/
 
 # 시크릿 이름 포함
-gh repo-settings export -s settings.yaml --include-secrets
+gh rset export -s settings.yaml --include-secrets
 
 # 특정 저장소에서 내보내기
-gh repo-settings export -r owner/repo -s settings.yaml
+gh rset export -r owner/repo -s settings.yaml
 ```
 
 ### `plan` - 변경 사항 미리보기
@@ -87,22 +87,22 @@ gh repo-settings export -r owner/repo -s settings.yaml
 
 ```bash
 # 모든 변경 사항 미리보기 (기본 경로 사용)
-gh repo-settings plan
+gh rset plan
 
 # 설정 파일 지정
-gh repo-settings plan -c custom-config.yaml
+gh rset plan -c custom-config.yaml
 
 # 디렉토리 설정으로 미리보기
-gh repo-settings plan -d .github/repo-settings/
+gh rset plan -d .github/repo-settings/
 
 # 스키마 검증만 (API 호출 없음)
-gh repo-settings plan --schema-only
+gh rset plan --schema-only
 
 # 시크릿 존재 여부만 확인
-gh repo-settings plan --secrets
+gh rset plan --secrets
 
 # 환경 변수만 확인
-gh repo-settings plan --env
+gh rset plan --env
 ```
 
 ### `apply` - 변경 사항 적용
@@ -111,16 +111,16 @@ YAML 설정을 GitHub 저장소에 적용합니다.
 
 ```bash
 # 변경 사항 적용 (기본 경로 사용)
-gh repo-settings apply
+gh rset apply
 
 # 드라이 런 (plan과 동일)
-gh repo-settings apply --dry-run
+gh rset apply --dry-run
 
 # 설정 파일 지정
-gh repo-settings apply -c custom-config.yaml
+gh rset apply -c custom-config.yaml
 
 # 디렉토리에서 적용
-gh repo-settings apply -d .github/repo-settings/
+gh rset apply -d .github/repo-settings/
 ```
 
 ## 설정
@@ -356,7 +356,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check drift
-        run: gh repo-settings plan
+        run: gh rset plan
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```

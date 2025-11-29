@@ -30,13 +30,13 @@ gh extension install myzkey/gh-repo-settings
 
 ```bash
 # 交互式创建配置文件
-gh repo-settings init
+gh rset init
 
 # 预览变更（类似 terraform plan）
-gh repo-settings plan
+gh rset plan
 
 # 应用变更
-gh repo-settings apply
+gh rset apply
 ```
 
 默认配置文件路径（按优先级）：
@@ -51,13 +51,13 @@ gh repo-settings apply
 
 ```bash
 # 交互式创建 .github/repo-settings.yaml
-gh repo-settings init
+gh rset init
 
 # 指定输出路径
-gh repo-settings init -o config.yaml
+gh rset init -o config.yaml
 
 # 覆盖现有文件
-gh repo-settings init -f
+gh rset init -f
 ```
 
 ### `export` - 导出仓库设置
@@ -66,19 +66,19 @@ gh repo-settings init -f
 
 ```bash
 # 导出到标准输出
-gh repo-settings export
+gh rset export
 
 # 导出到单个文件
-gh repo-settings export -s .github/repo-settings.yaml
+gh rset export -s .github/repo-settings.yaml
 
 # 导出到目录（多个文件）
-gh repo-settings export -d .github/repo-settings/
+gh rset export -d .github/repo-settings/
 
 # 包含密钥名称
-gh repo-settings export -s settings.yaml --include-secrets
+gh rset export -s settings.yaml --include-secrets
 
 # 从指定仓库导出
-gh repo-settings export -r owner/repo -s settings.yaml
+gh rset export -r owner/repo -s settings.yaml
 ```
 
 ### `plan` - 预览变更
@@ -87,22 +87,22 @@ gh repo-settings export -r owner/repo -s settings.yaml
 
 ```bash
 # 预览所有变更（使用默认配置路径）
-gh repo-settings plan
+gh rset plan
 
 # 指定配置文件
-gh repo-settings plan -c custom-config.yaml
+gh rset plan -c custom-config.yaml
 
 # 使用目录配置预览
-gh repo-settings plan -d .github/repo-settings/
+gh rset plan -d .github/repo-settings/
 
 # 仅验证 Schema（不调用 API）
-gh repo-settings plan --schema-only
+gh rset plan --schema-only
 
 # 仅检查密钥是否存在
-gh repo-settings plan --secrets
+gh rset plan --secrets
 
 # 仅检查环境变量
-gh repo-settings plan --env
+gh rset plan --env
 ```
 
 ### `apply` - 应用变更
@@ -111,16 +111,16 @@ gh repo-settings plan --env
 
 ```bash
 # 应用变更（使用默认配置路径）
-gh repo-settings apply
+gh rset apply
 
 # 演练模式（与 plan 相同）
-gh repo-settings apply --dry-run
+gh rset apply --dry-run
 
 # 指定配置文件
-gh repo-settings apply -c custom-config.yaml
+gh rset apply -c custom-config.yaml
 
 # 从目录应用
-gh repo-settings apply -d .github/repo-settings/
+gh rset apply -d .github/repo-settings/
 ```
 
 ## 配置
@@ -356,7 +356,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check drift
-        run: gh repo-settings plan
+        run: gh rset plan
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
