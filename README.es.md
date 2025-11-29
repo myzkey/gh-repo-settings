@@ -15,9 +15,15 @@ Una extensión de GitHub CLI para gestionar la configuración de repositorios me
 
 ## Instalación
 
+### Via GitHub CLI (Recomendado)
+
 ```bash
 gh extension install myzkey/gh-repo-settings
 ```
+
+### Instalación Manual
+
+Descarga el binario más reciente desde [Releases](https://github.com/myzkey/gh-repo-settings/releases) y agrégalo a tu PATH.
 
 ## Inicio Rápido
 
@@ -294,25 +300,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
       - name: Install gh-repo-settings
         run: gh extension install myzkey/gh-repo-settings
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Validar esquema
-        run: gh repo-settings plan --schema-only
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Verificar diferencias de configuración
+      - name: Check drift
         run: gh repo-settings plan
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Opciones Globales
@@ -326,20 +322,20 @@ jobs:
 ## Desarrollo
 
 ```bash
-# Instalar dependencias
-pnpm install
-
 # Compilar
-pnpm build
+make build
 
 # Ejecutar tests
-pnpm test
+make test
 
-# Lint
-pnpm lint
+# Lint (requiere golangci-lint)
+make lint
 
-# Verificación de tipos
-pnpm typecheck
+# Compilar para todas las plataformas
+make build-all
+
+# Limpiar artefactos de compilación
+make clean
 ```
 
 ## Licencia

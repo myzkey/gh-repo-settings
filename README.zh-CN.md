@@ -15,9 +15,15 @@
 
 ## 安装
 
+### 通过 GitHub CLI（推荐）
+
 ```bash
 gh extension install myzkey/gh-repo-settings
 ```
+
+### 手动安装
+
+从 [Releases](https://github.com/myzkey/gh-repo-settings/releases) 下载最新的二进制文件并添加到 PATH。
 
 ## 快速开始
 
@@ -294,25 +300,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
       - name: Install gh-repo-settings
         run: gh extension install myzkey/gh-repo-settings
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 验证 Schema
-        run: gh repo-settings plan --schema-only
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 检查设置差异
+      - name: Check drift
         run: gh repo-settings plan
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## 全局选项
@@ -326,20 +322,20 @@ jobs:
 ## 开发
 
 ```bash
-# 安装依赖
-pnpm install
-
 # 构建
-pnpm build
+make build
 
 # 运行测试
-pnpm test
+make test
 
-# 代码检查
-pnpm lint
+# 代码检查（需要 golangci-lint）
+make lint
 
-# 类型检查
-pnpm typecheck
+# 全平台构建
+make build-all
+
+# 清理构建产物
+make clean
 ```
 
 ## 许可证

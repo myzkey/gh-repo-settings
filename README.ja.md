@@ -15,9 +15,15 @@ GitHub リポジトリの設定を YAML で管理する GitHub CLI 拡張機能�
 
 ## インストール
 
+### GitHub CLI 経由（推奨）
+
 ```bash
 gh extension install myzkey/gh-repo-settings
 ```
+
+### 手動インストール
+
+[Releases](https://github.com/myzkey/gh-repo-settings/releases) から最新のバイナリをダウンロードし、PATH に追加してください。
 
 ## クイックスタート
 
@@ -294,25 +300,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
       - name: Install gh-repo-settings
         run: gh extension install myzkey/gh-repo-settings
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: スキーマ検証
-        run: gh repo-settings plan --schema-only
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 設定差分チェック
+      - name: Check drift
         run: gh repo-settings plan
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## グローバルオプション
@@ -326,20 +322,20 @@ jobs:
 ## 開発
 
 ```bash
-# 依存関係のインストール
-pnpm install
-
 # ビルド
-pnpm build
+make build
 
 # テスト実行
-pnpm test
+make test
 
-# リント
-pnpm lint
+# リント（golangci-lint が必要）
+make lint
 
-# 型チェック
-pnpm typecheck
+# 全プラットフォーム向けビルド
+make build-all
+
+# ビルド成果物の削除
+make clean
 ```
 
 ## ライセンス
