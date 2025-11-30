@@ -95,14 +95,27 @@ gh rset plan -c custom-config.yaml
 # 디렉토리 설정으로 미리보기
 gh rset plan -d .github/repo-settings/
 
-# 스키마 검증만 (API 호출 없음)
-gh rset plan --schema-only
+# 현재 GitHub 설정 표시 (디버깅용)
+gh rset plan --show-current
 
 # 시크릿 존재 여부만 확인
 gh rset plan --secrets
 
 # 환경 변수만 확인
 gh rset plan --env
+```
+
+`--show-current` 옵션은 현재 GitHub 저장소 설정을 표시합니다. 다음 경우에 유용합니다:
+- 설정 문제 디버깅
+- GitHub에 존재하지만 설정 파일에 없는 설정 찾기
+- 저장소의 실제 설정 확인
+
+**Status Check 검증**: `plan` 실행 시 브랜치 보호 규칙의 `status_checks` 이름이 `.github/workflows/` 파일의 작업 이름과 일치하는지 자동으로 검증합니다. 불일치가 발견되면 경고가 표시됩니다:
+
+```
+⚠ status check lint not found in workflows
+⚠ status check test not found in workflows
+  Available checks: build, golangci-lint, Run tests
 ```
 
 ### `apply` - 변경 사항 적용

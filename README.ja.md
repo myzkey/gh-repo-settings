@@ -95,14 +95,27 @@ gh rset plan -c custom-config.yaml
 # ディレクトリ設定でプレビュー
 gh rset plan -d .github/repo-settings/
 
-# スキーマ検証のみ（API 呼び出しなし）
-gh rset plan --schema-only
+# 現在のGitHub設定を表示（デバッグ用）
+gh rset plan --show-current
 
 # シークレットの存在のみチェック
 gh rset plan --secrets
 
 # 環境変数のみチェック
 gh rset plan --env
+```
+
+`--show-current` オプションは現在のGitHub設定を表示します。これは以下の場合に便利です：
+- 設定の問題をデバッグする
+- GitHubに存在するが設定ファイルにない設定を見つける
+- リポジトリの実際の設定を確認する
+
+**Status Check 検証**: `plan` 実行時、ブランチ保護ルールの `status_checks` 名が `.github/workflows/` ファイルのジョブ名と一致するか自動で検証します。不一致がある場合、警告が表示されます：
+
+```
+⚠ status check lint not found in workflows
+⚠ status check test not found in workflows
+  Available checks: build, golangci-lint, Run tests
 ```
 
 ### `apply` - 変更の適用
