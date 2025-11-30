@@ -28,6 +28,34 @@ export default defineConfig({
         content: 'https://github.com/myzkey/gh-repo-settings',
       },
     ],
+    nav: [
+      {
+        text: 'Guide',
+        link: '/guide/getting-started',
+      },
+    ],
+    sidebar: {
+      '/': [
+        {
+          text: 'Guide',
+          items: [
+            { text: 'Getting Started', link: '/guide/getting-started' },
+            { text: 'Commands', link: '/guide/commands' },
+            { text: 'Configuration', link: '/guide/configuration' },
+          ],
+        },
+      ],
+      '/ja/': [
+        {
+          text: 'ガイド',
+          items: [
+            { text: 'はじめに', link: '/ja/guide/getting-started' },
+            { text: 'コマンド', link: '/ja/guide/commands' },
+            { text: '設定リファレンス', link: '/ja/guide/configuration' },
+          ],
+        },
+      ],
+    },
     locales: [
       {
         lang: 'en',
@@ -42,6 +70,12 @@ export default defineConfig({
         outlineTitle: 'このページの内容',
         prevPageText: '前へ',
         nextPageText: '次へ',
+        nav: [
+          {
+            text: 'ガイド',
+            link: '/ja/guide/getting-started',
+          },
+        ],
       },
     ],
   },
