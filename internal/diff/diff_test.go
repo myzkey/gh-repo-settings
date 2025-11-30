@@ -532,6 +532,288 @@ func TestChangeTypeString(t *testing.T) {
 	}
 }
 
+func TestPlanHasMissingVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		changes  []Change
+		expected bool
+	}{
+		{
+			name:     "no missing variables",
+			changes:  []Change{{Category: "repo", Type: ChangeUpdate}},
+			expected: false,
+		},
+		{
+			name:     "has missing variables",
+			changes:  []Change{{Category: "env", Type: ChangeMissing}},
+			expected: true,
+		},
+		{
+			name: "has env but not missing type",
+			changes: []Change{{Category: "env", Type: ChangeUpdate}},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			plan := &Plan{Changes: tt.changes}
+			if plan.HasMissingVariables() != tt.expected {
+				t.Errorf("expected HasMissingVariables() = %v", tt.expected)
+			}
+		})
+	}
+}
+
+func TestCalculatorCompareTopics(t *testing.T) {
+	tests := []struct {
+		name          string
+		currentTopics []string
+		configTopics  []string
+		expectChange  bool
+	}{
+		{
+			name:          "no changes",
+			currentTopics: []string{"go", "cli"},
+			configTopics:  []string{"go", "cli"},
+			expectChange:  false,
+		},
+		{
+			name:          "topics changed",
+			currentTopics: []string{"go", "cli"},
+			configTopics:  []string{"go", "github"},
+			expectChange:  true,
+		},
+		{
+			name:          "topics added",
+			currentTopics: []string{"go"},
+			configTopics:  []string{"go", "cli"},
+			expectChange:  true,
+		},
+		{
+			name:          "topics removed",
+			currentTopics: []string{"go", "cli"},
+			configTopics:  []string{"go"},
+			expectChange:  true,
+		},
+		{
+			name:          "empty to some",
+			currentTopics: []string{},
+			configTopics:  []string{"go"},
+			expectChange:  true,
+		},
+		{
+			name:          "order changed",
+			currentTopics: []string{"cli", "go"},
+			configTopics:  []string{"go", "cli"},
+			expectChange:  true, // DeepEqual is order-sensitive
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := github.NewMockClient()
+			mock.RepoData = &github.RepoData{
+				Topics: tt.currentTopics,
+			}
+
+			cfg := &config.Config{Topics: tt.configTopics}
+			calc := NewCalculator(mock, cfg)
+
+			plan, err := calc.Calculate(context.Background())
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			hasTopicsChange := false
+			for _, c := range plan.Changes {
+				if c.Category == "topics" {
+					hasTopicsChange = true
+					break
+				}
+			}
+
+			if hasTopicsChange != tt.expectChange {
+				t.Errorf("expected topics change = %v, got %v", tt.expectChange, hasTopicsChange)
+			}
+		})
+	}
+}
+
+func TestCompareBranchRuleAllFields(t *testing.T) {
+	// Test all branch rule fields for coverage
+	current := &github.BranchProtectionData{
+		RequiredPullRequestReviews: &struct {
+			RequiredApprovingReviewCount int  `json:"required_approving_review_count"`
+			DismissStaleReviews          bool `json:"dismiss_stale_reviews"`
+			RequireCodeOwnerReviews      bool `json:"require_code_owner_reviews"`
+		}{
+			RequiredApprovingReviewCount: 1,
+			DismissStaleReviews:          false,
+			RequireCodeOwnerReviews:      false,
+		},
+		RequiredStatusChecks: &struct {
+			Strict   bool     `json:"strict"`
+			Contexts []string `json:"contexts"`
+		}{
+			Strict:   false,
+			Contexts: []string{"test"},
+		},
+		EnforceAdmins: &struct {
+			Enabled bool `json:"enabled"`
+		}{Enabled: false},
+		RequiredLinearHistory: &struct {
+			Enabled bool `json:"enabled"`
+		}{Enabled: false},
+		AllowForcePushes: &struct {
+			Enabled bool `json:"enabled"`
+		}{Enabled: false},
+		AllowDeletions: &struct {
+			Enabled bool `json:"enabled"`
+		}{Enabled: false},
+		RequiredSignatures: &struct {
+			Enabled bool `json:"enabled"`
+		}{Enabled: false},
+	}
+
+	desired := &config.BranchRule{
+		RequiredReviews:      ptr(2),
+		DismissStaleReviews:  ptr(true),
+		RequireCodeOwner:     ptr(true),
+		StrictStatusChecks:   ptr(true),
+		StatusChecks:         []string{"test", "build"},
+		EnforceAdmins:        ptr(true),
+		RequireLinearHistory: ptr(true),
+		AllowForcePushes:     ptr(true),
+		AllowDeletions:       ptr(true),
+		RequireSignedCommits: ptr(true),
+	}
+
+	changes := compareBranchRule("main", current, desired)
+
+	expectedKeys := map[string]bool{
+		"main.required_reviews":       true,
+		"main.dismiss_stale_reviews":  true,
+		"main.require_code_owner":     true,
+		"main.strict_status_checks":   true,
+		"main.status_checks":          true,
+		"main.enforce_admins":         true,
+		"main.require_linear_history": true,
+		"main.allow_force_pushes":     true,
+		"main.allow_deletions":        true,
+		"main.require_signed_commits": true,
+	}
+
+	if len(changes) != len(expectedKeys) {
+		t.Errorf("expected %d changes, got %d", len(expectedKeys), len(changes))
+	}
+
+	for _, c := range changes {
+		if !expectedKeys[c.Key] {
+			t.Errorf("unexpected change key: %s", c.Key)
+		}
+	}
+}
+
+func TestCompareBranchRuleNilCurrent(t *testing.T) {
+	// Test with nil structs in current (defaults to false/0)
+	current := &github.BranchProtectionData{}
+
+	desired := &config.BranchRule{
+		RequiredReviews:      ptr(2),
+		DismissStaleReviews:  ptr(true),
+		RequireCodeOwner:     ptr(true),
+		StrictStatusChecks:   ptr(true),
+		StatusChecks:         []string{"test"},
+		EnforceAdmins:        ptr(true),
+		RequireLinearHistory: ptr(true),
+		AllowForcePushes:     ptr(true),
+		AllowDeletions:       ptr(true),
+		RequireSignedCommits: ptr(true),
+	}
+
+	changes := compareBranchRule("main", current, desired)
+
+	// All should have changes since current defaults are 0/false
+	if len(changes) != 10 {
+		t.Errorf("expected 10 changes, got %d", len(changes))
+	}
+}
+
+func TestFormatBranchRule(t *testing.T) {
+	tests := []struct {
+		name     string
+		rule     *config.BranchRule
+		contains []string
+	}{
+		{
+			name:     "empty rule",
+			rule:     &config.BranchRule{},
+			contains: []string{"new protection"},
+		},
+		{
+			name: "full rule",
+			rule: &config.BranchRule{
+				RequiredReviews:      ptr(2),
+				DismissStaleReviews:  ptr(true),
+				RequireCodeOwner:     ptr(true),
+				StrictStatusChecks:   ptr(true),
+				StatusChecks:         []string{"test", "build"},
+				EnforceAdmins:        ptr(true),
+				RequireLinearHistory: ptr(true),
+				RequireSignedCommits: ptr(true),
+				AllowForcePushes:     ptr(true),
+				AllowDeletions:       ptr(true),
+			},
+			contains: []string{
+				"required_reviews=2",
+				"dismiss_stale_reviews=true",
+				"require_code_owner=true",
+				"strict_status_checks=true",
+				"status_checks=",
+				"enforce_admins=true",
+				"require_linear_history=true",
+				"require_signed_commits=true",
+				"allow_force_pushes=true",
+				"allow_deletions=true",
+			},
+		},
+		{
+			name: "partial rule - false values not shown",
+			rule: &config.BranchRule{
+				RequiredReviews:     ptr(1),
+				DismissStaleReviews: ptr(false),
+			},
+			contains: []string{"required_reviews=1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatBranchRule(tt.rule)
+			for _, s := range tt.contains {
+				if !contains(result, s) {
+					t.Errorf("expected result to contain %q, got %q", s, result)
+				}
+			}
+		})
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && searchSubstring(s, substr)))
+}
+
+func searchSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 func TestCalculatorCompareActions(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -689,6 +971,315 @@ func TestCalculatorCompareActions(t *testing.T) {
 				if !foundKeys[key] {
 					t.Errorf("expected change for key %q not found", key)
 				}
+			}
+		})
+	}
+}
+
+func TestCompareActionsWithPatternsAllowed(t *testing.T) {
+	mock := github.NewMockClient()
+	mock.ActionsPermissions = &github.ActionsPermissionsData{
+		Enabled:        true,
+		AllowedActions: "selected",
+	}
+	mock.ActionsWorkflowPerms = &github.ActionsWorkflowPermissionsData{
+		DefaultWorkflowPermissions:   "read",
+		CanApprovePullRequestReviews: false,
+	}
+	mock.ActionsSelected = &github.ActionsSelectedData{
+		GithubOwnedAllowed: true,
+		VerifiedAllowed:    false,
+		PatternsAllowed:    []string{"actions/*"},
+	}
+
+	cfg := &config.Config{
+		Actions: &config.ActionsConfig{
+			SelectedActions: &config.SelectedActionsConfig{
+				PatternsAllowed: []string{"actions/*", "github/*"},
+			},
+		},
+	}
+	calc := NewCalculator(mock, cfg)
+
+	plan, err := calc.Calculate(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found := false
+	for _, c := range plan.Changes {
+		if c.Key == "patterns_allowed" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected patterns_allowed change")
+	}
+}
+
+func TestCalculatorCompareRepoAllFields(t *testing.T) {
+	// Test all repo fields for coverage
+	mock := github.NewMockClient()
+	mock.RepoData = &github.RepoData{
+		Description:         ptr("old"),
+		Homepage:            ptr("https://old.com"),
+		Visibility:          "private",
+		AllowMergeCommit:    true,
+		AllowRebaseMerge:    true,
+		AllowSquashMerge:    true,
+		DeleteBranchOnMerge: false,
+		AllowUpdateBranch:   false,
+	}
+
+	cfg := &config.Config{
+		Repo: &config.RepoConfig{
+			Description:         ptr("new"),
+			Homepage:            ptr("https://new.com"),
+			Visibility:          ptr("public"),
+			AllowMergeCommit:    ptr(false),
+			AllowRebaseMerge:    ptr(false),
+			AllowSquashMerge:    ptr(false),
+			DeleteBranchOnMerge: ptr(true),
+			AllowUpdateBranch:   ptr(true),
+		},
+	}
+	calc := NewCalculator(mock, cfg)
+
+	plan, err := calc.Calculate(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expectedKeys := map[string]bool{
+		"description":            true,
+		"homepage":               true,
+		"visibility":             true,
+		"allow_merge_commit":     true,
+		"allow_rebase_merge":     true,
+		"allow_squash_merge":     true,
+		"delete_branch_on_merge": true,
+		"allow_update_branch":    true,
+	}
+
+	for _, c := range plan.Changes {
+		if c.Category == "repo" {
+			if !expectedKeys[c.Key] {
+				t.Errorf("unexpected repo change key: %s", c.Key)
+			}
+			delete(expectedKeys, c.Key)
+		}
+	}
+
+	if len(expectedKeys) > 0 {
+		t.Errorf("missing repo changes: %v", expectedKeys)
+	}
+}
+
+func TestCalculatorErrors(t *testing.T) {
+	t.Run("GetRepo error", func(t *testing.T) {
+		mock := github.NewMockClient()
+		mock.GetRepoError = apperrors.ErrRepoNotFound
+
+		cfg := &config.Config{Repo: &config.RepoConfig{Description: ptr("test")}}
+		calc := NewCalculator(mock, cfg)
+
+		_, err := calc.Calculate(context.Background())
+		if err == nil {
+			t.Error("expected error")
+		}
+	})
+
+	t.Run("GetLabels error", func(t *testing.T) {
+		mock := github.NewMockClient()
+		mock.GetLabelsError = apperrors.ErrPermissionDenied
+
+		cfg := &config.Config{Labels: &config.LabelsConfig{Items: []config.Label{{Name: "bug", Color: "d73a4a"}}}}
+		calc := NewCalculator(mock, cfg)
+
+		_, err := calc.Calculate(context.Background())
+		if err == nil {
+			t.Error("expected error")
+		}
+	})
+
+	t.Run("GetBranchProtection error (not ErrBranchNotProtected)", func(t *testing.T) {
+		mock := github.NewMockClient()
+		mock.GetBranchProtectionError = apperrors.ErrPermissionDenied
+
+		cfg := &config.Config{BranchProtection: map[string]*config.BranchRule{"main": {RequiredReviews: ptr(1)}}}
+		calc := NewCalculator(mock, cfg)
+
+		_, err := calc.Calculate(context.Background())
+		if err == nil {
+			t.Error("expected error")
+		}
+	})
+
+	t.Run("GetSecrets error", func(t *testing.T) {
+		mock := github.NewMockClient()
+		mock.GetSecretsError = apperrors.ErrPermissionDenied
+
+		cfg := &config.Config{Secrets: &config.SecretsConfig{Required: []string{"KEY"}}}
+		calc := NewCalculator(mock, cfg)
+
+		_, err := calc.CalculateWithOptions(context.Background(), CalculateOptions{CheckSecrets: true})
+		if err == nil {
+			t.Error("expected error")
+		}
+	})
+
+	t.Run("GetVariables error", func(t *testing.T) {
+		mock := github.NewMockClient()
+		mock.GetVariablesError = apperrors.ErrPermissionDenied
+
+		cfg := &config.Config{Env: &config.EnvConfig{Required: []string{"VAR"}}}
+		calc := NewCalculator(mock, cfg)
+
+		_, err := calc.CalculateWithOptions(context.Background(), CalculateOptions{CheckEnv: true})
+		if err == nil {
+			t.Error("expected error")
+		}
+	})
+
+	t.Run("GetActionsPermissions error", func(t *testing.T) {
+		mock := github.NewMockClient()
+		mock.GetActionsPermissionsError = apperrors.ErrPermissionDenied
+
+		cfg := &config.Config{Actions: &config.ActionsConfig{Enabled: ptr(true)}}
+		calc := NewCalculator(mock, cfg)
+
+		_, err := calc.Calculate(context.Background())
+		if err == nil {
+			t.Error("expected error")
+		}
+	})
+
+	t.Run("GetActionsWorkflowPermissions error", func(t *testing.T) {
+		mock := github.NewMockClient()
+		mock.ActionsPermissions = &github.ActionsPermissionsData{Enabled: true}
+		mock.GetActionsWorkflowPermissionsError = apperrors.ErrPermissionDenied
+
+		cfg := &config.Config{Actions: &config.ActionsConfig{Enabled: ptr(true)}}
+		calc := NewCalculator(mock, cfg)
+
+		_, err := calc.Calculate(context.Background())
+		if err == nil {
+			t.Error("expected error")
+		}
+	})
+}
+
+func TestJoinParts(t *testing.T) {
+	tests := []struct {
+		name     string
+		parts    []string
+		expected string
+	}{
+		{
+			name:     "empty",
+			parts:    []string{},
+			expected: "",
+		},
+		{
+			name:     "single",
+			parts:    []string{"a=1"},
+			expected: "a=1",
+		},
+		{
+			name:     "multiple",
+			parts:    []string{"a=1", "b=2", "c=3"},
+			expected: "a=1, b=2, c=3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := joinParts(tt.parts)
+			if result != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestPtrEqual(t *testing.T) {
+	tests := []struct {
+		name     string
+		a        *string
+		b        *string
+		expected bool
+	}{
+		{
+			name:     "both nil",
+			a:        nil,
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "a nil b not nil",
+			a:        nil,
+			b:        ptr("test"),
+			expected: false,
+		},
+		{
+			name:     "a not nil b nil",
+			a:        ptr("test"),
+			b:        nil,
+			expected: false,
+		},
+		{
+			name:     "both equal",
+			a:        ptr("test"),
+			b:        ptr("test"),
+			expected: true,
+		},
+		{
+			name:     "both not equal",
+			a:        ptr("test1"),
+			b:        ptr("test2"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ptrEqual(tt.a, tt.b)
+			if result != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestPtrVal(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *string
+		expected string
+	}{
+		{
+			name:     "nil",
+			input:    nil,
+			expected: "",
+		},
+		{
+			name:     "not nil",
+			input:    ptr("test"),
+			expected: "test",
+		},
+		{
+			name:     "empty string",
+			input:    ptr(""),
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ptrVal(tt.input)
+			if result != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, result)
 			}
 		})
 	}
