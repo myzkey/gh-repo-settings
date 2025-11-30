@@ -72,3 +72,15 @@ type ActionsWorkflowPermissionsData struct {
 	DefaultWorkflowPermissions   string `json:"default_workflow_permissions"` // "read" or "write"
 	CanApprovePullRequestReviews bool   `json:"can_approve_pull_request_reviews"`
 }
+
+// PagesData represents GitHub Pages data from API
+type PagesData struct {
+	BuildType string           `json:"build_type"` // "workflow" or "legacy"
+	Source    *PagesSourceData `json:"source"`
+}
+
+// PagesSourceData represents the source configuration for GitHub Pages
+type PagesSourceData struct {
+	Branch string `json:"branch"`
+	Path   string `json:"path"` // "/" or "/docs"
+}

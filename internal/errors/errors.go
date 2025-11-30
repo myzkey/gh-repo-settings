@@ -17,6 +17,7 @@ var (
 	ErrSecretMissing      = errors.New("required secret is missing")
 	ErrVariableMissing    = errors.New("required variable is missing")
 	ErrBranchNotProtected = errors.New("branch protection not enabled")
+	ErrPagesNotEnabled    = errors.New("GitHub Pages not enabled")
 )
 
 // ConfigError represents a configuration error

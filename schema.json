@@ -160,6 +160,42 @@
       "additionalProperties": false,
       "type": "object"
     },
+    "PagesConfig": {
+      "properties": {
+        "build_type": {
+          "type": "string",
+          "enum": [
+            "workflow",
+            "legacy"
+          ],
+          "description": "Build type for GitHub Pages"
+        },
+        "source": {
+          "$ref": "#/$defs/PagesSourceConfig",
+          "description": "Source configuration (for legacy build type)"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "PagesSourceConfig": {
+      "properties": {
+        "branch": {
+          "type": "string",
+          "description": "Branch name for Pages source"
+        },
+        "path": {
+          "type": "string",
+          "enum": [
+            "/",
+            "/docs"
+          ],
+          "description": "Path within the branch (/ or /docs)"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
     "RepoConfig": {
       "properties": {
         "description": {
@@ -279,6 +315,10 @@
     "actions": {
       "$ref": "#/$defs/ActionsConfig",
       "description": "GitHub Actions permissions configuration"
+    },
+    "pages": {
+      "$ref": "#/$defs/PagesConfig",
+      "description": "GitHub Pages configuration"
     }
   },
   "additionalProperties": false,

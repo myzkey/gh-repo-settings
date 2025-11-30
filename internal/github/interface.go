@@ -33,6 +33,11 @@ type GitHubClient interface {
 	GetActionsWorkflowPermissions(ctx context.Context) (*ActionsWorkflowPermissionsData, error)
 	UpdateActionsWorkflowPermissions(ctx context.Context, permissions string, canApprove bool) error
 
+	// Pages operations
+	GetPages(ctx context.Context) (*PagesData, error)
+	CreatePages(ctx context.Context, buildType string, source *PagesSourceData) error
+	UpdatePages(ctx context.Context, buildType string, source *PagesSourceData) error
+
 	// Repository info
 	RepoOwner() string
 	RepoName() string

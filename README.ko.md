@@ -340,6 +340,27 @@ actions:
 | `default_workflow_permissions` | `read` \| `write` | GITHUB_TOKEN 기본 권한 |
 | `can_approve_pull_request_reviews` | boolean | Actions의 PR 승인 허용 |
 
+### `pages` - GitHub Pages 설정
+
+리포지토리의 GitHub Pages 설정:
+
+```yaml
+pages:
+  # 빌드 타입: "workflow" (GitHub Actions) 또는 "legacy" (브랜치 기반)
+  build_type: workflow
+
+  # 소스 설정 (legacy 빌드 타입 전용)
+  source:
+    branch: main
+    path: /docs  # "/" 또는 "/docs"
+```
+
+| 필드 | 타입 | 설명 |
+|-----|------|------|
+| `build_type` | `workflow` \| `legacy` | Pages 빌드 방식 |
+| `source.branch` | string | legacy 빌드 브랜치 |
+| `source.path` | `/` \| `/docs` | 브랜치 내 경로 |
+
 ## 에디터 연동 (VSCode)
 
 VSCode에서 YAML 검증 및 자동 완성을 위한 JSON Schema를 제공합니다.

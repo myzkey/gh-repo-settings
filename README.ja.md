@@ -340,6 +340,27 @@ actions:
 | `default_workflow_permissions` | `read` \| `write` | GITHUB_TOKEN のデフォルト権限 |
 | `can_approve_pull_request_reviews` | boolean | Actions による PR 承認を許可 |
 
+### `pages` - GitHub Pages 設定
+
+リポジトリの GitHub Pages を設定:
+
+```yaml
+pages:
+  # ビルドタイプ: "workflow" (GitHub Actions) または "legacy" (ブランチベース)
+  build_type: workflow
+
+  # ソース設定（legacy ビルドタイプの場合のみ）
+  source:
+    branch: main
+    path: /docs  # "/" または "/docs"
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `build_type` | `workflow` \| `legacy` | Pages のビルド方法 |
+| `source.branch` | string | legacy ビルドのブランチ |
+| `source.path` | `/` \| `/docs` | ブランチ内のパス |
+
 ## エディタ連携 (VSCode)
 
 VSCode での YAML 検証と自動補完のための JSON Schema を提供しています。
