@@ -1,0 +1,72 @@
+# Getting Started
+
+## Installation
+
+### Via GitHub CLI (Recommended)
+
+```bash
+gh extension install myzkey/gh-repo-settings
+```
+
+### Manual Installation
+
+Download the latest binary from [Releases](https://github.com/myzkey/gh-repo-settings/releases) and add it to your PATH.
+
+## Quick Start
+
+```bash
+# Initialize config interactively
+gh rset init
+
+# Preview changes (like terraform plan)
+gh rset plan
+
+# Apply changes
+gh rset apply
+```
+
+Default config paths (in priority order):
+1. `.github/repo-settings/` (directory)
+2. `.github/repo-settings.yaml` (single file)
+
+## Basic Configuration
+
+Create `.github/repo-settings.yaml`:
+
+```yaml
+repo:
+  description: "My awesome project"
+  visibility: public
+  allow_merge_commit: false
+  allow_rebase_merge: true
+  allow_squash_merge: true
+  delete_branch_on_merge: true
+
+topics:
+  - typescript
+  - cli
+  - github
+
+labels:
+  items:
+    - name: bug
+      color: ff0000
+      description: Something isn't working
+    - name: feature
+      color: 0e8a16
+      description: New feature request
+
+branch_protection:
+  main:
+    required_reviews: 1
+    dismiss_stale_reviews: true
+    require_status_checks: true
+    status_checks:
+      - ci/test
+      - ci/lint
+```
+
+## Next Steps
+
+- [Commands Reference](/en/guide/commands) - Learn all available commands
+- [Configuration Reference](/en/guide/configuration) - Full configuration options

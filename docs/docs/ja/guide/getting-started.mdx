@@ -1,0 +1,72 @@
+# はじめる
+
+## インストール
+
+### GitHub CLI 経由（推奨）
+
+```bash
+gh extension install myzkey/gh-repo-settings
+```
+
+### 手動インストール
+
+[Releases](https://github.com/myzkey/gh-repo-settings/releases) から最新のバイナリをダウンロードし、PATH に追加してください。
+
+## クイックスタート
+
+```bash
+# 対話形式で設定ファイルを作成
+gh rset init
+
+# 変更をプレビュー（terraform plan のように）
+gh rset plan
+
+# 変更を適用
+gh rset apply
+```
+
+デフォルトの設定ファイルパス（優先順）:
+1. `.github/repo-settings/`（ディレクトリ）
+2. `.github/repo-settings.yaml`（単一ファイル）
+
+## 基本設定
+
+`.github/repo-settings.yaml` を作成:
+
+```yaml
+repo:
+  description: "素晴らしいプロジェクト"
+  visibility: public
+  allow_merge_commit: false
+  allow_rebase_merge: true
+  allow_squash_merge: true
+  delete_branch_on_merge: true
+
+topics:
+  - typescript
+  - cli
+  - github
+
+labels:
+  items:
+    - name: bug
+      color: ff0000
+      description: 不具合報告
+    - name: feature
+      color: 0e8a16
+      description: 新機能リクエスト
+
+branch_protection:
+  main:
+    required_reviews: 1
+    dismiss_stale_reviews: true
+    require_status_checks: true
+    status_checks:
+      - ci/test
+      - ci/lint
+```
+
+## 次のステップ
+
+- [コマンドリファレンス](/ja/guide/commands) - 全コマンドを学ぶ
+- [設定リファレンス](/ja/guide/configuration) - 全設定オプション
