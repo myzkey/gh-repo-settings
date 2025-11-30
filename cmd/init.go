@@ -8,7 +8,6 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/myzkey/gh-repo-settings/internal/config"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 var initOutput string
@@ -254,7 +253,7 @@ func writeConfigToFile(cfg *config.Config, path string) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	data, err := yaml.Marshal(cfg)
+	data, err := marshalYAML(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
@@ -273,7 +272,7 @@ func writeConfigToDirectory(cfg *config.Config, dir string) error {
 	}
 
 	if cfg.Repo != nil {
-		data, err := yaml.Marshal(map[string]interface{}{"repo": cfg.Repo})
+		data, err := marshalYAML(map[string]interface{}{"repo": cfg.Repo})
 		if err != nil {
 			return fmt.Errorf("failed to marshal repo config: %w", err)
 		}
@@ -283,7 +282,7 @@ func writeConfigToDirectory(cfg *config.Config, dir string) error {
 	}
 
 	if len(cfg.Topics) > 0 {
-		data, err := yaml.Marshal(map[string]interface{}{"topics": cfg.Topics})
+		data, err := marshalYAML(map[string]interface{}{"topics": cfg.Topics})
 		if err != nil {
 			return fmt.Errorf("failed to marshal topics config: %w", err)
 		}
@@ -293,7 +292,7 @@ func writeConfigToDirectory(cfg *config.Config, dir string) error {
 	}
 
 	if cfg.Labels != nil {
-		data, err := yaml.Marshal(map[string]interface{}{"labels": cfg.Labels})
+		data, err := marshalYAML(map[string]interface{}{"labels": cfg.Labels})
 		if err != nil {
 			return fmt.Errorf("failed to marshal labels config: %w", err)
 		}
@@ -303,7 +302,7 @@ func writeConfigToDirectory(cfg *config.Config, dir string) error {
 	}
 
 	if cfg.BranchProtection != nil {
-		data, err := yaml.Marshal(map[string]interface{}{"branch_protection": cfg.BranchProtection})
+		data, err := marshalYAML(map[string]interface{}{"branch_protection": cfg.BranchProtection})
 		if err != nil {
 			return fmt.Errorf("failed to marshal branch_protection config: %w", err)
 		}
