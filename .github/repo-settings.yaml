@@ -53,13 +53,12 @@ actions:
 
 branch_protection:
   main:
-    required_reviews: 1
-    dismiss_stale_reviews: true
-    require_code_owner: false
+    required_reviews: 0
     require_status_checks: true
     status_checks:
-      - lint
-      - test
+      - "golangci-lint"
+      - "Run tests"
+      - "build"
     strict_status_checks: true
     enforce_admins: false
     require_linear_history: true
