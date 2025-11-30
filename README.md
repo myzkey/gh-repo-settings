@@ -347,6 +347,27 @@ actions:
 | `default_workflow_permissions` | `read` \| `write` | Default GITHUB_TOKEN permissions |
 | `can_approve_pull_request_reviews` | boolean | Allow Actions to approve PRs |
 
+### `pages` - GitHub Pages Configuration
+
+Configure GitHub Pages for the repository:
+
+```yaml
+pages:
+  # Build type: "workflow" (GitHub Actions) or "legacy" (branch-based)
+  build_type: workflow
+
+  # Source configuration (only for legacy build type)
+  source:
+    branch: main
+    path: /docs  # "/" or "/docs"
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `build_type` | `workflow` \| `legacy` | How Pages is built |
+| `source.branch` | string | Branch for legacy builds |
+| `source.path` | `/` \| `/docs` | Path within the branch |
+
 ## Editor Integration (VSCode)
 
 This project provides a JSON Schema for YAML validation and auto-completion in VSCode.

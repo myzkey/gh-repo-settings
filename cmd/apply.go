@@ -123,6 +123,7 @@ func applyChanges(ctx context.Context, client *github.Client, cfg *config.Config
 	var labelChanges []diff.Change
 	branchProtectionChanges := make(map[string][]diff.Change)
 	var actionsChanges []diff.Change
+	var pagesChanges []diff.Change
 
 	for _, change := range plan.Changes {
 		switch change.Category {
@@ -138,6 +139,8 @@ func applyChanges(ctx context.Context, client *github.Client, cfg *config.Config
 			branchProtectionChanges[branchName] = append(branchProtectionChanges[branchName], change)
 		case "actions":
 			actionsChanges = append(actionsChanges, change)
+		case "pages":
+			pagesChanges = append(pagesChanges, change)
 		}
 	}
 
@@ -221,6 +224,13 @@ func applyChanges(ctx context.Context, client *github.Client, cfg *config.Config
 	// Apply actions changes
 	if len(actionsChanges) > 0 && cfg.Actions != nil {
 		if err := applyActionsChanges(ctx, client, cfg, actionsChanges, green, red); err != nil {
+			return err
+		}
+	}
+
+	// Apply pages changes
+	if len(pagesChanges) > 0 && cfg.Pages != nil {
+		if err := applyPagesChanges(ctx, client, cfg, pagesChanges, green, red); err != nil {
 			return err
 		}
 	}
@@ -322,4 +332,52 @@ func extractBranchName(key string) string {
 		}
 	}
 	return key
+}
+
+func applyPagesChanges(ctx context.Context, client *github.Client, cfg *config.Config, changes []diff.Change, green, red func(a ...interface{}) string) error {
+	// Check if pages needs to be created or updated
+	needsCreate := false
+	needsUpdate := false
+
+	for _, change := range changes {
+		if change.Type == diff.ChangeAdd && change.Key == "pages" {
+			needsCreate = true
+		} else {
+			needsUpdate = true
+		}
+	}
+
+	buildType := "workflow"
+	if cfg.Pages.BuildType != nil {
+		buildType = *cfg.Pages.BuildType
+	}
+
+	var source *github.PagesSourceData
+	if cfg.Pages.Source != nil {
+		source = &github.PagesSourceData{}
+		if cfg.Pages.Source.Branch != nil {
+			source.Branch = *cfg.Pages.Source.Branch
+		}
+		if cfg.Pages.Source.Path != nil {
+			source.Path = *cfg.Pages.Source.Path
+		}
+	}
+
+	if needsCreate {
+		fmt.Print("  Creating GitHub Pages... ")
+		if err := client.CreatePages(ctx, buildType, source); err != nil {
+			fmt.Println(red("✗"))
+			return fmt.Errorf("failed to create pages: %w", err)
+		}
+		fmt.Println(green("✓"))
+	} else if needsUpdate {
+		fmt.Print("  Updating GitHub Pages... ")
+		if err := client.UpdatePages(ctx, buildType, source); err != nil {
+			fmt.Println(red("✗"))
+			return fmt.Errorf("failed to update pages: %w", err)
+		}
+		fmt.Println(green("✓"))
+	}
+
+	return nil
 }

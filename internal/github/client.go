@@ -461,3 +461,69 @@ func (c *Client) UpdateActionsWorkflowPermissions(ctx context.Context, permissio
 	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "PUT", "-H", "Accept: application/vnd.github+json")
 	return err
 }
+
+// GetPages fetches GitHub Pages configuration
+func (c *Client) GetPages(ctx context.Context) (*PagesData, error) {
+	endpoint := fmt.Sprintf("repos/%s/%s/pages", c.Repo.Owner, c.Repo.Name)
+	out, err := c.ghAPI(ctx, endpoint)
+	if err != nil {
+		// Pages not enabled returns 404
+		if apiErr, ok := err.(*apperrors.APIError); ok && apiErr.StatusCode == 1 {
+			return nil, apperrors.ErrPagesNotEnabled
+		}
+		return nil, fmt.Errorf("failed to get pages: %w", err)
+	}
+
+	var data PagesData
+	if err := json.Unmarshal(out, &data); err != nil {
+		return nil, fmt.Errorf("failed to parse pages data: %w", err)
+	}
+
+	return &data, nil
+}
+
+// CreatePages creates GitHub Pages for the repository
+func (c *Client) CreatePages(ctx context.Context, buildType string, source *PagesSourceData) error {
+	endpoint := fmt.Sprintf("repos/%s/%s/pages", c.Repo.Owner, c.Repo.Name)
+
+	payload := map[string]interface{}{
+		"build_type": buildType,
+	}
+	if source != nil && buildType == "legacy" {
+		payload["source"] = map[string]string{
+			"branch": source.Branch,
+			"path":   source.Path,
+		}
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "POST", "-H", "Accept: application/vnd.github+json")
+	return err
+}
+
+// UpdatePages updates GitHub Pages configuration
+func (c *Client) UpdatePages(ctx context.Context, buildType string, source *PagesSourceData) error {
+	endpoint := fmt.Sprintf("repos/%s/%s/pages", c.Repo.Owner, c.Repo.Name)
+
+	payload := map[string]interface{}{
+		"build_type": buildType,
+	}
+	if source != nil && buildType == "legacy" {
+		payload["source"] = map[string]string{
+			"branch": source.Branch,
+			"path":   source.Path,
+		}
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "PUT", "-H", "Accept: application/vnd.github+json")
+	return err
+}

@@ -14,6 +14,7 @@ type MockClient struct {
 	ActionsPermissions   *ActionsPermissionsData
 	ActionsSelected      *ActionsSelectedData
 	ActionsWorkflowPerms *ActionsWorkflowPermissionsData
+	PagesData            *PagesData
 	Owner                string
 	Name                 string
 
@@ -35,6 +36,9 @@ type MockClient struct {
 	UpdateActionsSelectedActionsError  error
 	GetActionsWorkflowPermissionsError error
 	UpdateActionsWorkflowPermsError    error
+	GetPagesError                      error
+	CreatePagesError                   error
+	UpdatePagesError                   error
 
 	// Call tracking
 	UpdateRepoCalls                 []map[string]interface{}
@@ -46,6 +50,14 @@ type MockClient struct {
 	UpdateActionsPermissionsCalls   []ActionsPermissionsCall
 	UpdateActionsSelectedCalls      []*ActionsSelectedData
 	UpdateActionsWorkflowPermsCalls []ActionsWorkflowPermsCall
+	CreatePagesCalls                []PagesCall
+	UpdatePagesCalls                []PagesCall
+}
+
+// PagesCall tracks CreatePages and UpdatePages calls
+type PagesCall struct {
+	BuildType string
+	Source    *PagesSourceData
 }
 
 // ActionsPermissionsCall tracks UpdateActionsPermissions calls
@@ -275,6 +287,38 @@ func (m *MockClient) UpdateActionsWorkflowPermissions(ctx context.Context, permi
 	m.UpdateActionsWorkflowPermsCalls = append(m.UpdateActionsWorkflowPermsCalls, ActionsWorkflowPermsCall{
 		Permissions: permissions,
 		CanApprove:  canApprove,
+	})
+	return nil
+}
+
+// GetPages returns mock pages data
+func (m *MockClient) GetPages(ctx context.Context) (*PagesData, error) {
+	if m.GetPagesError != nil {
+		return nil, m.GetPagesError
+	}
+	return m.PagesData, nil
+}
+
+// CreatePages records the create call
+func (m *MockClient) CreatePages(ctx context.Context, buildType string, source *PagesSourceData) error {
+	if m.CreatePagesError != nil {
+		return m.CreatePagesError
+	}
+	m.CreatePagesCalls = append(m.CreatePagesCalls, PagesCall{
+		BuildType: buildType,
+		Source:    source,
+	})
+	return nil
+}
+
+// UpdatePages records the update call
+func (m *MockClient) UpdatePages(ctx context.Context, buildType string, source *PagesSourceData) error {
+	if m.UpdatePagesError != nil {
+		return m.UpdatePagesError
+	}
+	m.UpdatePagesCalls = append(m.UpdatePagesCalls, PagesCall{
+		BuildType: buildType,
+		Source:    source,
 	})
 	return nil
 }

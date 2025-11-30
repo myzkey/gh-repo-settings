@@ -166,6 +166,15 @@ func (c *Calculator) CalculateWithOptions(ctx context.Context, opts CalculateOpt
 		plan.Changes = append(plan.Changes, changes...)
 	}
 
+	// Compare pages settings
+	if c.config.Pages != nil {
+		changes, err := c.comparePages(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to compare pages settings: %w", err)
+		}
+		plan.Changes = append(plan.Changes, changes...)
+	}
+
 	return plan, nil
 }
 
@@ -781,6 +790,65 @@ func (c *Calculator) compareActions(ctx context.Context) ([]Change, error) {
 			Old:      currentWorkflow.CanApprovePullRequestReviews,
 			New:      *cfg.CanApprovePullRequestReviews,
 		})
+	}
+
+	return changes, nil
+}
+
+func (c *Calculator) comparePages(ctx context.Context) ([]Change, error) {
+	var changes []Change
+	cfg := c.config.Pages
+
+	current, err := c.client.GetPages(ctx)
+	if err != nil {
+		if apperrors.Is(err, apperrors.ErrPagesNotEnabled) {
+			// Pages not enabled, will be created
+			buildType := "workflow"
+			if cfg.BuildType != nil {
+				buildType = *cfg.BuildType
+			}
+			changes = append(changes, Change{
+				Type:     ChangeAdd,
+				Category: "pages",
+				Key:      "pages",
+				New:      fmt.Sprintf("build_type=%s", buildType),
+			})
+			return changes, nil
+		}
+		return nil, err
+	}
+
+	// Compare build_type
+	if cfg.BuildType != nil && *cfg.BuildType != current.BuildType {
+		changes = append(changes, Change{
+			Type:     ChangeUpdate,
+			Category: "pages",
+			Key:      "build_type",
+			Old:      current.BuildType,
+			New:      *cfg.BuildType,
+		})
+	}
+
+	// Compare source (only for legacy build type)
+	if cfg.Source != nil && current.Source != nil {
+		if cfg.Source.Branch != nil && *cfg.Source.Branch != current.Source.Branch {
+			changes = append(changes, Change{
+				Type:     ChangeUpdate,
+				Category: "pages",
+				Key:      "source.branch",
+				Old:      current.Source.Branch,
+				New:      *cfg.Source.Branch,
+			})
+		}
+		if cfg.Source.Path != nil && *cfg.Source.Path != current.Source.Path {
+			changes = append(changes, Change{
+				Type:     ChangeUpdate,
+				Category: "pages",
+				Key:      "source.path",
+				Old:      current.Source.Path,
+				New:      *cfg.Source.Path,
+			})
+		}
 	}
 
 	return changes, nil

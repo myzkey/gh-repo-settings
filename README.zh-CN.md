@@ -340,6 +340,27 @@ actions:
 | `default_workflow_permissions` | `read` \| `write` | GITHUB_TOKEN 默认权限 |
 | `can_approve_pull_request_reviews` | boolean | 允许 Actions 批准 PR |
 
+### `pages` - GitHub Pages 配置
+
+配置仓库的 GitHub Pages：
+
+```yaml
+pages:
+  # 构建类型: "workflow" (GitHub Actions) 或 "legacy" (基于分支)
+  build_type: workflow
+
+  # 源配置（仅用于 legacy 构建类型）
+  source:
+    branch: main
+    path: /docs  # "/" 或 "/docs"
+```
+
+| 字段 | 类型 | 描述 |
+|-----|------|------|
+| `build_type` | `workflow` \| `legacy` | Pages 构建方式 |
+| `source.branch` | string | legacy 构建的分支 |
+| `source.path` | `/` \| `/docs` | 分支内的路径 |
+
 ## 编辑器集成 (VSCode)
 
 本项目提供 JSON Schema 用于 VSCode 中的 YAML 验证和自动补全。

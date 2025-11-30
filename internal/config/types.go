@@ -10,6 +10,7 @@ type Config struct {
 	Secrets          *SecretsConfig         `yaml:"secrets,omitempty" json:"secrets,omitempty" jsonschema:"description=Required secrets configuration"`
 	Env              *EnvConfig             `yaml:"env,omitempty" json:"env,omitempty" jsonschema:"description=Required environment variables configuration"`
 	Actions          *ActionsConfig         `yaml:"actions,omitempty" json:"actions,omitempty" jsonschema:"description=GitHub Actions permissions configuration"`
+	Pages            *PagesConfig           `yaml:"pages,omitempty" json:"pages,omitempty" jsonschema:"description=GitHub Pages configuration"`
 }
 
 // RepoConfig represents repository settings
@@ -90,4 +91,16 @@ type SelectedActionsConfig struct {
 	GithubOwnedAllowed *bool    `yaml:"github_owned_allowed,omitempty" json:"github_owned_allowed,omitempty" jsonschema:"description=Allow actions created by GitHub"`
 	VerifiedAllowed    *bool    `yaml:"verified_allowed,omitempty" json:"verified_allowed,omitempty" jsonschema:"description=Allow actions from verified creators"`
 	PatternsAllowed    []string `yaml:"patterns_allowed,omitempty" json:"patterns_allowed,omitempty" jsonschema:"description=Patterns for allowed actions (e.g. 'actions/*')"`
+}
+
+// PagesConfig represents GitHub Pages configuration
+type PagesConfig struct {
+	BuildType *string           `yaml:"build_type,omitempty" json:"build_type,omitempty" jsonschema:"description=Build type for GitHub Pages,enum=workflow,enum=legacy"`
+	Source    *PagesSourceConfig `yaml:"source,omitempty" json:"source,omitempty" jsonschema:"description=Source configuration (for legacy build type)"`
+}
+
+// PagesSourceConfig represents the source configuration for GitHub Pages
+type PagesSourceConfig struct {
+	Branch *string `yaml:"branch,omitempty" json:"branch,omitempty" jsonschema:"description=Branch name for Pages source"`
+	Path   *string `yaml:"path,omitempty" json:"path,omitempty" jsonschema:"description=Path within the branch (/ or /docs),enum=/,enum=/docs"`
 }

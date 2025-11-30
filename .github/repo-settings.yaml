@@ -53,7 +53,8 @@ actions:
 
 branch_protection:
   main:
-    required_reviews: 0
+    required_reviews: 1
+    dismiss_stale_reviews: true
     require_status_checks: true
     status_checks:
       - "golangci-lint"
@@ -64,3 +65,6 @@ branch_protection:
     require_linear_history: true
     allow_force_pushes: false
     allow_deletions: false
+
+pages:
+  build_type: workflow
