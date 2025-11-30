@@ -1,0 +1,143 @@
+# 設定リファレンス
+
+## `repo` - リポジトリ設定
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `description` | string | リポジトリの説明 |
+| `homepage` | string | ホームページ URL |
+| `visibility` | `public` \| `private` \| `internal` | リポジトリの可視性 |
+| `allow_merge_commit` | boolean | マージコミットを許可 |
+| `allow_rebase_merge` | boolean | リベースマージを許可 |
+| `allow_squash_merge` | boolean | スカッシュマージを許可 |
+| `delete_branch_on_merge` | boolean | マージ後にブランチを自動削除 |
+| `allow_update_branch` | boolean | PR ブランチの更新を許可 |
+
+## `topics` - リポジトリトピック
+
+トピック文字列の配列:
+
+```yaml
+topics:
+  - javascript
+  - nodejs
+  - cli
+```
+
+## `labels` - Issue ラベル
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `replace_default` | boolean | 設定にないラベルを削除 |
+| `items` | array | ラベル定義のリスト |
+| `items[].name` | string | ラベル名 |
+| `items[].color` | string | 16進数カラー（`#` なし） |
+| `items[].description` | string | ラベルの説明 |
+
+## `branch_protection` - ブランチ保護ルール
+
+```yaml
+branch_protection:
+  <ブランチ名>:
+    # プルリクエストレビュー
+    required_reviews: 1          # 必要な承認数
+    dismiss_stale_reviews: true  # 新しいコミットで承認を却下
+    require_code_owner: false    # CODEOWNERS のレビューを必須
+
+    # ステータスチェック
+    require_status_checks: true  # ステータスチェックを必須
+    status_checks:               # 必須のステータスチェック名
+      - ci/test
+    strict_status_checks: false  # 最新ブランチを必須
+
+    # デプロイメント
+    required_deployments:        # 必須のデプロイ環境
+      - production
+
+    # コミット要件
+    require_signed_commits: false # 署名付きコミットを必須
+    require_linear_history: false # マージコミットを禁止
+
+    # プッシュ/マージ制限
+    enforce_admins: false        # 管理者にも適用
+    restrict_creations: false    # ブランチ作成を制限
+    restrict_pushes: false       # プッシュを制限
+    allow_force_pushes: false    # 強制プッシュを許可
+    allow_deletions: false       # ブランチ削除を許可
+```
+
+## `secrets` - 必須シークレット
+
+必要なリポジトリシークレットの存在をチェック（値は管理しません）:
+
+```yaml
+secrets:
+  required:
+    - API_TOKEN
+    - DEPLOY_KEY
+```
+
+## `env` - 必須環境変数
+
+必要なリポジトリ変数の存在をチェック:
+
+```yaml
+env:
+  required:
+    - DATABASE_URL
+    - SENTRY_DSN
+```
+
+## `actions` - GitHub Actions 権限設定
+
+```yaml
+actions:
+  # GitHub Actions の有効/無効
+  enabled: true
+
+  # 使用可能なアクション: "all", "local_only", "selected"
+  allowed_actions: selected
+
+  # allowed_actions が "selected" の場合
+  selected_actions:
+    github_owned_allowed: true    # GitHub 製アクションを許可
+    verified_allowed: true        # 認証済み作成者のアクションを許可
+    patterns_allowed:             # 許可するアクションのパターン
+      - "actions/*"
+      - "github/codeql-action/*"
+
+  # デフォルトの GITHUB_TOKEN 権限: "read" または "write"
+  default_workflow_permissions: read
+
+  # GitHub Actions による PR 作成/承認を許可
+  can_approve_pull_request_reviews: false
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `enabled` | boolean | GitHub Actions を有効にする |
+| `allowed_actions` | `all` \| `local_only` \| `selected` | 許可するアクション |
+| `selected_actions.github_owned_allowed` | boolean | GitHub 製アクションを許可 |
+| `selected_actions.verified_allowed` | boolean | 認証済み作成者を許可 |
+| `selected_actions.patterns_allowed` | array | 許可するアクションのパターン |
+| `default_workflow_permissions` | `read` \| `write` | GITHUB_TOKEN のデフォルト権限 |
+| `can_approve_pull_request_reviews` | boolean | Actions による PR 承認を許可 |
+
+## `pages` - GitHub Pages 設定
+
+```yaml
+pages:
+  # ビルドタイプ: "workflow" (GitHub Actions) または "legacy" (ブランチベース)
+  build_type: workflow
+
+  # ソース設定（legacy ビルドタイプの場合のみ）
+  source:
+    branch: main
+    path: /docs  # "/" または "/docs"
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `build_type` | `workflow` \| `legacy` | Pages のビルド方法 |
+| `source.branch` | string | legacy ビルドのブランチ |
+| `source.path` | `/` \| `/docs` | ブランチ内のパス |

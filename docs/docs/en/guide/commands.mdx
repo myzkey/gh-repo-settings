@@ -1,0 +1,97 @@
+# Commands
+
+## `init` - Initialize Configuration
+
+Create a configuration file interactively.
+
+```bash
+# Create .github/repo-settings.yaml interactively
+gh rset init
+
+# Specify output path
+gh rset init -o config.yaml
+
+# Overwrite existing file
+gh rset init -f
+```
+
+## `export` - Export Repository Settings
+
+Export current GitHub repository settings to YAML format.
+
+```bash
+# Export to stdout
+gh rset export
+
+# Export to single file
+gh rset export -s .github/repo-settings.yaml
+
+# Export to directory (multiple files)
+gh rset export -d .github/repo-settings/
+
+# Include secret names
+gh rset export -s settings.yaml --include-secrets
+
+# Export from specific repository
+gh rset export -r owner/repo -s settings.yaml
+```
+
+## `plan` - Preview Changes
+
+Validate configuration and show planned changes without applying them.
+
+```bash
+# Preview all changes (uses default config path)
+gh rset plan
+
+# Specify config file
+gh rset plan -c custom-config.yaml
+
+# Specify config directory
+gh rset plan -d .github/repo-settings/
+
+# Show current GitHub settings (useful for debugging)
+gh rset plan --show-current
+
+# Check only secrets existence
+gh rset plan --secrets
+
+# Check only environment variables
+gh rset plan --env
+```
+
+### Status Check Validation
+
+When running `plan`, the tool automatically validates that `status_checks` names in your branch protection rules match the job names defined in your `.github/workflows/` files:
+
+```
+⚠ status check lint not found in workflows
+⚠ status check test not found in workflows
+  Available checks: build, golangci-lint, Run tests
+```
+
+## `apply` - Apply Changes
+
+Apply YAML configuration to the GitHub repository.
+
+```bash
+# Apply changes (uses default config path)
+gh rset apply
+
+# Dry run (same as plan)
+gh rset apply --dry-run
+
+# Specify config file
+gh rset apply -c custom-config.yaml
+
+# Apply from directory
+gh rset apply -d .github/repo-settings/
+```
+
+## Global Options
+
+| Option | Description |
+|--------|-------------|
+| `-v, --verbose` | Show debug output |
+| `-q, --quiet` | Only show errors |
+| `-r, --repo <owner/name>` | Target repository (default: current) |
