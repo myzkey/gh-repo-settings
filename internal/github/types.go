@@ -75,7 +75,7 @@ type ActionsWorkflowPermissionsData struct {
 
 // PagesData represents GitHub Pages data from API
 type PagesData struct {
-	BuildType string          `json:"build_type"` // "workflow" or "legacy"
+	BuildType string           `json:"build_type"` // "workflow" or "legacy"
 	Source    *PagesSourceData `json:"source"`
 }
 

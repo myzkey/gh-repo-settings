@@ -95,7 +95,7 @@ type SelectedActionsConfig struct {
 
 // PagesConfig represents GitHub Pages configuration
 type PagesConfig struct {
-	BuildType *string           `yaml:"build_type,omitempty" json:"build_type,omitempty" jsonschema:"description=Build type for GitHub Pages,enum=workflow,enum=legacy"`
+	BuildType *string            `yaml:"build_type,omitempty" json:"build_type,omitempty" jsonschema:"description=Build type for GitHub Pages,enum=workflow,enum=legacy"`
 	Source    *PagesSourceConfig `yaml:"source,omitempty" json:"source,omitempty" jsonschema:"description=Source configuration (for legacy build type)"`
 }
 
