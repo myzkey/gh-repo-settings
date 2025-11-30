@@ -1,5 +1,6 @@
 repo:
   description: "A GitHub CLI extension to manage repository settings via YAML configuration"
+  homepage: "https://myzkey.github.io/gh-repo-settings/"
   visibility: public
   allow_merge_commit: false
   allow_rebase_merge: false
