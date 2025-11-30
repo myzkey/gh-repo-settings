@@ -102,14 +102,27 @@ gh rset plan -c custom-config.yaml
 # Specify config directory
 gh rset plan -d .github/repo-settings/
 
-# Schema validation only (no API calls)
-gh rset plan --schema-only
+# Show current GitHub settings (useful for debugging)
+gh rset plan --show-current
 
 # Check only secrets existence
 gh rset plan --secrets
 
 # Check only environment variables
 gh rset plan --env
+```
+
+The `--show-current` option displays the current GitHub repository settings, which is useful for:
+- Debugging configuration issues
+- Finding settings that exist on GitHub but are not in your config file
+- Verifying what's actually configured on the repository
+
+**Status Check Validation**: When running `plan`, the tool automatically validates that `status_checks` names in your branch protection rules match the job names defined in your `.github/workflows/` files. If a mismatch is found, you'll see a warning:
+
+```
+⚠ status check lint not found in workflows
+⚠ status check test not found in workflows
+  Available checks: build, golangci-lint, Run tests
 ```
 
 ### `apply` - Apply changes

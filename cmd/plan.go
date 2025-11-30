@@ -22,6 +22,7 @@ var (
 	planConfig   string
 	checkSecrets bool
 	checkEnv     bool
+	showCurrent  bool
 )
 
 var planCmd = &cobra.Command{
@@ -37,6 +38,7 @@ func init() {
 	planCmd.Flags().StringVarP(&planConfig, "config", "c", "", "Config file path")
 	planCmd.Flags().BoolVar(&checkSecrets, "secrets", false, "Check for required secrets")
 	planCmd.Flags().BoolVar(&checkEnv, "env", false, "Check for required environment variables")
+	planCmd.Flags().BoolVar(&showCurrent, "show-current", false, "Show current GitHub settings")
 }
 
 func runPlan(cmd *cobra.Command, args []string) error {
@@ -75,6 +77,14 @@ func runPlan(cmd *cobra.Command, args []string) error {
 
 	// Validate status checks against workflow files
 	validateStatusChecks(cfg)
+
+	// Show current GitHub settings if requested
+	if showCurrent {
+		if err := printCurrentSettings(ctx, client); err != nil {
+			return err
+		}
+		return nil
+	}
 
 	logger.Info("Planning changes for %s/%s...\n", client.RepoOwner(), client.RepoName())
 
@@ -208,4 +218,97 @@ func validateStatusChecks(cfg *config.Config) {
 		}
 		fmt.Println()
 	}
+}
+
+func printCurrentSettings(ctx context.Context, client *github.Client) error {
+	cyan := color.New(color.FgCyan).SprintFunc()
+	gray := color.New(color.FgHiBlack).SprintFunc()
+
+	fmt.Printf("Current GitHub settings for %s/%s:\n\n", client.RepoOwner(), client.RepoName())
+
+	// Repo settings
+	repo, err := client.GetRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get repo: %w", err)
+	}
+
+	fmt.Printf("%s:\n", cyan("repo"))
+	if repo.Description != nil && *repo.Description != "" {
+		fmt.Printf("  description: %s\n", *repo.Description)
+	}
+	if repo.Homepage != nil && *repo.Homepage != "" {
+		fmt.Printf("  homepage: %s\n", *repo.Homepage)
+	}
+	fmt.Printf("  visibility: %s\n", repo.Visibility)
+	fmt.Printf("  allow_merge_commit: %v\n", repo.AllowMergeCommit)
+	fmt.Printf("  allow_rebase_merge: %v\n", repo.AllowRebaseMerge)
+	fmt.Printf("  allow_squash_merge: %v\n", repo.AllowSquashMerge)
+	fmt.Printf("  delete_branch_on_merge: %v\n", repo.DeleteBranchOnMerge)
+	fmt.Printf("  allow_update_branch: %v\n", repo.AllowUpdateBranch)
+
+	// Topics
+	if len(repo.Topics) > 0 {
+		fmt.Printf("\n%s:\n", cyan("topics"))
+		for _, t := range repo.Topics {
+			fmt.Printf("  - %s\n", t)
+		}
+	}
+
+	// Branch protection for main
+	fmt.Printf("\n%s:\n", cyan("branch_protection"))
+	bp, err := client.GetBranchProtection(ctx, "main")
+	if err != nil {
+		fmt.Printf("  main: %s\n", gray("(not configured)"))
+	} else {
+		fmt.Printf("  main:\n")
+		if bp.RequiredPullRequestReviews != nil {
+			fmt.Printf("    required_reviews: %d\n", bp.RequiredPullRequestReviews.RequiredApprovingReviewCount)
+			fmt.Printf("    dismiss_stale_reviews: %v\n", bp.RequiredPullRequestReviews.DismissStaleReviews)
+			fmt.Printf("    require_code_owner: %v\n", bp.RequiredPullRequestReviews.RequireCodeOwnerReviews)
+		} else {
+			fmt.Printf("    required_reviews: %s\n", gray("(not set)"))
+		}
+		if bp.RequiredStatusChecks != nil {
+			fmt.Printf("    require_status_checks: true\n")
+			fmt.Printf("    strict_status_checks: %v\n", bp.RequiredStatusChecks.Strict)
+			if len(bp.RequiredStatusChecks.Contexts) > 0 {
+				fmt.Printf("    status_checks:\n")
+				for _, c := range bp.RequiredStatusChecks.Contexts {
+					fmt.Printf("      - %s\n", c)
+				}
+			}
+		} else {
+			fmt.Printf("    require_status_checks: false\n")
+		}
+		if bp.EnforceAdmins != nil {
+			fmt.Printf("    enforce_admins: %v\n", bp.EnforceAdmins.Enabled)
+		}
+		if bp.RequiredLinearHistory != nil {
+			fmt.Printf("    require_linear_history: %v\n", bp.RequiredLinearHistory.Enabled)
+		}
+		if bp.AllowForcePushes != nil {
+			fmt.Printf("    allow_force_pushes: %v\n", bp.AllowForcePushes.Enabled)
+		}
+		if bp.AllowDeletions != nil {
+			fmt.Printf("    allow_deletions: %v\n", bp.AllowDeletions.Enabled)
+		}
+	}
+
+	// Actions
+	fmt.Printf("\n%s:\n", cyan("actions"))
+	actionsPerms, err := client.GetActionsPermissions(ctx)
+	if err != nil {
+		fmt.Printf("  %s\n", gray("(failed to get)"))
+	} else {
+		fmt.Printf("  enabled: %v\n", actionsPerms.Enabled)
+		fmt.Printf("  allowed_actions: %s\n", actionsPerms.AllowedActions)
+	}
+
+	workflowPerms, err := client.GetActionsWorkflowPermissions(ctx)
+	if err == nil {
+		fmt.Printf("  default_workflow_permissions: %s\n", workflowPerms.DefaultWorkflowPermissions)
+		fmt.Printf("  can_approve_pull_request_reviews: %v\n", workflowPerms.CanApprovePullRequestReviews)
+	}
+
+	return nil
 }

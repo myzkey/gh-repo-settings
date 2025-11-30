@@ -95,14 +95,27 @@ gh rset plan -c custom-config.yaml
 # 使用目录配置预览
 gh rset plan -d .github/repo-settings/
 
-# 仅验证 Schema（不调用 API）
-gh rset plan --schema-only
+# 显示当前 GitHub 设置（用于调试）
+gh rset plan --show-current
 
 # 仅检查密钥是否存在
 gh rset plan --secrets
 
 # 仅检查环境变量
 gh rset plan --env
+```
+
+`--show-current` 选项显示当前 GitHub 仓库设置，适用于：
+- 调试配置问题
+- 查找 GitHub 上存在但配置文件中没有的设置
+- 验证仓库的实际配置
+
+**Status Check 验证**: 运行 `plan` 时，工具会自动验证分支保护规则中的 `status_checks` 名称是否与 `.github/workflows/` 文件中的作业名称匹配。如果发现不匹配，将显示警告：
+
+```
+⚠ status check lint not found in workflows
+⚠ status check test not found in workflows
+  Available checks: build, golangci-lint, Run tests
 ```
 
 ### `apply` - 应用变更
