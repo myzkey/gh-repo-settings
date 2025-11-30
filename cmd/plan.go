@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/fatih/color"
@@ -12,6 +13,7 @@ import (
 	"github.com/myzkey/gh-repo-settings/internal/diff"
 	"github.com/myzkey/gh-repo-settings/internal/github"
 	"github.com/myzkey/gh-repo-settings/internal/logger"
+	"github.com/myzkey/gh-repo-settings/internal/workflow"
 	"github.com/spf13/cobra"
 )
 
@@ -70,6 +72,9 @@ func runPlan(cmd *cobra.Command, args []string) error {
 	}
 
 	logger.Debug("Loaded configuration")
+
+	// Validate status checks against workflow files
+	validateStatusChecks(cfg)
 
 	logger.Info("Planning changes for %s/%s...\n", client.RepoOwner(), client.RepoName())
 
@@ -166,5 +171,41 @@ func printPlan(plan *diff.Plan) {
 
 	if deletes > 0 {
 		os.Exit(2)
+	}
+}
+
+func validateStatusChecks(cfg *config.Config) {
+	if cfg.BranchProtection == nil {
+		return
+	}
+
+	// Collect all status checks from branch protection rules
+	var allStatusChecks []string
+	for _, rule := range cfg.BranchProtection {
+		if rule != nil && len(rule.StatusChecks) > 0 {
+			allStatusChecks = append(allStatusChecks, rule.StatusChecks...)
+		}
+	}
+
+	if len(allStatusChecks) == 0 {
+		return
+	}
+
+	unknown, available, err := workflow.ValidateStatusChecks(allStatusChecks, "")
+	if err != nil {
+		logger.Debug("Failed to validate status checks: %v", err)
+		return
+	}
+
+	if len(unknown) > 0 {
+		yellow := color.New(color.FgYellow).SprintFunc()
+		fmt.Println()
+		for _, check := range unknown {
+			fmt.Printf("%s status check %s not found in workflows\n", yellow("⚠"), yellow(check))
+		}
+		if len(available) > 0 {
+			fmt.Printf("  Available checks: %s\n", strings.Join(available, ", "))
+		}
+		fmt.Println()
 	}
 }

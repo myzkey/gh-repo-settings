@@ -603,10 +603,10 @@ func TestCalculatorCompareTopics(t *testing.T) {
 			expectChange:  true,
 		},
 		{
-			name:          "order changed",
+			name:          "order changed - no change",
 			currentTopics: []string{"cli", "go"},
 			configTopics:  []string{"go", "cli"},
-			expectChange:  true, // DeepEqual is order-sensitive
+			expectChange:  false, // order is ignored
 		},
 	}
 
@@ -1280,6 +1280,73 @@ func TestPtrVal(t *testing.T) {
 			result := ptrVal(tt.input)
 			if result != tt.expected {
 				t.Errorf("expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestStringSliceEqualIgnoreOrder(t *testing.T) {
+	tests := []struct {
+		name     string
+		a        []string
+		b        []string
+		expected bool
+	}{
+		{
+			name:     "both empty",
+			a:        []string{},
+			b:        []string{},
+			expected: true,
+		},
+		{
+			name:     "both nil",
+			a:        nil,
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "same order",
+			a:        []string{"a", "b", "c"},
+			b:        []string{"a", "b", "c"},
+			expected: true,
+		},
+		{
+			name:     "different order",
+			a:        []string{"c", "a", "b"},
+			b:        []string{"a", "b", "c"},
+			expected: true,
+		},
+		{
+			name:     "different length",
+			a:        []string{"a", "b"},
+			b:        []string{"a", "b", "c"},
+			expected: false,
+		},
+		{
+			name:     "different content",
+			a:        []string{"a", "b", "c"},
+			b:        []string{"a", "b", "d"},
+			expected: false,
+		},
+		{
+			name:     "duplicates same",
+			a:        []string{"a", "a", "b"},
+			b:        []string{"a", "b", "a"},
+			expected: true,
+		},
+		{
+			name:     "duplicates different count",
+			a:        []string{"a", "a", "b"},
+			b:        []string{"a", "b", "b"},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := stringSliceEqualIgnoreOrder(tt.a, tt.b)
+			if result != tt.expected {
+				t.Errorf("stringSliceEqualIgnoreOrder(%v, %v) = %v, want %v", tt.a, tt.b, result, tt.expected)
 			}
 		})
 	}

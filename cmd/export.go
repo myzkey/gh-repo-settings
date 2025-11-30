@@ -12,7 +12,6 @@ import (
 	"github.com/myzkey/gh-repo-settings/internal/github"
 	"github.com/myzkey/gh-repo-settings/internal/logger"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -153,11 +152,11 @@ func runExport(cmd *cobra.Command, args []string) error {
 	}
 
 	// Default: stdout
-	yamlData, err := yaml.Marshal(cfg)
+	yamlData, err := marshalYAML(cfg)
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(yamlData))
+	fmt.Print(string(yamlData))
 	return nil
 }
 
@@ -221,7 +220,7 @@ func exportToSingleFile(cfg *config.Config, path string) error {
 }
 
 func writeYAMLFile(path string, data interface{}) error {
-	yamlData, err := yaml.Marshal(data)
+	yamlData, err := marshalYAML(data)
 	if err != nil {
 		return err
 	}

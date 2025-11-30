@@ -222,15 +222,18 @@ func (c *Client) DeleteLabel(ctx context.Context, name string) error {
 // SetTopics sets repository topics
 func (c *Client) SetTopics(ctx context.Context, topics []string) error {
 	endpoint := fmt.Sprintf("repos/%s/%s/topics", c.Repo.Owner, c.Repo.Name)
-	topicsJSON, _ := json.Marshal(topics)
+
+	body := struct {
+		Names []string `json:"names"`
+	}{Names: topics}
+	bodyJSON, _ := json.Marshal(body)
 
 	args := []string{
 		"-X", "PUT",
 		"-H", "Accept: application/vnd.github+json",
-		"-f", fmt.Sprintf("names=%s", string(topicsJSON)),
 	}
 
-	_, err := c.ghAPI(ctx, endpoint, args...)
+	_, err := c.ghAPIWithInput(ctx, endpoint, bodyJSON, args...)
 	return err
 }
 

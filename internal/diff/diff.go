@@ -267,7 +267,7 @@ func (c *Calculator) compareTopics(ctx context.Context) ([]Change, error) {
 		return nil, err
 	}
 
-	if !reflect.DeepEqual(c.config.Topics, current.Topics) {
+	if !stringSliceEqualIgnoreOrder(c.config.Topics, current.Topics) {
 		return []Change{{
 			Type:     ChangeUpdate,
 			Category: "topics",
@@ -278,6 +278,24 @@ func (c *Calculator) compareTopics(ctx context.Context) ([]Change, error) {
 	}
 
 	return nil, nil
+}
+
+// stringSliceEqualIgnoreOrder compares two string slices ignoring order
+func stringSliceEqualIgnoreOrder(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	aMap := make(map[string]int)
+	for _, v := range a {
+		aMap[v]++
+	}
+	for _, v := range b {
+		aMap[v]--
+		if aMap[v] < 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (c *Calculator) compareLabels(ctx context.Context) ([]Change, error) {

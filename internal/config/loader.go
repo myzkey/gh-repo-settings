@@ -64,13 +64,15 @@ func Load(opts LoadOptions) (*Config, error) {
 	return config, nil
 }
 
-// ToYAML converts config to YAML string
+// ToYAML converts config to YAML string with 2-space indentation
 func (c *Config) ToYAML() (string, error) {
-	data, err := yaml.Marshal(c)
-	if err != nil {
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(c); err != nil {
 		return "", err
 	}
-	return string(data), nil
+	return buf.String(), nil
 }
 
 func loadSingleFile(filePath string) (*Config, error) {
