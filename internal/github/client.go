@@ -308,9 +308,9 @@ func (c *Client) DeleteSecret(ctx context.Context, name string) error {
 // GetVariables fetches repository variables with their values
 func (c *Client) GetVariables(ctx context.Context) ([]VariableData, error) {
 	endpoint := fmt.Sprintf("repos/%s/%s/actions/variables", c.Repo.Owner, c.Repo.Name)
-	out, err := c.ghAPI(ctx, endpoint)
+	out, err := c.ghAPI(ctx, endpoint, "--paginate")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get variables: %w", err)
 	}
 
 	var result struct {
@@ -318,7 +318,7 @@ func (c *Client) GetVariables(ctx context.Context) ([]VariableData, error) {
 	}
 
 	if err := json.Unmarshal(out, &result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse variables: %w", err)
 	}
 
 	return result.Variables, nil
@@ -541,7 +541,8 @@ func (c *Client) GetPages(ctx context.Context) (*PagesData, error) {
 	out, err := c.ghAPI(ctx, endpoint)
 	if err != nil {
 		// Pages not enabled returns 404
-		if apiErr, ok := err.(*apperrors.APIError); ok && apiErr.StatusCode == 1 {
+		var apiErr *apperrors.APIError
+		if apperrors.As(err, &apiErr) && apiErr.StatusCode == 404 {
 			return nil, apperrors.ErrPagesNotEnabled
 		}
 		return nil, fmt.Errorf("failed to get pages: %w", err)
