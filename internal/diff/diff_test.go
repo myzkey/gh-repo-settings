@@ -13,6 +13,54 @@ func ptr[T any](v T) *T {
 	return &v
 }
 
+func TestToStringSet(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []string
+		want  map[string]bool
+	}{
+		{
+			name:  "empty slice",
+			input: []string{},
+			want:  map[string]bool{},
+		},
+		{
+			name:  "single item",
+			input: []string{"a"},
+			want:  map[string]bool{"a": true},
+		},
+		{
+			name:  "multiple items",
+			input: []string{"a", "b", "c"},
+			want:  map[string]bool{"a": true, "b": true, "c": true},
+		},
+		{
+			name:  "duplicates",
+			input: []string{"a", "b", "a"},
+			want:  map[string]bool{"a": true, "b": true},
+		},
+		{
+			name:  "nil slice",
+			input: nil,
+			want:  map[string]bool{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := toStringSet(tt.input)
+			if len(got) != len(tt.want) {
+				t.Errorf("toStringSet() length = %d, want %d", len(got), len(tt.want))
+			}
+			for k, v := range tt.want {
+				if got[k] != v {
+					t.Errorf("toStringSet()[%s] = %v, want %v", k, got[k], v)
+				}
+			}
+		})
+	}
+}
+
 func TestCalculatorCompareRepo(t *testing.T) {
 	tests := []struct {
 		name     string
