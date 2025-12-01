@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/fatih/color"
@@ -453,13 +455,15 @@ func applyVariableChanges(ctx context.Context, client *github.Client, cfg *confi
 }
 
 func applySecretChanges(ctx context.Context, client *github.Client, dotEnvValues *config.DotEnvValues, changes []diff.Change, green, red func(a ...interface{}) string) error {
+	reader := bufio.NewReader(os.Stdin)
+
 	for _, change := range changes {
 		switch change.Type {
 		case diff.ChangeAdd:
 			fmt.Printf("  Creating secret '%s'... ", change.Key)
 
 			// Get value from .env
-			value := ""
+			var value string
 			if dotEnvValues != nil {
 				value, _ = dotEnvValues.GetSecret(change.Key)
 			}
@@ -468,9 +472,16 @@ func applySecretChanges(ctx context.Context, client *github.Client, dotEnvValues
 				// Secret value not found, prompt user
 				fmt.Println()
 				fmt.Printf("    Enter value for secret '%s': ", change.Key)
-				var inputValue string
-				_, _ = fmt.Scanln(&inputValue)
-				value = inputValue
+				inputValue, err := reader.ReadString('\n')
+				if err != nil {
+					fmt.Println(red("✗"))
+					return fmt.Errorf("failed to read secret value for %s: %w", change.Key, err)
+				}
+				value = strings.TrimSpace(inputValue)
+				if value == "" {
+					fmt.Println(red("✗"))
+					return fmt.Errorf("secret value for %s cannot be empty", change.Key)
+				}
 				fmt.Printf("  Creating secret '%s'... ", change.Key)
 			}
 
