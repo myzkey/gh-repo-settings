@@ -1,0 +1,266 @@
+# gh-repo-settings
+
+> A GitHub CLI extension to manage repository settings via YAML configuration
+
+gh-repo-settings is a GitHub CLI extension that enables Infrastructure as Code (IaC) for GitHub repository settings. It provides a Terraform-like workflow with `plan` and `apply` commands.
+
+## Features
+
+- Define repository settings in YAML files, version controlled alongside your code
+- Terraform-like workflow: `plan` to preview changes, `apply` to execute
+- Export existing settings from any repository and apply them to others
+- JSON Schema validation support for VSCode
+
+## Installation
+
+```bash
+gh extension install myzkey/gh-repo-settings
+```
+
+## Quick Start
+
+```bash
+# Initialize config interactively
+gh rset init
+
+# Preview changes (like terraform plan)
+gh rset plan
+
+# Apply changes
+gh rset apply
+```
+
+Default config paths (in priority order):
+1. `.github/repo-settings/` (directory)
+2. `.github/repo-settings.yaml` (single file)
+
+## Commands
+
+### init - Initialize Configuration
+
+Create a configuration file interactively.
+
+```bash
+gh rset init              # Create .github/repo-settings.yaml interactively
+gh rset init -o config.yaml   # Specify output path
+gh rset init -f           # Overwrite existing file
+```
+
+### export - Export Repository Settings
+
+Export current GitHub repository settings to YAML format.
+
+```bash
+gh rset export                    # Export to stdout
+gh rset export -s settings.yaml   # Export to single file
+gh rset export -d .github/repo-settings/  # Export to directory
+gh rset export --include-secrets  # Include secret names
+gh rset export -r owner/repo      # Export from specific repository
+```
+
+### plan - Preview Changes
+
+Validate configuration and show planned changes without applying them.
+
+```bash
+gh rset plan              # Preview all changes
+gh rset plan -c config.yaml   # Specify config file
+gh rset plan -d .github/repo-settings/   # Specify config directory
+gh rset plan --show-current   # Show current GitHub settings
+gh rset plan --secrets    # Check only secrets existence
+gh rset plan --env        # Check only environment variables
+```
+
+The tool validates that `status_checks` names match job names in your `.github/workflows/` files.
+
+### apply - Apply Changes
+
+Apply YAML configuration to the GitHub repository.
+
+```bash
+gh rset apply             # Apply changes
+gh rset apply --dry-run   # Dry run (same as plan)
+gh rset apply -c config.yaml  # Specify config file
+gh rset apply -d .github/repo-settings/  # Apply from directory
+```
+
+### Global Options
+
+| Option | Description |
+|--------|-------------|
+| `-v, --verbose` | Show debug output |
+| `-q, --quiet` | Only show errors |
+| `-r, --repo <owner/name>` | Target repository (default: current) |
+
+## Configuration Reference
+
+### repo - Repository Settings
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `description` | string | Repository description |
+| `homepage` | string | Homepage URL |
+| `visibility` | `public` / `private` / `internal` | Repository visibility |
+| `allow_merge_commit` | boolean | Allow merge commits |
+| `allow_rebase_merge` | boolean | Allow rebase merging |
+| `allow_squash_merge` | boolean | Allow squash merging |
+| `delete_branch_on_merge` | boolean | Auto-delete head branches |
+| `allow_update_branch` | boolean | Allow updating PR branches |
+
+### topics - Repository Topics
+
+Array of topic strings:
+
+```yaml
+topics:
+  - javascript
+  - nodejs
+  - cli
+```
+
+### labels - Issue Labels
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `replace_default` | boolean | Delete labels not in config |
+| `items` | array | List of label definitions |
+| `items[].name` | string | Label name |
+| `items[].color` | string | Hex color (without `#`) |
+| `items[].description` | string | Label description |
+
+### branch_protection - Branch Protection Rules
+
+```yaml
+branch_protection:
+  <branch_name>:
+    # Pull request reviews
+    required_reviews: 1          # Number of required approvals
+    dismiss_stale_reviews: true  # Dismiss approvals on new commits
+    require_code_owner: false    # Require CODEOWNERS review
+
+    # Status checks
+    require_status_checks: true  # Require status checks
+    status_checks:               # Required status check names
+      - ci/test
+    strict_status_checks: false  # Require up-to-date branches
+
+    # Deployments
+    required_deployments:        # Required deployment environments
+      - production
+
+    # Commit requirements
+    require_signed_commits: false # Require signed commits
+    require_linear_history: false # Prevent merge commits
+
+    # Push/merge restrictions
+    enforce_admins: false        # Include administrators
+    restrict_creations: false    # Restrict branch creation
+    restrict_pushes: false       # Restrict who can push
+    allow_force_pushes: false    # Allow force pushes
+    allow_deletions: false       # Allow branch deletion
+```
+
+### secrets - Required Secrets
+
+Check that required repository secrets exist (values are not managed):
+
+```yaml
+secrets:
+  required:
+    - API_TOKEN
+    - DEPLOY_KEY
+```
+
+### env - Required Environment Variables
+
+Check that required repository variables exist:
+
+```yaml
+env:
+  required:
+    - DATABASE_URL
+    - SENTRY_DSN
+```
+
+### actions - GitHub Actions Permissions
+
+```yaml
+actions:
+  enabled: true
+  allowed_actions: selected  # "all", "local_only", "selected"
+  selected_actions:
+    github_owned_allowed: true
+    verified_allowed: true
+    patterns_allowed:
+      - "actions/*"
+      - "github/codeql-action/*"
+  default_workflow_permissions: read  # "read" or "write"
+  can_approve_pull_request_reviews: false
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | boolean | Enable GitHub Actions |
+| `allowed_actions` | `all` / `local_only` / `selected` | Which actions are allowed |
+| `selected_actions.github_owned_allowed` | boolean | Allow actions created by GitHub |
+| `selected_actions.verified_allowed` | boolean | Allow actions from verified creators |
+| `selected_actions.patterns_allowed` | array | Patterns for allowed actions |
+| `default_workflow_permissions` | `read` / `write` | Default GITHUB_TOKEN permissions |
+| `can_approve_pull_request_reviews` | boolean | Allow Actions to approve PRs |
+
+### pages - GitHub Pages Configuration
+
+```yaml
+pages:
+  build_type: workflow  # "workflow" or "legacy"
+  source:
+    branch: main
+    path: /docs  # "/" or "/docs"
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `build_type` | `workflow` / `legacy` | How Pages is built |
+| `source.branch` | string | Branch for legacy builds |
+| `source.path` | `/` / `/docs` | Path within the branch |
+
+## Example Configuration
+
+```yaml
+repo:
+  description: "My awesome project"
+  visibility: public
+  allow_merge_commit: false
+  allow_rebase_merge: true
+  allow_squash_merge: true
+  delete_branch_on_merge: true
+
+topics:
+  - typescript
+  - cli
+  - github
+
+labels:
+  items:
+    - name: bug
+      color: ff0000
+      description: Something isn't working
+    - name: feature
+      color: 0e8a16
+      description: New feature request
+
+branch_protection:
+  main:
+    required_reviews: 1
+    dismiss_stale_reviews: true
+    require_status_checks: true
+    status_checks:
+      - ci/test
+      - ci/lint
+```
+
+## Links
+
+- Documentation: https://myzkey.github.io/gh-repo-settings/
+- GitHub Repository: https://github.com/myzkey/gh-repo-settings
+- Releases: https://github.com/myzkey/gh-repo-settings/releases

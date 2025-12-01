@@ -9,7 +9,7 @@ repo:
   allow_update_branch: true
 
 topics:
-  - go
+  - gh-extension
   - cli
   - github
   - github-cli-extension

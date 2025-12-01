@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://myzkey.github.io/gh-repo-settings/sitemap.xml
+
+# LLM-friendly documentation
+# See: https://llmstxt.org/
+LLMs-txt: https://myzkey.github.io/gh-repo-settings/llms.txt
