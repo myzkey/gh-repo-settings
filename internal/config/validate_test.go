@@ -183,6 +183,16 @@ func TestEnvConfigValidate(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "name conflict between variable and secret",
+			env: &EnvConfig{
+				Variables: map[string]string{
+					"MY_VAR": "value",
+				},
+				Secrets: []string{"MY_VAR"},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
