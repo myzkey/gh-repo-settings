@@ -6,10 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 
 	apperrors "github.com/myzkey/gh-repo-settings/internal/errors"
 )
+
+// httpStatusRegex matches "HTTP XXX" in gh api stderr output
+var httpStatusRegex = regexp.MustCompile(`HTTP (\d{3})`)
 
 // RepoInfo represents repository owner and name
 type RepoInfo struct {
@@ -84,6 +89,18 @@ func (c *Client) RepoName() string {
 	return c.Repo.Name
 }
 
+// parseHTTPStatus extracts HTTP status code from gh api stderr output
+// Returns 0 if no status code is found
+func parseHTTPStatus(stderr string) int {
+	matches := httpStatusRegex.FindStringSubmatch(stderr)
+	if len(matches) >= 2 {
+		if code, err := strconv.Atoi(matches[1]); err == nil {
+			return code
+		}
+	}
+	return 0
+}
+
 // ghAPI executes a gh api command and returns the result
 func (c *Client) ghAPI(ctx context.Context, endpoint string, args ...string) ([]byte, error) {
 	cmdArgs := []string{"api", endpoint}
@@ -93,7 +110,9 @@ func (c *Client) ghAPI(ctx context.Context, endpoint string, args ...string) ([]
 	out, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, apperrors.NewAPIError("", endpoint, exitErr.ExitCode(), string(exitErr.Stderr), err)
+			stderr := string(exitErr.Stderr)
+			statusCode := parseHTTPStatus(stderr)
+			return nil, apperrors.NewAPIError("", endpoint, statusCode, stderr, err)
 		}
 		return nil, apperrors.NewAPIError("", endpoint, 0, err.Error(), err)
 	}
@@ -111,7 +130,9 @@ func (c *Client) ghAPIWithInput(ctx context.Context, endpoint string, input []by
 	out, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, apperrors.NewAPIError("", endpoint, exitErr.ExitCode(), string(exitErr.Stderr), err)
+			stderr := string(exitErr.Stderr)
+			statusCode := parseHTTPStatus(stderr)
+			return nil, apperrors.NewAPIError("", endpoint, statusCode, stderr, err)
 		}
 		return nil, apperrors.NewAPIError("", endpoint, 0, err.Error(), err)
 	}
@@ -316,14 +337,20 @@ func (c *Client) SetVariable(ctx context.Context, name, value string) error {
 	jsonData, _ := json.Marshal(payload)
 
 	if err != nil {
-		// Variable doesn't exist, create it
-		createEndpoint := fmt.Sprintf("repos/%s/%s/actions/variables", c.Repo.Owner, c.Repo.Name)
-		_, err = c.ghAPIWithInput(ctx, createEndpoint, jsonData, "-X", "POST", "-H", "Accept: application/vnd.github+json")
-	} else {
-		// Variable exists, update it
-		_, err = c.ghAPIWithInput(ctx, getEndpoint, jsonData, "-X", "PATCH", "-H", "Accept: application/vnd.github+json")
+		// Check if it's a 404 (not found) error
+		var apiErr *apperrors.APIError
+		if apperrors.As(err, &apiErr) && apiErr.StatusCode == 404 {
+			// Variable doesn't exist, create it
+			createEndpoint := fmt.Sprintf("repos/%s/%s/actions/variables", c.Repo.Owner, c.Repo.Name)
+			_, err = c.ghAPIWithInput(ctx, createEndpoint, jsonData, "-X", "POST", "-H", "Accept: application/vnd.github+json")
+			return err
+		}
+		// Other error (permission denied, rate limited, etc.)
+		return fmt.Errorf("failed to check variable existence: %w", err)
 	}
 
+	// Variable exists, update it
+	_, err = c.ghAPIWithInput(ctx, getEndpoint, jsonData, "-X", "PATCH", "-H", "Accept: application/vnd.github+json")
 	return err
 }
 
@@ -339,8 +366,9 @@ func (c *Client) GetBranchProtection(ctx context.Context, branch string) (*Branc
 	endpoint := fmt.Sprintf("repos/%s/%s/branches/%s/protection", c.Repo.Owner, c.Repo.Name, branch)
 	out, err := c.ghAPI(ctx, endpoint)
 	if err != nil {
-		// Check if branch protection doesn't exist
-		if apiErr, ok := err.(*apperrors.APIError); ok && apiErr.StatusCode == 1 {
+		// Check if branch protection doesn't exist (404)
+		var apiErr *apperrors.APIError
+		if apperrors.As(err, &apiErr) && apiErr.StatusCode == 404 {
 			return nil, apperrors.ErrBranchNotProtected
 		}
 		return nil, err
