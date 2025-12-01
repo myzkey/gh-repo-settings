@@ -418,6 +418,9 @@ func applyPagesChanges(ctx context.Context, client *github.Client, cfg *config.C
 }
 
 func applyVariableChanges(ctx context.Context, client *github.Client, cfg *config.Config, dotEnvValues *config.DotEnvValues, changes []diff.Change, green, red func(a ...interface{}) string) error {
+	var errors []string
+	succeeded := 0
+
 	for _, change := range changes {
 		switch change.Type {
 		case diff.ChangeAdd, diff.ChangeUpdate:
@@ -438,24 +441,34 @@ func applyVariableChanges(ctx context.Context, client *github.Client, cfg *confi
 
 			if err := client.SetVariable(ctx, change.Key, value); err != nil {
 				fmt.Println(red("✗"))
-				return fmt.Errorf("failed to set variable %s: %w", change.Key, err)
+				errors = append(errors, fmt.Sprintf("%s: %v", change.Key, err))
+				continue
 			}
 			fmt.Println(green("✓"))
+			succeeded++
 
 		case diff.ChangeDelete:
 			fmt.Printf("  Deleting variable '%s'... ", change.Key)
 			if err := client.DeleteVariable(ctx, change.Key); err != nil {
 				fmt.Println(red("✗"))
-				return fmt.Errorf("failed to delete variable %s: %w", change.Key, err)
+				errors = append(errors, fmt.Sprintf("%s: %v", change.Key, err))
+				continue
 			}
 			fmt.Println(green("✓"))
+			succeeded++
 		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to apply %d/%d variables:\n  %s", len(errors), len(changes), strings.Join(errors, "\n  "))
 	}
 	return nil
 }
 
 func applySecretChanges(ctx context.Context, client *github.Client, dotEnvValues *config.DotEnvValues, changes []diff.Change, green, red func(a ...interface{}) string) error {
 	reader := bufio.NewReader(os.Stdin)
+	var errors []string
+	succeeded := 0
 
 	for _, change := range changes {
 		switch change.Type {
@@ -475,30 +488,40 @@ func applySecretChanges(ctx context.Context, client *github.Client, dotEnvValues
 				inputValue, err := reader.ReadString('\n')
 				if err != nil {
 					fmt.Println(red("✗"))
-					return fmt.Errorf("failed to read secret value for %s: %w", change.Key, err)
+					errors = append(errors, fmt.Sprintf("%s: failed to read input: %v", change.Key, err))
+					continue
 				}
 				value = strings.TrimSpace(inputValue)
 				if value == "" {
 					fmt.Println(red("✗"))
-					return fmt.Errorf("secret value for %s cannot be empty", change.Key)
+					errors = append(errors, fmt.Sprintf("%s: value cannot be empty", change.Key))
+					continue
 				}
 				fmt.Printf("  Creating secret '%s'... ", change.Key)
 			}
 
 			if err := client.SetSecret(ctx, change.Key, value); err != nil {
 				fmt.Println(red("✗"))
-				return fmt.Errorf("failed to set secret %s: %w", change.Key, err)
+				errors = append(errors, fmt.Sprintf("%s: %v", change.Key, err))
+				continue
 			}
 			fmt.Println(green("✓"))
+			succeeded++
 
 		case diff.ChangeDelete:
 			fmt.Printf("  Deleting secret '%s'... ", change.Key)
 			if err := client.DeleteSecret(ctx, change.Key); err != nil {
 				fmt.Println(red("✗"))
-				return fmt.Errorf("failed to delete secret %s: %w", change.Key, err)
+				errors = append(errors, fmt.Sprintf("%s: %v", change.Key, err))
+				continue
 			}
 			fmt.Println(green("✓"))
+			succeeded++
 		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to apply %d/%d secrets:\n  %s", len(errors), len(changes), strings.Join(errors, "\n  "))
 	}
 	return nil
 }

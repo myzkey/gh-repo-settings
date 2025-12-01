@@ -150,11 +150,11 @@ func (c *Calculator) CalculateWithOptions(ctx context.Context, opts CalculateOpt
 		plan.Changes = append(plan.Changes, changes...)
 	}
 
-	// Check secrets and variables (if requested)
+	// Compare secrets and variables (if requested)
 	if (opts.CheckSecrets || opts.CheckEnv) && c.config.Env != nil {
-		changes, err := c.checkEnv(ctx, opts.CheckSecrets, opts.CheckEnv, opts.SyncDelete)
+		changes, err := c.compareEnv(ctx, opts.CheckSecrets, opts.CheckEnv, opts.SyncDelete)
 		if err != nil {
-			return nil, fmt.Errorf("failed to check env: %w", err)
+			return nil, fmt.Errorf("failed to compare env: %w", err)
 		}
 		plan.Changes = append(plan.Changes, changes...)
 	}
@@ -620,10 +620,10 @@ func joinParts(parts []string) string {
 	return result
 }
 
-func (c *Calculator) checkEnv(ctx context.Context, checkSecrets, checkVars, syncDelete bool) ([]Change, error) {
+func (c *Calculator) compareEnv(ctx context.Context, checkSecrets, checkVars, syncDelete bool) ([]Change, error) {
 	var changes []Change
 
-	// Check secrets
+	// Compare secrets
 	if checkSecrets {
 		currentSecrets, err := c.client.GetSecrets(ctx)
 		if err != nil {
