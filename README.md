@@ -5,7 +5,7 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/myzkey/gh-repo-settings)](https://github.com/myzkey/gh-repo-settings)
 [![Release](https://img.shields.io/github/v/release/myzkey/gh-repo-settings)](https://github.com/myzkey/gh-repo-settings/releases)
 
-[日本語](./README.ja.md) | [简体中文](./README.zh-CN.md) | [한국어](./README.ko.md) | [Español](./README.es.md)
+[日本語](./docs/README.ja.md) | [简体中文](./docs/README.zh-CN.md) | [한국어](./docs/README.ko.md) | [Español](./docs/README.es.md)
 
 **Keep your repo settings, labels and branch protections in sync across dozens of repositories via YAML + GitHub CLI.**
 
@@ -29,6 +29,12 @@ A GitHub CLI extension to manage repository settings via YAML configuration. Ins
 gh extension install myzkey/gh-repo-settings
 ```
 
+### Upgrade
+
+```bash
+gh extension upgrade myzkey/gh-repo-settings
+```
+
 ### Manual Installation
 
 Download the latest binary from [Releases](https://github.com/myzkey/gh-repo-settings/releases) and add it to your PATH.
@@ -37,13 +43,13 @@ Download the latest binary from [Releases](https://github.com/myzkey/gh-repo-set
 
 ```bash
 # Initialize config interactively
-gh rset init
+gh repo-settings init
 
 # Preview changes (like terraform plan)
-gh rset plan
+gh repo-settings plan
 
 # Apply changes
-gh rset apply
+gh repo-settings apply
 ```
 
 Default config paths (in priority order):
@@ -58,13 +64,13 @@ Create a configuration file interactively.
 
 ```bash
 # Create .github/repo-settings.yaml interactively
-gh rset init
+gh repo-settings init
 
 # Specify output path
-gh rset init -o config.yaml
+gh repo-settings init -o config.yaml
 
 # Overwrite existing file
-gh rset init -f
+gh repo-settings init -f
 ```
 
 ### `export` - Export repository settings
@@ -73,19 +79,19 @@ Export current GitHub repository settings to YAML format.
 
 ```bash
 # Export to stdout
-gh rset export
+gh repo-settings export
 
 # Export to single file
-gh rset export -s .github/repo-settings.yaml
+gh repo-settings export -s .github/repo-settings.yaml
 
 # Export to directory (multiple files)
-gh rset export -d .github/repo-settings/
+gh repo-settings export -d .github/repo-settings/
 
 # Include secret names
-gh rset export -s settings.yaml --include-secrets
+gh repo-settings export -s settings.yaml --include-secrets
 
 # Export from specific repository
-gh rset export -r owner/repo -s settings.yaml
+gh repo-settings export -r owner/repo -s settings.yaml
 ```
 
 ### `plan` - Preview changes
@@ -94,22 +100,22 @@ Validate configuration and show planned changes without applying them.
 
 ```bash
 # Preview all changes (uses default config path)
-gh rset plan
+gh repo-settings plan
 
 # Specify config file
-gh rset plan -c custom-config.yaml
+gh repo-settings plan -c custom-config.yaml
 
 # Specify config directory
-gh rset plan -d .github/repo-settings/
+gh repo-settings plan -d .github/repo-settings/
 
 # Show current GitHub settings (useful for debugging)
-gh rset plan --show-current
+gh repo-settings plan --show-current
 
 # Check only secrets existence
-gh rset plan --secrets
+gh repo-settings plan --secrets
 
 # Check only environment variables
-gh rset plan --env
+gh repo-settings plan --env
 ```
 
 The `--show-current` option displays the current GitHub repository settings, which is useful for:
@@ -131,16 +137,16 @@ Apply YAML configuration to the GitHub repository.
 
 ```bash
 # Apply changes (uses default config path)
-gh rset apply
+gh repo-settings apply
 
 # Dry run (same as plan)
-gh rset apply --dry-run
+gh repo-settings apply --dry-run
 
 # Specify config file
-gh rset apply -c custom-config.yaml
+gh repo-settings apply -c custom-config.yaml
 
 # Apply from directory
-gh rset apply -d .github/repo-settings/
+gh repo-settings apply -d .github/repo-settings/
 ```
 
 ## Configuration
@@ -426,7 +432,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check drift
-        run: gh rset plan
+        run: gh repo-settings plan
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```

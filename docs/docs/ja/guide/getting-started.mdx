@@ -8,6 +8,12 @@
 gh extension install myzkey/gh-repo-settings
 ```
 
+### アップグレード
+
+```bash
+gh extension upgrade myzkey/gh-repo-settings
+```
+
 ### 手動インストール
 
 [Releases](https://github.com/myzkey/gh-repo-settings/releases) から最新のバイナリをダウンロードし、PATH に追加してください。
@@ -16,13 +22,13 @@ gh extension install myzkey/gh-repo-settings
 
 ```bash
 # 対話形式で設定ファイルを作成
-gh rset init
+gh repo-settings init
 
 # 変更をプレビュー（terraform plan のように）
-gh rset plan
+gh repo-settings plan
 
 # 変更を適用
-gh rset apply
+gh repo-settings apply
 ```
 
 デフォルトの設定ファイルパス（優先順）:

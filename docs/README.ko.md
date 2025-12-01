@@ -1,6 +1,6 @@
 # gh-repo-settings
 
-[English](./README.md) | [日本語](./README.ja.md) | [简体中文](./README.zh-CN.md) | [Español](./README.es.md)
+[English](../README.md) | [日本語](./README.ja.md) | [简体中文](./README.zh-CN.md) | [Español](./README.es.md)
 
 YAML 설정을 통해 GitHub 저장소 설정을 관리하는 GitHub CLI 확장 프로그램입니다. Terraform의 워크플로우에서 영감을 받아 원하는 상태를 코드로 정의하고, 변경 사항을 미리 보고, 적용할 수 있습니다.
 
@@ -22,6 +22,12 @@ YAML 설정을 통해 GitHub 저장소 설정을 관리하는 GitHub CLI 확장 
 gh extension install myzkey/gh-repo-settings
 ```
 
+### 업그레이드
+
+```bash
+gh extension upgrade myzkey/gh-repo-settings
+```
+
 ### 수동 설치
 
 [Releases](https://github.com/myzkey/gh-repo-settings/releases)에서 최신 바이너리를 다운로드하고 PATH에 추가하세요.
@@ -30,13 +36,13 @@ gh extension install myzkey/gh-repo-settings
 
 ```bash
 # 대화형으로 설정 파일 생성
-gh rset init
+gh repo-settings init
 
 # 변경 사항 미리보기 (terraform plan처럼)
-gh rset plan
+gh repo-settings plan
 
 # 변경 사항 적용
-gh rset apply
+gh repo-settings apply
 ```
 
 기본 설정 파일 경로 (우선순위 순):
@@ -51,13 +57,13 @@ gh rset apply
 
 ```bash
 # .github/repo-settings.yaml을 대화형으로 생성
-gh rset init
+gh repo-settings init
 
 # 출력 경로 지정
-gh rset init -o config.yaml
+gh repo-settings init -o config.yaml
 
 # 기존 파일 덮어쓰기
-gh rset init -f
+gh repo-settings init -f
 ```
 
 ### `export` - 저장소 설정 내보내기
@@ -66,19 +72,19 @@ gh rset init -f
 
 ```bash
 # 표준 출력으로 내보내기
-gh rset export
+gh repo-settings export
 
 # 단일 파일로 내보내기
-gh rset export -s .github/repo-settings.yaml
+gh repo-settings export -s .github/repo-settings.yaml
 
 # 디렉토리로 내보내기 (여러 파일)
-gh rset export -d .github/repo-settings/
+gh repo-settings export -d .github/repo-settings/
 
 # 시크릿 이름 포함
-gh rset export -s settings.yaml --include-secrets
+gh repo-settings export -s settings.yaml --include-secrets
 
 # 특정 저장소에서 내보내기
-gh rset export -r owner/repo -s settings.yaml
+gh repo-settings export -r owner/repo -s settings.yaml
 ```
 
 ### `plan` - 변경 사항 미리보기
@@ -87,22 +93,22 @@ gh rset export -r owner/repo -s settings.yaml
 
 ```bash
 # 모든 변경 사항 미리보기 (기본 경로 사용)
-gh rset plan
+gh repo-settings plan
 
 # 설정 파일 지정
-gh rset plan -c custom-config.yaml
+gh repo-settings plan -c custom-config.yaml
 
 # 디렉토리 설정으로 미리보기
-gh rset plan -d .github/repo-settings/
+gh repo-settings plan -d .github/repo-settings/
 
 # 현재 GitHub 설정 표시 (디버깅용)
-gh rset plan --show-current
+gh repo-settings plan --show-current
 
 # 시크릿 존재 여부만 확인
-gh rset plan --secrets
+gh repo-settings plan --secrets
 
 # 환경 변수만 확인
-gh rset plan --env
+gh repo-settings plan --env
 ```
 
 `--show-current` 옵션은 현재 GitHub 저장소 설정을 표시합니다. 다음 경우에 유용합니다:
@@ -124,16 +130,16 @@ YAML 설정을 GitHub 저장소에 적용합니다.
 
 ```bash
 # 변경 사항 적용 (기본 경로 사용)
-gh rset apply
+gh repo-settings apply
 
 # 드라이 런 (plan과 동일)
-gh rset apply --dry-run
+gh repo-settings apply --dry-run
 
 # 설정 파일 지정
-gh rset apply -c custom-config.yaml
+gh repo-settings apply -c custom-config.yaml
 
 # 디렉토리에서 적용
-gh rset apply -d .github/repo-settings/
+gh repo-settings apply -d .github/repo-settings/
 ```
 
 ## 설정
@@ -419,7 +425,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check drift
-        run: gh rset plan
+        run: gh repo-settings plan
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```

@@ -1,6 +1,6 @@
 # gh-repo-settings
 
-[English](./README.md) | [日本語](./README.ja.md) | [한국어](./README.ko.md) | [Español](./README.es.md)
+[English](../README.md) | [日本語](./README.ja.md) | [한국어](./README.ko.md) | [Español](./README.es.md)
 
 通过 YAML 配置管理 GitHub 仓库设置的 GitHub CLI 扩展。灵感来自 Terraform 的工作流程——用代码定义期望状态，预览变更，然后应用。
 
@@ -22,6 +22,12 @@
 gh extension install myzkey/gh-repo-settings
 ```
 
+### 升级
+
+```bash
+gh extension upgrade myzkey/gh-repo-settings
+```
+
 ### 手动安装
 
 从 [Releases](https://github.com/myzkey/gh-repo-settings/releases) 下载最新的二进制文件并添加到 PATH。
@@ -30,13 +36,13 @@ gh extension install myzkey/gh-repo-settings
 
 ```bash
 # 交互式创建配置文件
-gh rset init
+gh repo-settings init
 
 # 预览变更（类似 terraform plan）
-gh rset plan
+gh repo-settings plan
 
 # 应用变更
-gh rset apply
+gh repo-settings apply
 ```
 
 默认配置文件路径（按优先级）：
@@ -51,13 +57,13 @@ gh rset apply
 
 ```bash
 # 交互式创建 .github/repo-settings.yaml
-gh rset init
+gh repo-settings init
 
 # 指定输出路径
-gh rset init -o config.yaml
+gh repo-settings init -o config.yaml
 
 # 覆盖现有文件
-gh rset init -f
+gh repo-settings init -f
 ```
 
 ### `export` - 导出仓库设置
@@ -66,19 +72,19 @@ gh rset init -f
 
 ```bash
 # 导出到标准输出
-gh rset export
+gh repo-settings export
 
 # 导出到单个文件
-gh rset export -s .github/repo-settings.yaml
+gh repo-settings export -s .github/repo-settings.yaml
 
 # 导出到目录（多个文件）
-gh rset export -d .github/repo-settings/
+gh repo-settings export -d .github/repo-settings/
 
 # 包含密钥名称
-gh rset export -s settings.yaml --include-secrets
+gh repo-settings export -s settings.yaml --include-secrets
 
 # 从指定仓库导出
-gh rset export -r owner/repo -s settings.yaml
+gh repo-settings export -r owner/repo -s settings.yaml
 ```
 
 ### `plan` - 预览变更
@@ -87,22 +93,22 @@ gh rset export -r owner/repo -s settings.yaml
 
 ```bash
 # 预览所有变更（使用默认配置路径）
-gh rset plan
+gh repo-settings plan
 
 # 指定配置文件
-gh rset plan -c custom-config.yaml
+gh repo-settings plan -c custom-config.yaml
 
 # 使用目录配置预览
-gh rset plan -d .github/repo-settings/
+gh repo-settings plan -d .github/repo-settings/
 
 # 显示当前 GitHub 设置（用于调试）
-gh rset plan --show-current
+gh repo-settings plan --show-current
 
 # 仅检查密钥是否存在
-gh rset plan --secrets
+gh repo-settings plan --secrets
 
 # 仅检查环境变量
-gh rset plan --env
+gh repo-settings plan --env
 ```
 
 `--show-current` 选项显示当前 GitHub 仓库设置，适用于：
@@ -124,16 +130,16 @@ gh rset plan --env
 
 ```bash
 # 应用变更（使用默认配置路径）
-gh rset apply
+gh repo-settings apply
 
 # 演练模式（与 plan 相同）
-gh rset apply --dry-run
+gh repo-settings apply --dry-run
 
 # 指定配置文件
-gh rset apply -c custom-config.yaml
+gh repo-settings apply -c custom-config.yaml
 
 # 从目录应用
-gh rset apply -d .github/repo-settings/
+gh repo-settings apply -d .github/repo-settings/
 ```
 
 ## 配置
@@ -419,7 +425,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check drift
-        run: gh rset plan
+        run: gh repo-settings plan
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```

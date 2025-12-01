@@ -6,13 +6,13 @@ Create a configuration file interactively.
 
 ```bash
 # Create .github/repo-settings.yaml interactively
-gh rset init
+gh repo-settings init
 
 # Specify output path
-gh rset init -o config.yaml
+gh repo-settings init -o config.yaml
 
 # Overwrite existing file
-gh rset init -f
+gh repo-settings init -f
 ```
 
 ## `export` - Export Repository Settings
@@ -21,19 +21,19 @@ Export current GitHub repository settings to YAML format.
 
 ```bash
 # Export to stdout
-gh rset export
+gh repo-settings export
 
 # Export to single file
-gh rset export -s .github/repo-settings.yaml
+gh repo-settings export -s .github/repo-settings.yaml
 
 # Export to directory (multiple files)
-gh rset export -d .github/repo-settings/
+gh repo-settings export -d .github/repo-settings/
 
 # Include secret names
-gh rset export -s settings.yaml --include-secrets
+gh repo-settings export -s settings.yaml --include-secrets
 
 # Export from specific repository
-gh rset export -r owner/repo -s settings.yaml
+gh repo-settings export -r owner/repo -s settings.yaml
 ```
 
 ## `plan` - Preview Changes
@@ -42,22 +42,22 @@ Validate configuration and show planned changes without applying them.
 
 ```bash
 # Preview all changes (uses default config path)
-gh rset plan
+gh repo-settings plan
 
 # Specify config file
-gh rset plan -c custom-config.yaml
+gh repo-settings plan -c custom-config.yaml
 
 # Specify config directory
-gh rset plan -d .github/repo-settings/
+gh repo-settings plan -d .github/repo-settings/
 
 # Show current GitHub settings (useful for debugging)
-gh rset plan --show-current
+gh repo-settings plan --show-current
 
 # Check only secrets existence
-gh rset plan --secrets
+gh repo-settings plan --secrets
 
 # Check only environment variables
-gh rset plan --env
+gh repo-settings plan --env
 ```
 
 ### Status Check Validation
@@ -76,16 +76,16 @@ Apply YAML configuration to the GitHub repository.
 
 ```bash
 # Apply changes (uses default config path)
-gh rset apply
+gh repo-settings apply
 
 # Dry run (same as plan)
-gh rset apply --dry-run
+gh repo-settings apply --dry-run
 
 # Specify config file
-gh rset apply -c custom-config.yaml
+gh repo-settings apply -c custom-config.yaml
 
 # Apply from directory
-gh rset apply -d .github/repo-settings/
+gh repo-settings apply -d .github/repo-settings/
 ```
 
 ## Global Options
