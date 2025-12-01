@@ -23,6 +23,7 @@ var (
 	checkSecrets bool
 	checkEnv     bool
 	showCurrent  bool
+	syncDelete   bool
 )
 
 var planCmd = &cobra.Command{
@@ -39,6 +40,7 @@ func init() {
 	planCmd.Flags().BoolVar(&checkSecrets, "secrets", false, "Check for required secrets")
 	planCmd.Flags().BoolVar(&checkEnv, "env", false, "Check for required environment variables")
 	planCmd.Flags().BoolVar(&showCurrent, "show-current", false, "Show current GitHub settings")
+	planCmd.Flags().BoolVar(&syncDelete, "sync", false, "Show variables/secrets to delete (not in config)")
 }
 
 func runPlan(cmd *cobra.Command, args []string) error {
@@ -75,6 +77,16 @@ func runPlan(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Loaded configuration")
 
+	// Load .env file for variables/secrets values
+	configPath := planConfig
+	if configPath == "" {
+		configPath = config.DefaultSingleFile
+	}
+	dotEnvValues, err := config.LoadDotEnv(configPath)
+	if err != nil {
+		logger.Debug("Failed to load .env file: %v", err)
+	}
+
 	// Validate status checks against workflow files
 	validateStatusChecks(cfg)
 
@@ -88,10 +100,11 @@ func runPlan(cmd *cobra.Command, args []string) error {
 
 	logger.Info("Planning changes for %s/%s...\n", client.RepoOwner(), client.RepoName())
 
-	calculator := diff.NewCalculator(client, cfg)
+	calculator := diff.NewCalculatorWithEnv(client, cfg, dotEnvValues)
 	plan, err := calculator.CalculateWithOptions(ctx, diff.CalculateOptions{
 		CheckSecrets: checkSecrets,
 		CheckEnv:     checkEnv,
+		SyncDelete:   syncDelete,
 	})
 	if err != nil {
 		return err
@@ -102,17 +115,22 @@ func runPlan(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	printPlan(plan)
+	hasDeletes := printPlan(plan)
 
 	// Exit with code 3 if missing secrets/env
 	if plan.HasMissingSecrets() || plan.HasMissingVariables() {
 		os.Exit(3)
 	}
 
+	// Exit with code 2 if there are deletes (warning)
+	if hasDeletes {
+		os.Exit(2)
+	}
+
 	return nil
 }
 
-func printPlan(plan *diff.Plan) {
+func printPlan(plan *diff.Plan) (hasDeletes bool) {
 	green := color.New(color.FgGreen).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
@@ -179,9 +197,7 @@ func printPlan(plan *diff.Plan) {
 
 	fmt.Printf("Run %s to apply these changes.\n", cyan("gh repo-settings apply"))
 
-	if deletes > 0 {
-		os.Exit(2)
-	}
+	return deletes > 0
 }
 
 func validateStatusChecks(cfg *config.Config) {

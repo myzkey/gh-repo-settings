@@ -141,7 +141,7 @@ branch_protection:
     required_reviews: 2
 `
 	basePath := filepath.Join(tmpDir, "base.yaml")
-	if err := os.WriteFile(basePath, []byte(baseContent), 0644); err != nil {
+	if err := os.WriteFile(basePath, []byte(baseContent), 0o644); err != nil {
 		t.Fatalf("failed to write base file: %v", err)
 	}
 
@@ -198,7 +198,7 @@ repo:
   visibility: public
   allow_merge_commit: true
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "base1.yaml"), []byte(base1Content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "base1.yaml"), []byte(base1Content), 0o644); err != nil {
 		t.Fatalf("failed to write base1 file: %v", err)
 	}
 
@@ -208,7 +208,7 @@ repo:
   allow_merge_commit: false
   allow_squash_merge: true
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "base2.yaml"), []byte(base2Content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "base2.yaml"), []byte(base2Content), 0o644); err != nil {
 		t.Fatalf("failed to write base2 file: %v", err)
 	}
 
@@ -259,7 +259,7 @@ repo:
   visibility: public
   allow_squash_merge: true
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "grandparent.yaml"), []byte(grandparentContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "grandparent.yaml"), []byte(grandparentContent), 0o644); err != nil {
 		t.Fatalf("failed to write grandparent file: %v", err)
 	}
 
@@ -270,7 +270,7 @@ repo:
   allow_merge_commit: false
   delete_branch_on_merge: true
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "parent.yaml"), []byte(parentContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "parent.yaml"), []byte(parentContent), 0o644); err != nil {
 		t.Fatalf("failed to write parent file: %v", err)
 	}
 
@@ -323,7 +323,7 @@ extends:
 repo:
   description: "Config A"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "a.yaml"), []byte(configAContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "a.yaml"), []byte(configAContent), 0o644); err != nil {
 		t.Fatalf("failed to write config A: %v", err)
 	}
 
@@ -333,7 +333,7 @@ extends:
 repo:
   description: "Config B"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "b.yaml"), []byte(configBContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "b.yaml"), []byte(configBContent), 0o644); err != nil {
 		t.Fatalf("failed to write config B: %v", err)
 	}
 
@@ -365,7 +365,7 @@ repo:
   description: "Self reference"
 `
 	selfPath := filepath.Join(tmpDir, "self.yaml")
-	if err := os.WriteFile(selfPath, []byte(selfContent), 0644); err != nil {
+	if err := os.WriteFile(selfPath, []byte(selfContent), 0o644); err != nil {
 		t.Fatalf("failed to write self file: %v", err)
 	}
 
@@ -446,7 +446,7 @@ repo:
   visibility: public
 `
 	basePath := filepath.Join(tmpDir, "base.yaml")
-	if err := os.WriteFile(basePath, []byte(baseContent), 0644); err != nil {
+	if err := os.WriteFile(basePath, []byte(baseContent), 0o644); err != nil {
 		t.Fatalf("failed to write base file: %v", err)
 	}
 
@@ -519,7 +519,7 @@ func TestLoadExtendedConfigRelativePath(t *testing.T) {
 	content := `repo:
   visibility: public
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "base.yaml"), []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "base.yaml"), []byte(content), 0o644); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -543,7 +543,7 @@ func TestResolveExtendsInvalidYAMLInBase(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	invalidContent := `invalid: yaml: content:`
-	if err := os.WriteFile(filepath.Join(tmpDir, "base.yaml"), []byte(invalidContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "base.yaml"), []byte(invalidContent), 0o644); err != nil {
 		t.Fatalf("failed to write base file: %v", err)
 	}
 
@@ -570,7 +570,7 @@ func TestResolveExtendsMixedURLAndFile(t *testing.T) {
 repo:
   allow_squash_merge: true
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "local.yaml"), []byte(localContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "local.yaml"), []byte(localContent), 0o644); err != nil {
 		t.Fatalf("failed to write local file: %v", err)
 	}
 

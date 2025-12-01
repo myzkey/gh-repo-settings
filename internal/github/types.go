@@ -84,3 +84,9 @@ type PagesSourceData struct {
 	Branch string `json:"branch"`
 	Path   string `json:"path"` // "/" or "/docs"
 }
+
+// VariableData represents repository variable data from GitHub API
+type VariableData struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}

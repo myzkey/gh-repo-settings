@@ -7,8 +7,7 @@ type Config struct {
 	Topics           []string               `yaml:"topics,omitempty" json:"topics,omitempty" jsonschema:"description=Repository topics"`
 	Labels           *LabelsConfig          `yaml:"labels,omitempty" json:"labels,omitempty" jsonschema:"description=Issue labels configuration"`
 	BranchProtection map[string]*BranchRule `yaml:"branch_protection,omitempty" json:"branch_protection,omitempty" jsonschema:"description=Branch protection rules keyed by branch name"`
-	Secrets          *SecretsConfig         `yaml:"secrets,omitempty" json:"secrets,omitempty" jsonschema:"description=Required secrets configuration"`
-	Env              *EnvConfig             `yaml:"env,omitempty" json:"env,omitempty" jsonschema:"description=Required environment variables configuration"`
+	Env              *EnvConfig             `yaml:"env,omitempty" json:"env,omitempty" jsonschema:"description=Environment variables and secrets configuration"`
 	Actions          *ActionsConfig         `yaml:"actions,omitempty" json:"actions,omitempty" jsonschema:"description=GitHub Actions permissions configuration"`
 	Pages            *PagesConfig           `yaml:"pages,omitempty" json:"pages,omitempty" jsonschema:"description=GitHub Pages configuration"`
 }
@@ -65,14 +64,10 @@ type BranchRule struct {
 	AllowDeletions    *bool `yaml:"allow_deletions,omitempty" json:"allow_deletions,omitempty" jsonschema:"description=Allow branch deletion"`
 }
 
-// SecretsConfig represents secrets configuration
-type SecretsConfig struct {
-	Required []string `yaml:"required,omitempty" json:"required,omitempty" jsonschema:"description=List of required secret names"`
-}
-
-// EnvConfig represents environment variables configuration
+// EnvConfig represents environment variables and secrets configuration
 type EnvConfig struct {
-	Required []string `yaml:"required,omitempty" json:"required,omitempty" jsonschema:"description=List of required environment variable names"`
+	Variables map[string]string `yaml:"variables,omitempty" json:"variables,omitempty" jsonschema:"description=Repository variables with optional default values"`
+	Secrets   []string          `yaml:"secrets,omitempty" json:"secrets,omitempty" jsonschema:"description=List of secret names to manage"`
 }
 
 // ActionsConfig represents GitHub Actions permissions configuration

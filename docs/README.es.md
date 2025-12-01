@@ -104,11 +104,14 @@ gh repo-settings plan -d .github/repo-settings/
 # Mostrar configuración actual de GitHub (para depuración)
 gh repo-settings plan --show-current
 
-# Verificar solo existencia de secrets
+# Verificar secrets
 gh repo-settings plan --secrets
 
-# Verificar solo variables de entorno
+# Verificar variables de entorno
 gh repo-settings plan --env
+
+# Mostrar variables/secrets a eliminar (no en config)
+gh repo-settings plan --env --secrets --sync
 ```
 
 La opción `--show-current` muestra la configuración actual del repositorio de GitHub, útil para:
@@ -132,14 +135,20 @@ Aplica la configuración YAML al repositorio de GitHub.
 # Aplicar cambios (usa ruta por defecto)
 gh repo-settings apply
 
-# Ejecución en seco (igual que plan)
-gh repo-settings apply --dry-run
+# Aprobar automáticamente sin confirmación
+gh repo-settings apply -y
 
 # Especificar archivo de configuración
 gh repo-settings apply -c custom-config.yaml
 
 # Aplicar desde directorio
 gh repo-settings apply -d .github/repo-settings/
+
+# Aplicar variables y secrets
+gh repo-settings apply --env --secrets
+
+# Modo sincronización: eliminar variables/secrets no en config
+gh repo-settings apply --env --secrets --sync
 ```
 
 ## Configuración
@@ -183,14 +192,13 @@ branch_protection:
       - ci/lint
     enforce_admins: false
 
-secrets:
-  required:
+env:
+  variables:
+    NODE_ENV: production
+    API_URL: https://api.example.com
+  secrets:
     - API_TOKEN
     - DEPLOY_KEY
-
-env:
-  required:
-    - DATABASE_URL
 
 actions:
   enabled: true
@@ -214,7 +222,6 @@ También puedes dividir la configuración en múltiples archivos:
 ├── topics.yaml
 ├── labels.yaml
 ├── branch-protection.yaml
-├── secrets.yaml
 ├── env.yaml
 └── actions.yaml
 ```
@@ -287,27 +294,55 @@ branch_protection:
     allow_deletions: false       # Permitir eliminación de rama
 ```
 
-### `secrets` - Secrets Requeridos
+### `env` - Variables de Entorno y Secrets
 
-Verifica que existan los secrets requeridos del repositorio (no gestiona valores):
+Gestiona las variables y secrets del repositorio:
 
 ```yaml
-secrets:
-  required:
+env:
+  # Variables con valores por defecto (pueden sobrescribirse con archivo .env)
+  variables:
+    NODE_ENV: production
+    API_URL: https://api.example.com
+  # Nombres de secrets (valores provienen del archivo .env o entrada interactiva)
+  secrets:
     - API_TOKEN
     - DEPLOY_KEY
 ```
 
-### `env` - Variables de Entorno Requeridas
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `variables` | map | Pares clave-valor para variables del repositorio |
+| `secrets` | array | Lista de nombres de secrets a gestionar |
 
-Verifica que existan las variables requeridas del repositorio:
+#### Usando archivo `.env`
 
-```yaml
-env:
-  required:
-    - DATABASE_URL
-    - SENTRY_DSN
+Crea un archivo `.github/.env` (agregar a gitignore) para almacenar valores reales:
+
+```bash
+# .github/.env
+NODE_ENV=staging
+API_URL=https://staging-api.example.com
+API_TOKEN=your-secret-token
+DEPLOY_KEY=your-deploy-key
 ```
+
+**Prioridad**: Los valores del archivo `.env` sobrescriben los valores por defecto del YAML.
+
+#### Comandos
+
+```bash
+# Previsualizar cambios de variables/secrets
+gh repo-settings plan --env --secrets
+
+# Aplicar variables y secrets
+gh repo-settings apply --env --secrets
+
+# Eliminar variables/secrets no en config (modo sincronización)
+gh repo-settings apply --env --secrets --sync
+```
+
+Si el valor de un secret no se encuentra en `.env`, se solicitará entrada interactiva durante `apply`.
 
 ### `actions` - Permisos de GitHub Actions
 

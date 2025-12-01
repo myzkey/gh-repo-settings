@@ -97,20 +97,26 @@ func runExport(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Get secrets if requested
+	// Get secrets and variables if requested
 	if exportIncludeSecrets {
+		cfg.Env = &config.EnvConfig{}
+
 		secrets, err := client.GetSecrets(ctx)
 		if err == nil && len(secrets) > 0 {
-			cfg.Secrets = &config.SecretsConfig{
-				Required: secrets,
-			}
+			cfg.Env.Secrets = secrets
 		}
 
 		vars, err := client.GetVariables(ctx)
 		if err == nil && len(vars) > 0 {
-			cfg.Env = &config.EnvConfig{
-				Required: vars,
+			cfg.Env.Variables = make(map[string]string)
+			for _, v := range vars {
+				cfg.Env.Variables[v.Name] = v.Value
 			}
+		}
+
+		// Don't export empty env config
+		if len(cfg.Env.Secrets) == 0 && len(cfg.Env.Variables) == 0 {
+			cfg.Env = nil
 		}
 	}
 
@@ -186,15 +192,8 @@ func exportToDirectory(cfg *config.Config, dir string) error {
 		}
 	}
 
-	// Export secrets
-	if cfg.Secrets != nil && len(cfg.Secrets.Required) > 0 {
-		if err := writeYAMLFile(filepath.Join(dir, "secrets.yaml"), map[string]interface{}{"secrets": cfg.Secrets}); err != nil {
-			return err
-		}
-	}
-
-	// Export env
-	if cfg.Env != nil && len(cfg.Env.Required) > 0 {
+	// Export env (includes both variables and secrets)
+	if cfg.Env != nil && (len(cfg.Env.Variables) > 0 || len(cfg.Env.Secrets) > 0) {
 		if err := writeYAMLFile(filepath.Join(dir, "env.yaml"), map[string]interface{}{"env": cfg.Env}); err != nil {
 			return err
 		}

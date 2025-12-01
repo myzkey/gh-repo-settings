@@ -66,11 +66,9 @@ func TestMergeConfigsNilDst(t *testing.T) {
 			ReplaceDefault: true,
 			Items:          []Label{{Name: "bug", Color: "d73a4a"}},
 		},
-		Secrets: &SecretsConfig{
-			Required: []string{"SECRET_KEY"},
-		},
 		Env: &EnvConfig{
-			Required: []string{"NODE_ENV"},
+			Variables: map[string]string{"NODE_ENV": "production"},
+			Secrets:   []string{"SECRET_KEY"},
 		},
 		Actions: &ActionsConfig{
 			Enabled: ptrBool(true),
@@ -88,11 +86,11 @@ func TestMergeConfigsNilDst(t *testing.T) {
 	if dst.Labels == nil || !dst.Labels.ReplaceDefault {
 		t.Error("expected Labels to be set")
 	}
-	if dst.Secrets == nil || len(dst.Secrets.Required) != 1 {
-		t.Error("expected Secrets to be set")
+	if dst.Env == nil || len(dst.Env.Secrets) != 1 {
+		t.Error("expected Env.Secrets to be set")
 	}
-	if dst.Env == nil || len(dst.Env.Required) != 1 {
-		t.Error("expected Env to be set")
+	if dst.Env == nil || len(dst.Env.Variables) != 1 {
+		t.Error("expected Env.Variables to be set")
 	}
 	if dst.Actions == nil || !*dst.Actions.Enabled {
 		t.Error("expected Actions to be set")
@@ -113,39 +111,30 @@ func TestMergeConfigsTopics(t *testing.T) {
 	}
 }
 
-func TestMergeConfigsSecrets(t *testing.T) {
-	dst := &Config{
-		Secrets: &SecretsConfig{Required: []string{"OLD_SECRET"}},
-	}
-	src := &Config{
-		Secrets: &SecretsConfig{Required: []string{"NEW_SECRET_1", "NEW_SECRET_2"}},
-	}
-
-	mergeConfigs(dst, src)
-
-	if len(dst.Secrets.Required) != 2 {
-		t.Errorf("expected 2 required secrets, got %d", len(dst.Secrets.Required))
-	}
-	if dst.Secrets.Required[0] != "NEW_SECRET_1" {
-		t.Errorf("expected first secret 'NEW_SECRET_1', got %s", dst.Secrets.Required[0])
-	}
-}
-
 func TestMergeConfigsEnv(t *testing.T) {
 	dst := &Config{
-		Env: &EnvConfig{Required: []string{"OLD_VAR"}},
+		Env: &EnvConfig{
+			Variables: map[string]string{"OLD_VAR": "old"},
+			Secrets:   []string{"OLD_SECRET"},
+		},
 	}
 	src := &Config{
-		Env: &EnvConfig{Required: []string{"NEW_VAR_1", "NEW_VAR_2"}},
+		Env: &EnvConfig{
+			Variables: map[string]string{"NEW_VAR": "new", "OLD_VAR": "updated"},
+			Secrets:   []string{"NEW_SECRET_1", "NEW_SECRET_2"},
+		},
 	}
 
 	mergeConfigs(dst, src)
 
-	if len(dst.Env.Required) != 2 {
-		t.Errorf("expected 2 required env vars, got %d", len(dst.Env.Required))
+	if len(dst.Env.Variables) != 2 {
+		t.Errorf("expected 2 variables, got %d", len(dst.Env.Variables))
 	}
-	if dst.Env.Required[0] != "NEW_VAR_1" {
-		t.Errorf("expected first env var 'NEW_VAR_1', got %s", dst.Env.Required[0])
+	if dst.Env.Variables["OLD_VAR"] != "updated" {
+		t.Errorf("expected OLD_VAR to be 'updated', got %s", dst.Env.Variables["OLD_VAR"])
+	}
+	if len(dst.Env.Secrets) != 2 {
+		t.Errorf("expected 2 secrets, got %d", len(dst.Env.Secrets))
 	}
 }
 

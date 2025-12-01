@@ -111,11 +111,14 @@ gh repo-settings plan -d .github/repo-settings/
 # Show current GitHub settings (useful for debugging)
 gh repo-settings plan --show-current
 
-# Check only secrets existence
+# Check secrets
 gh repo-settings plan --secrets
 
-# Check only environment variables
+# Check environment variables
 gh repo-settings plan --env
+
+# Show variables/secrets to delete (not in config)
+gh repo-settings plan --env --secrets --sync
 ```
 
 The `--show-current` option displays the current GitHub repository settings, which is useful for:
@@ -139,14 +142,20 @@ Apply YAML configuration to the GitHub repository.
 # Apply changes (uses default config path)
 gh repo-settings apply
 
-# Dry run (same as plan)
-gh repo-settings apply --dry-run
+# Auto-approve without confirmation
+gh repo-settings apply -y
 
 # Specify config file
 gh repo-settings apply -c custom-config.yaml
 
 # Apply from directory
 gh repo-settings apply -d .github/repo-settings/
+
+# Apply variables and secrets
+gh repo-settings apply --env --secrets
+
+# Sync mode: delete variables/secrets not in config
+gh repo-settings apply --env --secrets --sync
 ```
 
 ## Configuration
@@ -190,14 +199,13 @@ branch_protection:
       - ci/lint
     enforce_admins: false
 
-secrets:
-  required:
+env:
+  variables:
+    NODE_ENV: production
+    API_URL: https://api.example.com
+  secrets:
     - API_TOKEN
     - DEPLOY_KEY
-
-env:
-  required:
-    - DATABASE_URL
 
 actions:
   enabled: true
@@ -221,7 +229,6 @@ Alternatively, split configuration into multiple files:
 ├── topics.yaml
 ├── labels.yaml
 ├── branch-protection.yaml
-├── secrets.yaml
 ├── env.yaml
 └── actions.yaml
 ```
@@ -294,27 +301,55 @@ branch_protection:
     allow_deletions: false       # Allow branch deletion
 ```
 
-### `secrets` - Required Secrets
+### `env` - Environment Variables and Secrets
 
-Check that required repository secrets exist (values are not managed):
+Manage repository variables and secrets:
 
 ```yaml
-secrets:
-  required:
+env:
+  # Variables with default values (can be overridden by .env file)
+  variables:
+    NODE_ENV: production
+    API_URL: https://api.example.com
+  # Secret names (values come from .env file or interactive prompt)
+  secrets:
     - API_TOKEN
     - DEPLOY_KEY
 ```
 
-### `env` - Required Environment Variables
+| Field | Type | Description |
+|-------|------|-------------|
+| `variables` | map | Key-value pairs for repository variables |
+| `secrets` | array | List of secret names to manage |
 
-Check that required repository variables exist:
+#### Using `.env` File
 
-```yaml
-env:
-  required:
-    - DATABASE_URL
-    - SENTRY_DSN
+Create a `.github/.env` file (gitignored) to store actual values:
+
+```bash
+# .github/.env
+NODE_ENV=staging
+API_URL=https://staging-api.example.com
+API_TOKEN=your-secret-token
+DEPLOY_KEY=your-deploy-key
 ```
+
+**Priority**: `.env` file values override YAML defaults for variables.
+
+#### Commands
+
+```bash
+# Preview variable/secret changes
+gh repo-settings plan --env --secrets
+
+# Apply variables and secrets
+gh repo-settings apply --env --secrets
+
+# Delete variables/secrets not in config (sync mode)
+gh repo-settings apply --env --secrets --sync
+```
+
+If a secret value is not found in `.env`, you'll be prompted to enter it interactively during `apply`.
 
 ### `actions` - GitHub Actions Permissions
 

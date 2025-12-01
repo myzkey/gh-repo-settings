@@ -44,12 +44,11 @@ branch_protection:
   main:
     required_reviews: 2
     enforce_admins: true
-secrets:
-  required:
-    - DEPLOY_KEY
 env:
-  required:
-    - NODE_ENV
+  variables:
+    NODE_ENV: production
+  secrets:
+    - DEPLOY_KEY
 actions:
   enabled: true
   allowed_actions: all
@@ -74,11 +73,11 @@ actions:
 					t.Error("expected branch protection for main")
 					return
 				}
-				if cfg.Secrets == nil || len(cfg.Secrets.Required) != 1 {
-					t.Error("expected 1 required secret")
+				if cfg.Env == nil || len(cfg.Env.Secrets) != 1 {
+					t.Error("expected 1 secret")
 				}
-				if cfg.Env == nil || len(cfg.Env.Required) != 1 {
-					t.Error("expected 1 required env var")
+				if cfg.Env == nil || len(cfg.Env.Variables) != 1 {
+					t.Error("expected 1 variable")
 				}
 				if cfg.Actions == nil || !*cfg.Actions.Enabled {
 					t.Error("expected actions to be enabled")
@@ -113,7 +112,7 @@ repo:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			filePath := filepath.Join(tmpDir, tt.name+".yaml")
-			if err := os.WriteFile(filePath, []byte(tt.content), 0644); err != nil {
+			if err := os.WriteFile(filePath, []byte(tt.content), 0o644); err != nil {
 				t.Fatalf("failed to write test file: %v", err)
 			}
 
@@ -172,7 +171,7 @@ actions:
 	}
 
 	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0o644); err != nil {
 			t.Fatalf("failed to write %s: %v", name, err)
 		}
 	}
@@ -211,7 +210,7 @@ func TestLoadDirectFormat(t *testing.T) {
 description: "Direct format"
 visibility: public
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "repo.yaml"), []byte(repoContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "repo.yaml"), []byte(repoContent), 0o644); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -240,7 +239,7 @@ func TestLoadPriority(t *testing.T) {
 
 	// Create .github directory
 	githubDir := filepath.Join(tmpDir, ".github")
-	if err := os.MkdirAll(githubDir, 0755); err != nil {
+	if err := os.MkdirAll(githubDir, 0o755); err != nil {
 		t.Fatalf("failed to create .github dir: %v", err)
 	}
 
@@ -249,7 +248,7 @@ func TestLoadPriority(t *testing.T) {
 repo:
   description: "From single file"
 `
-	if err := os.WriteFile(filepath.Join(githubDir, "repo-settings.yaml"), []byte(singleFileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(githubDir, "repo-settings.yaml"), []byte(singleFileContent), 0o644); err != nil {
 		t.Fatalf("failed to write default single file: %v", err)
 	}
 
@@ -264,7 +263,7 @@ repo:
 
 	// Create default directory with content
 	defaultDir := filepath.Join(githubDir, "repo-settings")
-	if err := os.MkdirAll(defaultDir, 0755); err != nil {
+	if err := os.MkdirAll(defaultDir, 0o755); err != nil {
 		t.Fatalf("failed to create default dir: %v", err)
 	}
 
@@ -272,7 +271,7 @@ repo:
 repo:
   description: "From directory"
 `
-	if err := os.WriteFile(filepath.Join(defaultDir, "repo.yaml"), []byte(dirContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(defaultDir, "repo.yaml"), []byte(dirContent), 0o644); err != nil {
 		t.Fatalf("failed to write directory file: %v", err)
 	}
 
@@ -300,7 +299,7 @@ unknown_field:
   some_setting: true
 `
 	filePath := filepath.Join(tmpDir, "config.yaml")
-	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -318,7 +317,7 @@ func TestLoadUnknownFileInDirectory(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	unknownContent := `some_config: true`
-	if err := os.WriteFile(filepath.Join(tmpDir, "unknown.yaml"), []byte(unknownContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "unknown.yaml"), []byte(unknownContent), 0o644); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
@@ -363,7 +362,7 @@ branch_protection:
   main:
     required_reviews: 2
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "base.yaml"), []byte(baseContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "base.yaml"), []byte(baseContent), 0o644); err != nil {
 		t.Fatalf("failed to write base file: %v", err)
 	}
 
@@ -376,7 +375,7 @@ repo:
   visibility: private
 `
 	mainPath := filepath.Join(tmpDir, "main.yaml")
-	if err := os.WriteFile(mainPath, []byte(mainContent), 0644); err != nil {
+	if err := os.WriteFile(mainPath, []byte(mainContent), 0o644); err != nil {
 		t.Fatalf("failed to write main file: %v", err)
 	}
 

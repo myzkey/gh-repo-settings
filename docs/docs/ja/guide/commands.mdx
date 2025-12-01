@@ -53,11 +53,14 @@ gh repo-settings plan -d .github/repo-settings/
 # 現在のGitHub設定を表示（デバッグ用）
 gh repo-settings plan --show-current
 
-# シークレットの存在のみチェック
+# シークレットをチェック
 gh repo-settings plan --secrets
 
-# 環境変数のみチェック
+# 環境変数をチェック
 gh repo-settings plan --env
+
+# 設定にない変数/シークレットの削除を表示
+gh repo-settings plan --env --secrets --sync
 ```
 
 ### Status Check 検証
@@ -78,14 +81,20 @@ YAML 設定を GitHub リポジトリに適用します。
 # 変更を適用（デフォルトパスを使用）
 gh repo-settings apply
 
-# ドライラン（plan と同じ）
-gh repo-settings apply --dry-run
+# 確認なしで自動承認
+gh repo-settings apply -y
 
 # 設定ファイルを指定
 gh repo-settings apply -c custom-config.yaml
 
 # ディレクトリから適用
 gh repo-settings apply -d .github/repo-settings/
+
+# 変数とシークレットを適用
+gh repo-settings apply --env --secrets
+
+# 同期モード: 設定にない変数/シークレットを削除
+gh repo-settings apply --env --secrets --sync
 ```
 
 ## グローバルオプション

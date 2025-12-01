@@ -104,11 +104,14 @@ gh repo-settings plan -d .github/repo-settings/
 # 現在のGitHub設定を表示（デバッグ用）
 gh repo-settings plan --show-current
 
-# シークレットの存在のみチェック
+# シークレットをチェック
 gh repo-settings plan --secrets
 
-# 環境変数のみチェック
+# 環境変数をチェック
 gh repo-settings plan --env
+
+# 設定にない変数/シークレットの削除を表示
+gh repo-settings plan --env --secrets --sync
 ```
 
 `--show-current` オプションは現在のGitHub設定を表示します。これは以下の場合に便利です：
@@ -132,14 +135,20 @@ YAML 設定を GitHub リポジトリに適用します。
 # 変更を適用（デフォルトパスを使用）
 gh repo-settings apply
 
-# ドライラン（plan と同じ）
-gh repo-settings apply --dry-run
+# 確認なしで自動承認
+gh repo-settings apply -y
 
 # 設定ファイルを指定
 gh repo-settings apply -c custom-config.yaml
 
 # ディレクトリから適用
 gh repo-settings apply -d .github/repo-settings/
+
+# 変数とシークレットを適用
+gh repo-settings apply --env --secrets
+
+# 同期モード: 設定にない変数/シークレットを削除
+gh repo-settings apply --env --secrets --sync
 ```
 
 ## 設定
@@ -183,14 +192,13 @@ branch_protection:
       - ci/lint
     enforce_admins: false
 
-secrets:
-  required:
+env:
+  variables:
+    NODE_ENV: production
+    API_URL: https://api.example.com
+  secrets:
     - API_TOKEN
     - DEPLOY_KEY
-
-env:
-  required:
-    - DATABASE_URL
 
 actions:
   enabled: true
@@ -214,7 +222,6 @@ actions:
 ├── topics.yaml
 ├── labels.yaml
 ├── branch-protection.yaml
-├── secrets.yaml
 ├── env.yaml
 └── actions.yaml
 ```
@@ -287,27 +294,55 @@ branch_protection:
     allow_deletions: false       # ブランチ削除を許可
 ```
 
-### `secrets` - 必須シークレット
+### `env` - 環境変数とシークレット
 
-必要なリポジトリシークレットの存在をチェック（値は管理しません）:
+リポジトリの変数とシークレットを管理:
 
 ```yaml
-secrets:
-  required:
+env:
+  # デフォルト値付きの変数（.env ファイルで上書き可能）
+  variables:
+    NODE_ENV: production
+    API_URL: https://api.example.com
+  # シークレット名（値は .env ファイルまたは対話入力から）
+  secrets:
     - API_TOKEN
     - DEPLOY_KEY
 ```
 
-### `env` - 必須環境変数
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `variables` | map | リポジトリ変数のキーと値 |
+| `secrets` | array | 管理するシークレット名のリスト |
 
-必要なリポジトリ変数の存在をチェック:
+#### `.env` ファイルの使用
 
-```yaml
-env:
-  required:
-    - DATABASE_URL
-    - SENTRY_DSN
+実際の値を格納する `.github/.env` ファイル（gitignore 推奨）を作成:
+
+```bash
+# .github/.env
+NODE_ENV=staging
+API_URL=https://staging-api.example.com
+API_TOKEN=your-secret-token
+DEPLOY_KEY=your-deploy-key
 ```
+
+**優先順位**: `.env` ファイルの値は YAML のデフォルト値を上書きします。
+
+#### コマンド
+
+```bash
+# 変数/シークレットの変更をプレビュー
+gh repo-settings plan --env --secrets
+
+# 変数とシークレットを適用
+gh repo-settings apply --env --secrets
+
+# 設定にない変数/シークレットを削除（同期モード）
+gh repo-settings apply --env --secrets --sync
+```
+
+シークレットの値が `.env` にない場合、`apply` 時に対話形式で入力を求められます。
 
 ### `actions` - GitHub Actions 権限設定
 

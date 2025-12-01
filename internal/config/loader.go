@@ -170,18 +170,6 @@ func loadFromDirectory(dirPath string) (*Config, error) {
 					config.BranchProtection = bp
 				}
 			}
-		case "secrets":
-			var wrapper struct {
-				Secrets *SecretsConfig `yaml:"secrets"`
-			}
-			if err := yaml.Unmarshal(data, &wrapper); err == nil && wrapper.Secrets != nil {
-				config.Secrets = wrapper.Secrets
-			} else {
-				var secrets SecretsConfig
-				if err := yaml.Unmarshal(data, &secrets); err == nil {
-					config.Secrets = &secrets
-				}
-			}
 		case "env":
 			var wrapper struct {
 				Env *EnvConfig `yaml:"env"`
@@ -207,7 +195,7 @@ func loadFromDirectory(dirPath string) (*Config, error) {
 				}
 			}
 		default:
-			return nil, fmt.Errorf("unknown config file: %s (valid names: repo, topics, labels, branch-protection, secrets, env, actions)", name)
+			return nil, fmt.Errorf("unknown config file: %s (valid names: repo, topics, labels, branch-protection, env, actions)", name)
 		}
 	}
 

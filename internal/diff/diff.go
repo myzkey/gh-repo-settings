@@ -76,8 +76,9 @@ func (p *Plan) HasMissingVariables() bool {
 
 // Calculator calculates diff between config and current state
 type Calculator struct {
-	client github.GitHubClient
-	config *config.Config
+	client       github.GitHubClient
+	config       *config.Config
+	dotEnvValues *config.DotEnvValues
 }
 
 // NewCalculator creates a new diff calculator
@@ -88,10 +89,20 @@ func NewCalculator(client github.GitHubClient, cfg *config.Config) *Calculator {
 	}
 }
 
+// NewCalculatorWithEnv creates a new diff calculator with .env values
+func NewCalculatorWithEnv(client github.GitHubClient, cfg *config.Config, dotEnv *config.DotEnvValues) *Calculator {
+	return &Calculator{
+		client:       client,
+		config:       cfg,
+		dotEnvValues: dotEnv,
+	}
+}
+
 // CalculateOptions contains options for calculating diff
 type CalculateOptions struct {
 	CheckSecrets bool
 	CheckEnv     bool
+	SyncDelete   bool // If true, show variables/secrets to delete that are not in config
 }
 
 // Calculate calculates the diff with default options
@@ -139,20 +150,11 @@ func (c *Calculator) CalculateWithOptions(ctx context.Context, opts CalculateOpt
 		plan.Changes = append(plan.Changes, changes...)
 	}
 
-	// Check secrets (if requested)
-	if opts.CheckSecrets && c.config.Secrets != nil {
-		changes, err := c.checkSecrets(ctx)
+	// Check secrets and variables (if requested)
+	if (opts.CheckSecrets || opts.CheckEnv) && c.config.Env != nil {
+		changes, err := c.checkEnv(ctx, opts.CheckSecrets, opts.CheckEnv, opts.SyncDelete)
 		if err != nil {
-			return nil, fmt.Errorf("failed to check secrets: %w", err)
-		}
-		plan.Changes = append(plan.Changes, changes...)
-	}
-
-	// Check env variables (if requested)
-	if opts.CheckEnv && c.config.Env != nil {
-		changes, err := c.checkVariables(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check variables: %w", err)
+			return nil, fmt.Errorf("failed to check env: %w", err)
 		}
 		plan.Changes = append(plan.Changes, changes...)
 	}
@@ -618,60 +620,116 @@ func joinParts(parts []string) string {
 	return result
 }
 
-func (c *Calculator) checkSecrets(ctx context.Context) ([]Change, error) {
-	if c.config.Secrets == nil || len(c.config.Secrets.Required) == 0 {
-		return nil, nil
-	}
-
-	currentSecrets, err := c.client.GetSecrets(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	secretSet := make(map[string]bool)
-	for _, s := range currentSecrets {
-		secretSet[s] = true
-	}
-
+func (c *Calculator) checkEnv(ctx context.Context, checkSecrets, checkVars, syncDelete bool) ([]Change, error) {
 	var changes []Change
-	for _, required := range c.config.Secrets.Required {
-		if !secretSet[required] {
-			changes = append(changes, Change{
-				Type:     ChangeMissing,
-				Category: "secrets",
-				Key:      required,
-				New:      "required but not configured",
-			})
+
+	// Check secrets
+	if checkSecrets {
+		currentSecrets, err := c.client.GetSecrets(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		secretSet := make(map[string]bool)
+		for _, s := range currentSecrets {
+			secretSet[s] = true
+		}
+
+		// Check for secrets that need to be added
+		for _, secretName := range c.config.Env.Secrets {
+			if !secretSet[secretName] {
+				// Check if value exists in .env
+				hasValue := false
+				if c.dotEnvValues != nil {
+					_, hasValue = c.dotEnvValues.GetSecret(secretName)
+				}
+				if hasValue {
+					changes = append(changes, Change{
+						Type:     ChangeAdd,
+						Category: "secrets",
+						Key:      secretName,
+						New:      "(will be set from .env)",
+					})
+				} else {
+					changes = append(changes, Change{
+						Type:     ChangeMissing,
+						Category: "secrets",
+						Key:      secretName,
+						New:      "not in .github/.env (will prompt)",
+					})
+				}
+			}
+		}
+
+		// Check for secrets to delete (if syncDelete)
+		if syncDelete {
+			configSecretSet := make(map[string]bool)
+			for _, s := range c.config.Env.Secrets {
+				configSecretSet[s] = true
+			}
+			for _, s := range currentSecrets {
+				if !configSecretSet[s] {
+					changes = append(changes, Change{
+						Type:     ChangeDelete,
+						Category: "secrets",
+						Key:      s,
+					})
+				}
+			}
 		}
 	}
 
-	return changes, nil
-}
+	// Check variables
+	if checkVars {
+		currentVars, err := c.client.GetVariables(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-func (c *Calculator) checkVariables(ctx context.Context) ([]Change, error) {
-	if c.config.Env == nil || len(c.config.Env.Required) == 0 {
-		return nil, nil
-	}
+		currentVarMap := make(map[string]string)
+		for _, v := range currentVars {
+			currentVarMap[v.Name] = v.Value
+		}
 
-	currentVars, err := c.client.GetVariables(ctx)
-	if err != nil {
-		return nil, err
-	}
+		// Check for variables that need to be added or updated
+		for name, defaultValue := range c.config.Env.Variables {
+			// Get final value (.env overrides YAML default)
+			finalValue := defaultValue
+			if c.dotEnvValues != nil {
+				finalValue = c.dotEnvValues.GetVariable(name, defaultValue)
+			}
 
-	varSet := make(map[string]bool)
-	for _, v := range currentVars {
-		varSet[v] = true
-	}
+			currentValue, exists := currentVarMap[name]
+			if !exists {
+				changes = append(changes, Change{
+					Type:     ChangeAdd,
+					Category: "variables",
+					Key:      name,
+					New:      finalValue,
+				})
+			} else if currentValue != finalValue {
+				changes = append(changes, Change{
+					Type:     ChangeUpdate,
+					Category: "variables",
+					Key:      name,
+					Old:      currentValue,
+					New:      finalValue,
+				})
+			}
+		}
 
-	var changes []Change
-	for _, required := range c.config.Env.Required {
-		if !varSet[required] {
-			changes = append(changes, Change{
-				Type:     ChangeMissing,
-				Category: "env",
-				Key:      required,
-				New:      "required but not configured",
-			})
+		// Check for variables to delete (if syncDelete)
+		if syncDelete {
+			for _, v := range currentVars {
+				if _, exists := c.config.Env.Variables[v.Name]; !exists {
+					changes = append(changes, Change{
+						Type:     ChangeDelete,
+						Category: "variables",
+						Key:      v.Name,
+						Old:      v.Value,
+					})
+				}
+			}
 		}
 	}
 
