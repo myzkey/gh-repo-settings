@@ -10,7 +10,7 @@ type MockClient struct {
 	Labels               []LabelData
 	BranchProtections    map[string]*BranchProtectionData
 	Secrets              []string
-	Variables            []string
+	Variables            []VariableData
 	ActionsPermissions   *ActionsPermissionsData
 	ActionsSelected      *ActionsSelectedData
 	ActionsWorkflowPerms *ActionsWorkflowPermissionsData
@@ -29,7 +29,11 @@ type MockClient struct {
 	GetBranchProtectionError           error
 	UpdateBranchProtectionError        error
 	GetSecretsError                    error
+	SetSecretError                     error
+	DeleteSecretError                  error
 	GetVariablesError                  error
+	SetVariableError                   error
+	DeleteVariableError                error
 	GetActionsPermissionsError         error
 	UpdateActionsPermissionsError      error
 	GetActionsSelectedActionsError     error
@@ -47,11 +51,27 @@ type MockClient struct {
 	UpdateLabelCalls                []UpdateLabelCall
 	DeleteLabelCalls                []string
 	UpdateBranchProtectionCalls     []BranchProtectionCall
+	SetSecretCalls                  []SecretCall
+	DeleteSecretCalls               []string
+	SetVariableCalls                []VariableCall
+	DeleteVariableCalls             []string
 	UpdateActionsPermissionsCalls   []ActionsPermissionsCall
 	UpdateActionsSelectedCalls      []*ActionsSelectedData
 	UpdateActionsWorkflowPermsCalls []ActionsWorkflowPermsCall
 	CreatePagesCalls                []PagesCall
 	UpdatePagesCalls                []PagesCall
+}
+
+// SecretCall tracks SetSecret calls
+type SecretCall struct {
+	Name  string
+	Value string
+}
+
+// VariableCall tracks SetVariable calls
+type VariableCall struct {
+	Name  string
+	Value string
 }
 
 // PagesCall tracks CreatePages and UpdatePages calls
@@ -100,7 +120,7 @@ func NewMockClient() *MockClient {
 		Labels:            []LabelData{},
 		BranchProtections: make(map[string]*BranchProtectionData),
 		Secrets:           []string{},
-		Variables:         []string{},
+		Variables:         []VariableData{},
 		Owner:             "test-owner",
 		Name:              "test-repo",
 	}
@@ -217,12 +237,48 @@ func (m *MockClient) GetSecrets(ctx context.Context) ([]string, error) {
 	return m.Secrets, nil
 }
 
+// SetSecret records the set secret call
+func (m *MockClient) SetSecret(ctx context.Context, name, value string) error {
+	if m.SetSecretError != nil {
+		return m.SetSecretError
+	}
+	m.SetSecretCalls = append(m.SetSecretCalls, SecretCall{Name: name, Value: value})
+	return nil
+}
+
+// DeleteSecret records the delete secret call
+func (m *MockClient) DeleteSecret(ctx context.Context, name string) error {
+	if m.DeleteSecretError != nil {
+		return m.DeleteSecretError
+	}
+	m.DeleteSecretCalls = append(m.DeleteSecretCalls, name)
+	return nil
+}
+
 // GetVariables returns mock variables
-func (m *MockClient) GetVariables(ctx context.Context) ([]string, error) {
+func (m *MockClient) GetVariables(ctx context.Context) ([]VariableData, error) {
 	if m.GetVariablesError != nil {
 		return nil, m.GetVariablesError
 	}
 	return m.Variables, nil
+}
+
+// SetVariable records the set variable call
+func (m *MockClient) SetVariable(ctx context.Context, name, value string) error {
+	if m.SetVariableError != nil {
+		return m.SetVariableError
+	}
+	m.SetVariableCalls = append(m.SetVariableCalls, VariableCall{Name: name, Value: value})
+	return nil
+}
+
+// DeleteVariable records the delete variable call
+func (m *MockClient) DeleteVariable(ctx context.Context, name string) error {
+	if m.DeleteVariableError != nil {
+		return m.DeleteVariableError
+	}
+	m.DeleteVariableCalls = append(m.DeleteVariableCalls, name)
+	return nil
 }
 
 // GetActionsPermissions returns mock actions permissions

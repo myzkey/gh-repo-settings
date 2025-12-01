@@ -109,12 +109,19 @@
     },
     "EnvConfig": {
       "properties": {
-        "required": {
+        "variables": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Repository variables (key-value pairs). Values can be overridden by .env file"
+        },
+        "secrets": {
           "items": {
             "type": "string"
           },
           "type": "array",
-          "description": "List of required environment variable names"
+          "description": "List of secret names. Values are read from .env file or prompted interactively"
         }
       },
       "additionalProperties": false,
@@ -239,19 +246,6 @@
       "additionalProperties": false,
       "type": "object"
     },
-    "SecretsConfig": {
-      "properties": {
-        "required": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array",
-          "description": "List of required secret names"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
-    },
     "SelectedActionsConfig": {
       "properties": {
         "github_owned_allowed": {
@@ -304,13 +298,9 @@
       "type": "object",
       "description": "Branch protection rules keyed by branch name"
     },
-    "secrets": {
-      "$ref": "#/$defs/SecretsConfig",
-      "description": "Required secrets configuration"
-    },
     "env": {
       "$ref": "#/$defs/EnvConfig",
-      "description": "Required environment variables configuration"
+      "description": "Environment variables and secrets configuration"
     },
     "actions": {
       "$ref": "#/$defs/ActionsConfig",

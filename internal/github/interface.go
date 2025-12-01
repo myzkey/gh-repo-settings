@@ -21,9 +21,15 @@ type GitHubClient interface {
 	GetBranchProtection(ctx context.Context, branch string) (*BranchProtectionData, error)
 	UpdateBranchProtection(ctx context.Context, branch string, settings *BranchProtectionSettings) error
 
-	// Secrets and variables
+	// Secrets operations
 	GetSecrets(ctx context.Context) ([]string, error)
-	GetVariables(ctx context.Context) ([]string, error)
+	SetSecret(ctx context.Context, name, value string) error
+	DeleteSecret(ctx context.Context, name string) error
+
+	// Variables operations
+	GetVariables(ctx context.Context) ([]VariableData, error)
+	SetVariable(ctx context.Context, name, value string) error
+	DeleteVariable(ctx context.Context, name string) error
 
 	// Actions permissions
 	GetActionsPermissions(ctx context.Context) (*ActionsPermissionsData, error)

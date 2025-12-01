@@ -21,6 +21,7 @@ var (
 	autoApprove       bool
 	applyCheckSecrets bool
 	applyCheckEnv     bool
+	applySyncDelete   bool
 )
 
 var applyCmd = &cobra.Command{
@@ -35,8 +36,9 @@ func init() {
 	applyCmd.Flags().StringVarP(&applyDir, "dir", "d", "", "Config directory")
 	applyCmd.Flags().StringVarP(&applyConfig, "config", "c", "", "Config file path")
 	applyCmd.Flags().BoolVarP(&autoApprove, "yes", "y", false, "Auto-approve changes")
-	applyCmd.Flags().BoolVar(&applyCheckSecrets, "secrets", false, "Check for required secrets")
-	applyCmd.Flags().BoolVar(&applyCheckEnv, "env", false, "Check for required environment variables")
+	applyCmd.Flags().BoolVar(&applyCheckSecrets, "secrets", false, "Apply secrets from .env file")
+	applyCmd.Flags().BoolVar(&applyCheckEnv, "env", false, "Apply environment variables")
+	applyCmd.Flags().BoolVar(&applySyncDelete, "sync", false, "Delete variables/secrets not in config")
 }
 
 func runApply(cmd *cobra.Command, args []string) error {
@@ -72,12 +74,23 @@ func runApply(cmd *cobra.Command, args []string) error {
 
 	logger.Debug("Loaded configuration")
 
+	// Load .env file for variables/secrets values
+	configPath := applyConfig
+	if configPath == "" {
+		configPath = config.DefaultSingleFile
+	}
+	dotEnvValues, err := config.LoadDotEnv(configPath)
+	if err != nil {
+		logger.Debug("Failed to load .env file: %v", err)
+	}
+
 	logger.Info("Applying changes to %s/%s...\n", client.RepoOwner(), client.RepoName())
 
-	calculator := diff.NewCalculator(client, cfg)
+	calculator := diff.NewCalculatorWithEnv(client, cfg, dotEnvValues)
 	plan, err := calculator.CalculateWithOptions(ctx, diff.CalculateOptions{
 		CheckSecrets: applyCheckSecrets,
 		CheckEnv:     applyCheckEnv,
+		SyncDelete:   applySyncDelete,
 	})
 	if err != nil {
 		return err
@@ -90,11 +103,11 @@ func runApply(cmd *cobra.Command, args []string) error {
 
 	// Check for missing secrets/env before proceeding
 	if plan.HasMissingSecrets() || plan.HasMissingVariables() {
-		printPlan(plan)
+		_ = printPlan(plan)
 		return fmt.Errorf("cannot apply: required secrets or environment variables are missing")
 	}
 
-	printPlan(plan)
+	_ = printPlan(plan)
 
 	if !autoApprove {
 		fmt.Print("Do you want to apply these changes? (yes/no): ")
@@ -110,10 +123,10 @@ func runApply(cmd *cobra.Command, args []string) error {
 	logger.Info("Applying changes...")
 	fmt.Println()
 
-	return applyChanges(ctx, client, cfg, plan)
+	return applyChanges(ctx, client, cfg, plan, dotEnvValues)
 }
 
-func applyChanges(ctx context.Context, client *github.Client, cfg *config.Config, plan *diff.Plan) error {
+func applyChanges(ctx context.Context, client *github.Client, cfg *config.Config, plan *diff.Plan, dotEnvValues *config.DotEnvValues) error {
 	green := color.New(color.FgGreen).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
 
@@ -124,6 +137,8 @@ func applyChanges(ctx context.Context, client *github.Client, cfg *config.Config
 	branchProtectionChanges := make(map[string][]diff.Change)
 	var actionsChanges []diff.Change
 	var pagesChanges []diff.Change
+	var variableChanges []diff.Change
+	var secretChanges []diff.Change
 
 	for _, change := range plan.Changes {
 		switch change.Category {
@@ -141,6 +156,10 @@ func applyChanges(ctx context.Context, client *github.Client, cfg *config.Config
 			actionsChanges = append(actionsChanges, change)
 		case "pages":
 			pagesChanges = append(pagesChanges, change)
+		case "variables":
+			variableChanges = append(variableChanges, change)
+		case "secrets":
+			secretChanges = append(secretChanges, change)
 		}
 	}
 
@@ -231,6 +250,20 @@ func applyChanges(ctx context.Context, client *github.Client, cfg *config.Config
 	// Apply pages changes
 	if len(pagesChanges) > 0 && cfg.Pages != nil {
 		if err := applyPagesChanges(ctx, client, cfg, pagesChanges, green, red); err != nil {
+			return err
+		}
+	}
+
+	// Apply variable changes
+	if len(variableChanges) > 0 {
+		if err := applyVariableChanges(ctx, client, cfg, dotEnvValues, variableChanges, green, red); err != nil {
+			return err
+		}
+	}
+
+	// Apply secret changes
+	if len(secretChanges) > 0 {
+		if err := applySecretChanges(ctx, client, dotEnvValues, secretChanges, green, red); err != nil {
 			return err
 		}
 	}
@@ -379,5 +412,82 @@ func applyPagesChanges(ctx context.Context, client *github.Client, cfg *config.C
 		fmt.Println(green("✓"))
 	}
 
+	return nil
+}
+
+func applyVariableChanges(ctx context.Context, client *github.Client, cfg *config.Config, dotEnvValues *config.DotEnvValues, changes []diff.Change, green, red func(a ...interface{}) string) error {
+	for _, change := range changes {
+		switch change.Type {
+		case diff.ChangeAdd, diff.ChangeUpdate:
+			action := "Creating"
+			if change.Type == diff.ChangeUpdate {
+				action = "Updating"
+			}
+			fmt.Printf("  %s variable '%s'... ", action, change.Key)
+
+			// Get value from config (and override with .env if present)
+			value := ""
+			if cfg.Env != nil && cfg.Env.Variables != nil {
+				value = cfg.Env.Variables[change.Key]
+			}
+			if dotEnvValues != nil {
+				value = dotEnvValues.GetVariable(change.Key, value)
+			}
+
+			if err := client.SetVariable(ctx, change.Key, value); err != nil {
+				fmt.Println(red("✗"))
+				return fmt.Errorf("failed to set variable %s: %w", change.Key, err)
+			}
+			fmt.Println(green("✓"))
+
+		case diff.ChangeDelete:
+			fmt.Printf("  Deleting variable '%s'... ", change.Key)
+			if err := client.DeleteVariable(ctx, change.Key); err != nil {
+				fmt.Println(red("✗"))
+				return fmt.Errorf("failed to delete variable %s: %w", change.Key, err)
+			}
+			fmt.Println(green("✓"))
+		}
+	}
+	return nil
+}
+
+func applySecretChanges(ctx context.Context, client *github.Client, dotEnvValues *config.DotEnvValues, changes []diff.Change, green, red func(a ...interface{}) string) error {
+	for _, change := range changes {
+		switch change.Type {
+		case diff.ChangeAdd:
+			fmt.Printf("  Creating secret '%s'... ", change.Key)
+
+			// Get value from .env
+			value := ""
+			if dotEnvValues != nil {
+				value, _ = dotEnvValues.GetSecret(change.Key)
+			}
+
+			if value == "" {
+				// Secret value not found, prompt user
+				fmt.Println()
+				fmt.Printf("    Enter value for secret '%s': ", change.Key)
+				var inputValue string
+				_, _ = fmt.Scanln(&inputValue)
+				value = inputValue
+				fmt.Printf("  Creating secret '%s'... ", change.Key)
+			}
+
+			if err := client.SetSecret(ctx, change.Key, value); err != nil {
+				fmt.Println(red("✗"))
+				return fmt.Errorf("failed to set secret %s: %w", change.Key, err)
+			}
+			fmt.Println(green("✓"))
+
+		case diff.ChangeDelete:
+			fmt.Printf("  Deleting secret '%s'... ", change.Key)
+			if err := client.DeleteSecret(ctx, change.Key); err != nil {
+				fmt.Println(red("✗"))
+				return fmt.Errorf("failed to delete secret %s: %w", change.Key, err)
+			}
+			fmt.Println(green("✓"))
+		}
+	}
 	return nil
 }

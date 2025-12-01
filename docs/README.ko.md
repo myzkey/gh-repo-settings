@@ -104,11 +104,14 @@ gh repo-settings plan -d .github/repo-settings/
 # 현재 GitHub 설정 표시 (디버깅용)
 gh repo-settings plan --show-current
 
-# 시크릿 존재 여부만 확인
+# 시크릿 확인
 gh repo-settings plan --secrets
 
-# 환경 변수만 확인
+# 환경 변수 확인
 gh repo-settings plan --env
+
+# 설정에 없는 변수/시크릿 삭제 표시
+gh repo-settings plan --env --secrets --sync
 ```
 
 `--show-current` 옵션은 현재 GitHub 저장소 설정을 표시합니다. 다음 경우에 유용합니다:
@@ -132,14 +135,20 @@ YAML 설정을 GitHub 저장소에 적용합니다.
 # 변경 사항 적용 (기본 경로 사용)
 gh repo-settings apply
 
-# 드라이 런 (plan과 동일)
-gh repo-settings apply --dry-run
+# 확인 없이 자동 승인
+gh repo-settings apply -y
 
 # 설정 파일 지정
 gh repo-settings apply -c custom-config.yaml
 
 # 디렉토리에서 적용
 gh repo-settings apply -d .github/repo-settings/
+
+# 변수와 시크릿 적용
+gh repo-settings apply --env --secrets
+
+# 동기화 모드: 설정에 없는 변수/시크릿 삭제
+gh repo-settings apply --env --secrets --sync
 ```
 
 ## 설정
@@ -183,14 +192,13 @@ branch_protection:
       - ci/lint
     enforce_admins: false
 
-secrets:
-  required:
+env:
+  variables:
+    NODE_ENV: production
+    API_URL: https://api.example.com
+  secrets:
     - API_TOKEN
     - DEPLOY_KEY
-
-env:
-  required:
-    - DATABASE_URL
 
 actions:
   enabled: true
@@ -214,7 +222,6 @@ actions:
 ├── topics.yaml
 ├── labels.yaml
 ├── branch-protection.yaml
-├── secrets.yaml
 ├── env.yaml
 └── actions.yaml
 ```
@@ -287,27 +294,55 @@ branch_protection:
     allow_deletions: false       # 브랜치 삭제 허용
 ```
 
-### `secrets` - 필수 시크릿
+### `env` - 환경 변수와 시크릿
 
-필수 저장소 시크릿 존재 확인 (값은 관리하지 않음):
+저장소의 변수와 시크릿을 관리합니다:
 
 ```yaml
-secrets:
-  required:
+env:
+  # 기본값이 있는 변수 (.env 파일로 덮어쓰기 가능)
+  variables:
+    NODE_ENV: production
+    API_URL: https://api.example.com
+  # 시크릿 이름 (값은 .env 파일 또는 대화형 입력에서)
+  secrets:
     - API_TOKEN
     - DEPLOY_KEY
 ```
 
-### `env` - 필수 환경 변수
+| 필드 | 타입 | 설명 |
+|-----|------|------|
+| `variables` | map | 저장소 변수의 키-값 쌍 |
+| `secrets` | array | 관리할 시크릿 이름 목록 |
 
-필수 저장소 변수 존재 확인:
+#### `.env` 파일 사용
 
-```yaml
-env:
-  required:
-    - DATABASE_URL
-    - SENTRY_DSN
+실제 값을 저장하는 `.github/.env` 파일 (gitignore 권장)을 생성합니다:
+
+```bash
+# .github/.env
+NODE_ENV=staging
+API_URL=https://staging-api.example.com
+API_TOKEN=your-secret-token
+DEPLOY_KEY=your-deploy-key
 ```
+
+**우선순위**: `.env` 파일의 값이 YAML의 기본값을 덮어씁니다.
+
+#### 명령어
+
+```bash
+# 변수/시크릿 변경 사항 미리보기
+gh repo-settings plan --env --secrets
+
+# 변수와 시크릿 적용
+gh repo-settings apply --env --secrets
+
+# 설정에 없는 변수/시크릿 삭제 (동기화 모드)
+gh repo-settings apply --env --secrets --sync
+```
+
+시크릿 값이 `.env`에 없으면 `apply` 시 대화형으로 입력을 요청합니다.
 
 ### `actions` - GitHub Actions 권한 설정
 

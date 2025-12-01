@@ -44,12 +44,10 @@ branch_protection:
       - ci/lint
     enforce_admins: true
 
-secrets:
-  required:
+env:
+  variables:
+    DATABASE_URL: postgres://localhost/myapp
+    SENTRY_DSN: ""
+  secrets:
     - API_TOKEN
     - SLACK_WEBHOOK
-
-env:
-  required:
-    - DATABASE_URL
-    - SENTRY_DSN

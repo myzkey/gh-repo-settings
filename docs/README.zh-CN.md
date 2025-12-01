@@ -104,11 +104,14 @@ gh repo-settings plan -d .github/repo-settings/
 # 显示当前 GitHub 设置（用于调试）
 gh repo-settings plan --show-current
 
-# 仅检查密钥是否存在
+# 检查密钥
 gh repo-settings plan --secrets
 
-# 仅检查环境变量
+# 检查环境变量
 gh repo-settings plan --env
+
+# 显示配置中没有的变量/密钥的删除计划
+gh repo-settings plan --env --secrets --sync
 ```
 
 `--show-current` 选项显示当前 GitHub 仓库设置，适用于：
@@ -132,14 +135,20 @@ gh repo-settings plan --env
 # 应用变更（使用默认配置路径）
 gh repo-settings apply
 
-# 演练模式（与 plan 相同）
-gh repo-settings apply --dry-run
+# 无需确认自动批准
+gh repo-settings apply -y
 
 # 指定配置文件
 gh repo-settings apply -c custom-config.yaml
 
 # 从目录应用
 gh repo-settings apply -d .github/repo-settings/
+
+# 应用变量和密钥
+gh repo-settings apply --env --secrets
+
+# 同步模式：删除配置中没有的变量/密钥
+gh repo-settings apply --env --secrets --sync
 ```
 
 ## 配置
@@ -183,14 +192,13 @@ branch_protection:
       - ci/lint
     enforce_admins: false
 
-secrets:
-  required:
+env:
+  variables:
+    NODE_ENV: production
+    API_URL: https://api.example.com
+  secrets:
     - API_TOKEN
     - DEPLOY_KEY
-
-env:
-  required:
-    - DATABASE_URL
 
 actions:
   enabled: true
@@ -214,7 +222,6 @@ actions:
 ├── topics.yaml
 ├── labels.yaml
 ├── branch-protection.yaml
-├── secrets.yaml
 ├── env.yaml
 └── actions.yaml
 ```
@@ -287,27 +294,55 @@ branch_protection:
     allow_deletions: false       # 允许删除分支
 ```
 
-### `secrets` - 必需密钥
+### `env` - 环境变量和密钥
 
-检查必需的仓库密钥是否存在（不管理值）：
+管理仓库的变量和密钥：
 
 ```yaml
-secrets:
-  required:
+env:
+  # 带默认值的变量（可通过 .env 文件覆盖）
+  variables:
+    NODE_ENV: production
+    API_URL: https://api.example.com
+  # 密钥名称（值来自 .env 文件或交互式输入）
+  secrets:
     - API_TOKEN
     - DEPLOY_KEY
 ```
 
-### `env` - 必需环境变量
+| 字段 | 类型 | 描述 |
+|-----|------|------|
+| `variables` | map | 仓库变量的键值对 |
+| `secrets` | array | 要管理的密钥名称列表 |
 
-检查必需的仓库变量是否存在：
+#### 使用 `.env` 文件
 
-```yaml
-env:
-  required:
-    - DATABASE_URL
-    - SENTRY_DSN
+创建 `.github/.env` 文件（建议添加到 gitignore）来存储实际值：
+
+```bash
+# .github/.env
+NODE_ENV=staging
+API_URL=https://staging-api.example.com
+API_TOKEN=your-secret-token
+DEPLOY_KEY=your-deploy-key
 ```
+
+**优先级**：`.env` 文件的值会覆盖 YAML 中的默认值。
+
+#### 命令
+
+```bash
+# 预览变量/密钥的变更
+gh repo-settings plan --env --secrets
+
+# 应用变量和密钥
+gh repo-settings apply --env --secrets
+
+# 删除配置中没有的变量/密钥（同步模式）
+gh repo-settings apply --env --secrets --sync
+```
+
+如果密钥的值在 `.env` 中不存在，`apply` 时会提示交互式输入。
 
 ### `actions` - GitHub Actions 权限设置
 

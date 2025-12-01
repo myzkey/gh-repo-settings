@@ -343,28 +343,28 @@ func TestCalculatorCompareBranchProtection(t *testing.T) {
 
 func TestCalculatorCheckSecrets(t *testing.T) {
 	tests := []struct {
-		name            string
-		currentSecrets  []string
-		requiredSecrets []string
-		expectMissing   int
+		name           string
+		currentSecrets []string
+		configSecrets  []string
+		expectMissing  int
 	}{
 		{
-			name:            "all secrets present",
-			currentSecrets:  []string{"API_KEY", "DEPLOY_TOKEN"},
-			requiredSecrets: []string{"API_KEY", "DEPLOY_TOKEN"},
-			expectMissing:   0,
+			name:           "all secrets present",
+			currentSecrets: []string{"API_KEY", "DEPLOY_TOKEN"},
+			configSecrets:  []string{"API_KEY", "DEPLOY_TOKEN"},
+			expectMissing:  0,
 		},
 		{
-			name:            "some secrets missing",
-			currentSecrets:  []string{"API_KEY"},
-			requiredSecrets: []string{"API_KEY", "DEPLOY_TOKEN", "SECRET_KEY"},
-			expectMissing:   2,
+			name:           "some secrets missing",
+			currentSecrets: []string{"API_KEY"},
+			configSecrets:  []string{"API_KEY", "DEPLOY_TOKEN", "SECRET_KEY"},
+			expectMissing:  2,
 		},
 		{
-			name:            "all secrets missing",
-			currentSecrets:  []string{},
-			requiredSecrets: []string{"API_KEY"},
-			expectMissing:   1,
+			name:           "all secrets missing",
+			currentSecrets: []string{},
+			configSecrets:  []string{"API_KEY"},
+			expectMissing:  1,
 		},
 	}
 
@@ -374,8 +374,8 @@ func TestCalculatorCheckSecrets(t *testing.T) {
 			mock.Secrets = tt.currentSecrets
 
 			cfg := &config.Config{
-				Secrets: &config.SecretsConfig{
-					Required: tt.requiredSecrets,
+				Env: &config.EnvConfig{
+					Secrets: tt.configSecrets,
 				},
 			}
 			calc := NewCalculator(mock, cfg)
@@ -403,22 +403,22 @@ func TestCalculatorCheckSecrets(t *testing.T) {
 
 func TestCalculatorCheckVariables(t *testing.T) {
 	tests := []struct {
-		name             string
-		currentVars      []string
-		requiredVars     []string
-		expectMissing    int
+		name        string
+		currentVars []github.VariableData
+		configVars  map[string]string
+		expectAdds  int
 	}{
 		{
-			name:          "all variables present",
-			currentVars:   []string{"NODE_ENV", "DEBUG"},
-			requiredVars:  []string{"NODE_ENV"},
-			expectMissing: 0,
+			name:        "all variables present with same values",
+			currentVars: []github.VariableData{{Name: "NODE_ENV", Value: "prod"}, {Name: "DEBUG", Value: "true"}},
+			configVars:  map[string]string{"NODE_ENV": "prod"},
+			expectAdds:  0,
 		},
 		{
-			name:          "some variables missing",
-			currentVars:   []string{"NODE_ENV"},
-			requiredVars:  []string{"NODE_ENV", "LOG_LEVEL"},
-			expectMissing: 1,
+			name:        "some variables to add",
+			currentVars: []github.VariableData{{Name: "NODE_ENV", Value: "prod"}},
+			configVars:  map[string]string{"NODE_ENV": "prod", "LOG_LEVEL": "info"},
+			expectAdds:  1,
 		},
 	}
 
@@ -429,7 +429,7 @@ func TestCalculatorCheckVariables(t *testing.T) {
 
 			cfg := &config.Config{
 				Env: &config.EnvConfig{
-					Required: tt.requiredVars,
+					Variables: tt.configVars,
 				},
 			}
 			calc := NewCalculator(mock, cfg)
@@ -441,15 +441,15 @@ func TestCalculatorCheckVariables(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			missingCount := 0
+			addCount := 0
 			for _, c := range plan.Changes {
-				if c.Category == "env" && c.Type == ChangeMissing {
-					missingCount++
+				if c.Category == "variables" && c.Type == ChangeAdd {
+					addCount++
 				}
 			}
 
-			if missingCount != tt.expectMissing {
-				t.Errorf("expected %d missing variables, got %d", tt.expectMissing, missingCount)
+			if addCount != tt.expectAdds {
+				t.Errorf("expected %d adds, got %d", tt.expectAdds, addCount)
 			}
 		})
 	}
@@ -549,8 +549,8 @@ func TestPlanHasMissingVariables(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "has env but not missing type",
-			changes: []Change{{Category: "env", Type: ChangeUpdate}},
+			name:     "has env but not missing type",
+			changes:  []Change{{Category: "env", Type: ChangeUpdate}},
 			expected: false,
 		},
 	}
@@ -1120,7 +1120,7 @@ func TestCalculatorErrors(t *testing.T) {
 		mock := github.NewMockClient()
 		mock.GetSecretsError = apperrors.ErrPermissionDenied
 
-		cfg := &config.Config{Secrets: &config.SecretsConfig{Required: []string{"KEY"}}}
+		cfg := &config.Config{Env: &config.EnvConfig{Secrets: []string{"KEY"}}}
 		calc := NewCalculator(mock, cfg)
 
 		_, err := calc.CalculateWithOptions(context.Background(), CalculateOptions{CheckSecrets: true})
@@ -1133,7 +1133,7 @@ func TestCalculatorErrors(t *testing.T) {
 		mock := github.NewMockClient()
 		mock.GetVariablesError = apperrors.ErrPermissionDenied
 
-		cfg := &config.Config{Env: &config.EnvConfig{Required: []string{"VAR"}}}
+		cfg := &config.Config{Env: &config.EnvConfig{Variables: map[string]string{"VAR": "value"}}}
 		calc := NewCalculator(mock, cfg)
 
 		_, err := calc.CalculateWithOptions(context.Background(), CalculateOptions{CheckEnv: true})

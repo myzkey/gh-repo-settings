@@ -53,11 +53,14 @@ gh repo-settings plan -d .github/repo-settings/
 # Show current GitHub settings (useful for debugging)
 gh repo-settings plan --show-current
 
-# Check only secrets existence
+# Check secrets
 gh repo-settings plan --secrets
 
-# Check only environment variables
+# Check environment variables
 gh repo-settings plan --env
+
+# Show variables/secrets to delete (not in config)
+gh repo-settings plan --env --secrets --sync
 ```
 
 ### Status Check Validation
@@ -78,14 +81,20 @@ Apply YAML configuration to the GitHub repository.
 # Apply changes (uses default config path)
 gh repo-settings apply
 
-# Dry run (same as plan)
-gh repo-settings apply --dry-run
+# Auto-approve without confirmation
+gh repo-settings apply -y
 
 # Specify config file
 gh repo-settings apply -c custom-config.yaml
 
 # Apply from directory
 gh repo-settings apply -d .github/repo-settings/
+
+# Apply variables and secrets
+gh repo-settings apply --env --secrets
+
+# Sync mode: delete variables/secrets not in config
+gh repo-settings apply --env --secrets --sync
 ```
 
 ## Global Options

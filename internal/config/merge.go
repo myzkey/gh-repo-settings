@@ -32,22 +32,11 @@ func mergeConfigs(dst, src *Config) {
 		}
 	}
 
-	if src.Secrets != nil {
-		if dst.Secrets == nil {
-			dst.Secrets = &SecretsConfig{}
-		}
-		if len(src.Secrets.Required) > 0 {
-			dst.Secrets.Required = src.Secrets.Required
-		}
-	}
-
 	if src.Env != nil {
 		if dst.Env == nil {
 			dst.Env = &EnvConfig{}
 		}
-		if len(src.Env.Required) > 0 {
-			dst.Env.Required = src.Env.Required
-		}
+		mergeEnvConfig(dst.Env, src.Env)
 	}
 
 	if src.Actions != nil {
@@ -139,6 +128,21 @@ func mergeBranchRule(dst, src *BranchRule) {
 	}
 	if src.AllowDeletions != nil {
 		dst.AllowDeletions = src.AllowDeletions
+	}
+}
+
+// mergeEnvConfig merges environment configurations
+func mergeEnvConfig(dst, src *EnvConfig) {
+	if len(src.Variables) > 0 {
+		if dst.Variables == nil {
+			dst.Variables = make(map[string]string)
+		}
+		for k, v := range src.Variables {
+			dst.Variables[k] = v
+		}
+	}
+	if len(src.Secrets) > 0 {
+		dst.Secrets = src.Secrets
 	}
 }
 

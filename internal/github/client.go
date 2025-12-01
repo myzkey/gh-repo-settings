@@ -263,8 +263,29 @@ func (c *Client) GetSecrets(ctx context.Context) ([]string, error) {
 	return names, nil
 }
 
-// GetVariables fetches repository variable names
-func (c *Client) GetVariables(ctx context.Context) ([]string, error) {
+// SetSecret creates or updates a repository secret using gh secret set
+func (c *Client) SetSecret(ctx context.Context, name, value string) error {
+	repo := fmt.Sprintf("%s/%s", c.Repo.Owner, c.Repo.Name)
+	cmd := exec.CommandContext(ctx, "gh", "secret", "set", name, "--repo", repo, "--body", value)
+	_, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return apperrors.NewAPIError("SET", "secret/"+name, exitErr.ExitCode(), string(exitErr.Stderr), err)
+		}
+		return err
+	}
+	return nil
+}
+
+// DeleteSecret deletes a repository secret
+func (c *Client) DeleteSecret(ctx context.Context, name string) error {
+	endpoint := fmt.Sprintf("repos/%s/%s/actions/secrets/%s", c.Repo.Owner, c.Repo.Name, name)
+	_, err := c.ghAPI(ctx, endpoint, "-X", "DELETE")
+	return err
+}
+
+// GetVariables fetches repository variables with their values
+func (c *Client) GetVariables(ctx context.Context) ([]VariableData, error) {
 	endpoint := fmt.Sprintf("repos/%s/%s/actions/variables", c.Repo.Owner, c.Repo.Name)
 	out, err := c.ghAPI(ctx, endpoint)
 	if err != nil {
@@ -272,21 +293,45 @@ func (c *Client) GetVariables(ctx context.Context) ([]string, error) {
 	}
 
 	var result struct {
-		Variables []struct {
-			Name string `json:"name"`
-		} `json:"variables"`
+		Variables []VariableData `json:"variables"`
 	}
 
 	if err := json.Unmarshal(out, &result); err != nil {
 		return nil, err
 	}
 
-	names := make([]string, len(result.Variables))
-	for i, v := range result.Variables {
-		names[i] = v.Name
+	return result.Variables, nil
+}
+
+// SetVariable creates or updates a repository variable
+func (c *Client) SetVariable(ctx context.Context, name, value string) error {
+	// First, try to get the variable to see if it exists
+	getEndpoint := fmt.Sprintf("repos/%s/%s/actions/variables/%s", c.Repo.Owner, c.Repo.Name, name)
+	_, err := c.ghAPI(ctx, getEndpoint)
+
+	payload := map[string]string{
+		"name":  name,
+		"value": value,
+	}
+	jsonData, _ := json.Marshal(payload)
+
+	if err != nil {
+		// Variable doesn't exist, create it
+		createEndpoint := fmt.Sprintf("repos/%s/%s/actions/variables", c.Repo.Owner, c.Repo.Name)
+		_, err = c.ghAPIWithInput(ctx, createEndpoint, jsonData, "-X", "POST", "-H", "Accept: application/vnd.github+json")
+	} else {
+		// Variable exists, update it
+		_, err = c.ghAPIWithInput(ctx, getEndpoint, jsonData, "-X", "PATCH", "-H", "Accept: application/vnd.github+json")
 	}
 
-	return names, nil
+	return err
+}
+
+// DeleteVariable deletes a repository variable
+func (c *Client) DeleteVariable(ctx context.Context, name string) error {
+	endpoint := fmt.Sprintf("repos/%s/%s/actions/variables/%s", c.Repo.Owner, c.Repo.Name, name)
+	_, err := c.ghAPI(ctx, endpoint, "-X", "DELETE")
+	return err
 }
 
 // GetBranchProtection fetches branch protection rules
