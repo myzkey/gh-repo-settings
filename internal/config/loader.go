@@ -61,6 +61,11 @@ func Load(opts LoadOptions) (*Config, error) {
 		}
 	}
 
+	// Validate config
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+
 	return config, nil
 }
 
