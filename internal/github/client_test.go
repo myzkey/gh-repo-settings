@@ -104,6 +104,64 @@ func TestMockClient(t *testing.T) {
 	}
 }
 
+func TestParseHTTPStatus(t *testing.T) {
+	tests := []struct {
+		name   string
+		stderr string
+		want   int
+	}{
+		{
+			name:   "404 not found",
+			stderr: "gh: Not Found (HTTP 404)",
+			want:   404,
+		},
+		{
+			name:   "403 forbidden",
+			stderr: "gh: Resource not accessible by integration (HTTP 403)",
+			want:   403,
+		},
+		{
+			name:   "401 unauthorized",
+			stderr: "gh: Bad credentials (HTTP 401)",
+			want:   401,
+		},
+		{
+			name:   "422 unprocessable",
+			stderr: "gh: Validation Failed (HTTP 422)",
+			want:   422,
+		},
+		{
+			name:   "500 server error",
+			stderr: "gh: Internal Server Error (HTTP 500)",
+			want:   500,
+		},
+		{
+			name:   "no http status",
+			stderr: "some other error message",
+			want:   0,
+		},
+		{
+			name:   "empty stderr",
+			stderr: "",
+			want:   0,
+		},
+		{
+			name:   "multiline with status",
+			stderr: "some error\ngh: Not Found (HTTP 404)\nmore info",
+			want:   404,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseHTTPStatus(tt.stderr)
+			if got != tt.want {
+				t.Errorf("parseHTTPStatus(%q) = %d, want %d", tt.stderr, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestBranchProtectionSettings(t *testing.T) {
 	reviews := 2
 	strict := true
