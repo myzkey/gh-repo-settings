@@ -308,9 +308,9 @@ func (c *Client) DeleteSecret(ctx context.Context, name string) error {
 // GetVariables fetches repository variables with their values
 func (c *Client) GetVariables(ctx context.Context) ([]VariableData, error) {
 	endpoint := fmt.Sprintf("repos/%s/%s/actions/variables", c.Repo.Owner, c.Repo.Name)
-	out, err := c.ghAPI(ctx, endpoint)
+	out, err := c.ghAPI(ctx, endpoint, "--paginate")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get variables: %w", err)
 	}
 
 	var result struct {
@@ -318,7 +318,7 @@ func (c *Client) GetVariables(ctx context.Context) ([]VariableData, error) {
 	}
 
 	if err := json.Unmarshal(out, &result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse variables: %w", err)
 	}
 
 	return result.Variables, nil
