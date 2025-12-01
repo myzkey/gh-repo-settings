@@ -541,7 +541,8 @@ func (c *Client) GetPages(ctx context.Context) (*PagesData, error) {
 	out, err := c.ghAPI(ctx, endpoint)
 	if err != nil {
 		// Pages not enabled returns 404
-		if apiErr, ok := err.(*apperrors.APIError); ok && apiErr.StatusCode == 1 {
+		var apiErr *apperrors.APIError
+		if apperrors.As(err, &apiErr) && apiErr.StatusCode == 404 {
 			return nil, apperrors.ErrPagesNotEnabled
 		}
 		return nil, fmt.Errorf("failed to get pages: %w", err)
