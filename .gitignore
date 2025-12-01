@@ -3,9 +3,9 @@ node_modules/
 
 # Build output
 dist/
-gh-repo-settings
 gh-repo-settings-go
 gh-repo-settings.exe
+# Note: gh-repo-settings binary is tracked for gh extension to work
 
 # IDE
 .idea/
