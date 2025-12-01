@@ -7,7 +7,7 @@ before:
     - go mod tidy
 
 builds:
-  - binary: gh-rset
+  - binary: gh-repo-settings
     env:
       - CGO_ENABLED=0
     goos:
