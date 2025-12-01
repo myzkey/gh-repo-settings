@@ -29,6 +29,15 @@ const (
 	ChangeMissing // For secrets/env that are required but missing
 )
 
+// toStringSet converts a slice of strings to a set (map[string]bool)
+func toStringSet(items []string) map[string]bool {
+	set := make(map[string]bool, len(items))
+	for _, item := range items {
+		set[item] = true
+	}
+	return set
+}
+
 func (c ChangeType) String() string {
 	switch c {
 	case ChangeAdd:
@@ -630,10 +639,7 @@ func (c *Calculator) compareEnv(ctx context.Context, checkSecrets, checkVars, sy
 			return nil, err
 		}
 
-		secretSet := make(map[string]bool)
-		for _, s := range currentSecrets {
-			secretSet[s] = true
-		}
+		secretSet := toStringSet(currentSecrets)
 
 		// Check for secrets that need to be added
 		for _, secretName := range c.config.Env.Secrets {
@@ -663,10 +669,7 @@ func (c *Calculator) compareEnv(ctx context.Context, checkSecrets, checkVars, sy
 
 		// Check for secrets to delete (if syncDelete)
 		if syncDelete {
-			configSecretSet := make(map[string]bool)
-			for _, s := range c.config.Env.Secrets {
-				configSecretSet[s] = true
-			}
+			configSecretSet := toStringSet(c.config.Env.Secrets)
 			for _, s := range currentSecrets {
 				if !configSecretSet[s] {
 					changes = append(changes, Change{
