@@ -16,7 +16,7 @@ func main() {
 	schema := r.Reflect(&config.Config{})
 	schema.ID = "https://raw.githubusercontent.com/myzkey/gh-repo-settings/main/schema.json"
 	schema.Title = "gh-repo-settings configuration"
-	schema.Description = "Configuration schema for gh-repo-settings (gh rset) - GitHub repository settings management tool"
+	schema.Description = "Configuration schema for gh-repo-settings - GitHub repository settings management tool"
 
 	out, err := json.MarshalIndent(schema, "", "  ")
 	if err != nil {

@@ -177,7 +177,7 @@ func printPlan(plan *diff.Plan) {
 		fmt.Println()
 	}
 
-	fmt.Printf("Run %s to apply these changes.\n", cyan("gh rset apply"))
+	fmt.Printf("Run %s to apply these changes.\n", cyan("gh repo-settings apply"))
 
 	if deletes > 0 {
 		os.Exit(2)

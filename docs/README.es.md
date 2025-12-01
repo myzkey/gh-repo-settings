@@ -1,6 +1,6 @@
 # gh-repo-settings
 
-[English](./README.md) | [日本語](./README.ja.md) | [简体中文](./README.zh-CN.md) | [한국어](./README.ko.md)
+[English](../README.md) | [日本語](./README.ja.md) | [简体中文](./README.zh-CN.md) | [한국어](./README.ko.md)
 
 Una extensión de GitHub CLI para gestionar la configuración de repositorios mediante YAML. Inspirado en el flujo de trabajo de Terraform: define el estado deseado en código, previsualiza los cambios y aplícalos.
 
@@ -22,6 +22,12 @@ Una extensión de GitHub CLI para gestionar la configuración de repositorios me
 gh extension install myzkey/gh-repo-settings
 ```
 
+### Actualizar
+
+```bash
+gh extension upgrade myzkey/gh-repo-settings
+```
+
 ### Instalación Manual
 
 Descarga el binario más reciente desde [Releases](https://github.com/myzkey/gh-repo-settings/releases) y agrégalo a tu PATH.
@@ -30,13 +36,13 @@ Descarga el binario más reciente desde [Releases](https://github.com/myzkey/gh-
 
 ```bash
 # Crear archivo de configuración interactivamente
-gh rset init
+gh repo-settings init
 
 # Previsualizar cambios (como terraform plan)
-gh rset plan
+gh repo-settings plan
 
 # Aplicar cambios
-gh rset apply
+gh repo-settings apply
 ```
 
 Rutas de configuración por defecto (en orden de prioridad):
@@ -51,13 +57,13 @@ Crea un archivo de configuración interactivamente.
 
 ```bash
 # Crear .github/repo-settings.yaml interactivamente
-gh rset init
+gh repo-settings init
 
 # Especificar ruta de salida
-gh rset init -o config.yaml
+gh repo-settings init -o config.yaml
 
 # Sobrescribir archivo existente
-gh rset init -f
+gh repo-settings init -f
 ```
 
 ### `export` - Exportar configuración del repositorio
@@ -66,19 +72,19 @@ Exporta la configuración actual del repositorio de GitHub en formato YAML.
 
 ```bash
 # Exportar a stdout
-gh rset export
+gh repo-settings export
 
 # Exportar a archivo único
-gh rset export -s .github/repo-settings.yaml
+gh repo-settings export -s .github/repo-settings.yaml
 
 # Exportar a directorio (múltiples archivos)
-gh rset export -d .github/repo-settings/
+gh repo-settings export -d .github/repo-settings/
 
 # Incluir nombres de secrets
-gh rset export -s settings.yaml --include-secrets
+gh repo-settings export -s settings.yaml --include-secrets
 
 # Exportar desde repositorio específico
-gh rset export -r owner/repo -s settings.yaml
+gh repo-settings export -r owner/repo -s settings.yaml
 ```
 
 ### `plan` - Previsualizar cambios
@@ -87,22 +93,22 @@ Valida la configuración y muestra los cambios planificados sin aplicarlos.
 
 ```bash
 # Previsualizar todos los cambios (usa ruta por defecto)
-gh rset plan
+gh repo-settings plan
 
 # Especificar archivo de configuración
-gh rset plan -c custom-config.yaml
+gh repo-settings plan -c custom-config.yaml
 
 # Previsualizar con configuración de directorio
-gh rset plan -d .github/repo-settings/
+gh repo-settings plan -d .github/repo-settings/
 
 # Mostrar configuración actual de GitHub (para depuración)
-gh rset plan --show-current
+gh repo-settings plan --show-current
 
 # Verificar solo existencia de secrets
-gh rset plan --secrets
+gh repo-settings plan --secrets
 
 # Verificar solo variables de entorno
-gh rset plan --env
+gh repo-settings plan --env
 ```
 
 La opción `--show-current` muestra la configuración actual del repositorio de GitHub, útil para:
@@ -124,16 +130,16 @@ Aplica la configuración YAML al repositorio de GitHub.
 
 ```bash
 # Aplicar cambios (usa ruta por defecto)
-gh rset apply
+gh repo-settings apply
 
 # Ejecución en seco (igual que plan)
-gh rset apply --dry-run
+gh repo-settings apply --dry-run
 
 # Especificar archivo de configuración
-gh rset apply -c custom-config.yaml
+gh repo-settings apply -c custom-config.yaml
 
 # Aplicar desde directorio
-gh rset apply -d .github/repo-settings/
+gh repo-settings apply -d .github/repo-settings/
 ```
 
 ## Configuración
@@ -419,7 +425,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check drift
-        run: gh rset plan
+        run: gh repo-settings plan
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```

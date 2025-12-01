@@ -8,6 +8,12 @@
 gh extension install myzkey/gh-repo-settings
 ```
 
+### Upgrade
+
+```bash
+gh extension upgrade myzkey/gh-repo-settings
+```
+
 ### Manual Installation
 
 Download the latest binary from [Releases](https://github.com/myzkey/gh-repo-settings/releases) and add it to your PATH.
@@ -16,13 +22,13 @@ Download the latest binary from [Releases](https://github.com/myzkey/gh-repo-set
 
 ```bash
 # Initialize config interactively
-gh rset init
+gh repo-settings init
 
 # Preview changes (like terraform plan)
-gh rset plan
+gh repo-settings plan
 
 # Apply changes
-gh rset apply
+gh repo-settings apply
 ```
 
 Default config paths (in priority order):

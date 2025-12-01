@@ -1,6 +1,6 @@
 # gh-repo-settings
 
-[English](./README.md) | [简体中文](./README.zh-CN.md) | [한국어](./README.ko.md) | [Español](./README.es.md)
+[English](../README.md) | [简体中文](./README.zh-CN.md) | [한국어](./README.ko.md) | [Español](./README.es.md)
 
 GitHub リポジトリの設定を YAML で管理する GitHub CLI 拡張機能。Terraform のワークフローにインスパイアされており、望む状態をコードで定義し、変更をプレビューしてから適用できます。
 
@@ -22,6 +22,12 @@ GitHub リポジトリの設定を YAML で管理する GitHub CLI 拡張機能�
 gh extension install myzkey/gh-repo-settings
 ```
 
+### アップグレード
+
+```bash
+gh extension upgrade myzkey/gh-repo-settings
+```
+
 ### 手動インストール
 
 [Releases](https://github.com/myzkey/gh-repo-settings/releases) から最新のバイナリをダウンロードし、PATH に追加してください。
@@ -30,13 +36,13 @@ gh extension install myzkey/gh-repo-settings
 
 ```bash
 # 対話形式で設定ファイルを作成
-gh rset init
+gh repo-settings init
 
 # 変更をプレビュー（terraform plan のように）
-gh rset plan
+gh repo-settings plan
 
 # 変更を適用
-gh rset apply
+gh repo-settings apply
 ```
 
 デフォルトの設定ファイルパス（優先順）:
@@ -51,13 +57,13 @@ gh rset apply
 
 ```bash
 # .github/repo-settings.yaml を対話形式で作成
-gh rset init
+gh repo-settings init
 
 # 出力先を指定
-gh rset init -o config.yaml
+gh repo-settings init -o config.yaml
 
 # 既存ファイルを上書き
-gh rset init -f
+gh repo-settings init -f
 ```
 
 ### `export` - リポジトリ設定のエクスポート
@@ -66,19 +72,19 @@ gh rset init -f
 
 ```bash
 # 標準出力にエクスポート
-gh rset export
+gh repo-settings export
 
 # 単一ファイルにエクスポート
-gh rset export -s .github/repo-settings.yaml
+gh repo-settings export -s .github/repo-settings.yaml
 
 # ディレクトリにエクスポート（複数ファイル）
-gh rset export -d .github/repo-settings/
+gh repo-settings export -d .github/repo-settings/
 
 # シークレット名を含める
-gh rset export -s settings.yaml --include-secrets
+gh repo-settings export -s settings.yaml --include-secrets
 
 # 特定のリポジトリからエクスポート
-gh rset export -r owner/repo -s settings.yaml
+gh repo-settings export -r owner/repo -s settings.yaml
 ```
 
 ### `plan` - 変更のプレビュー
@@ -87,22 +93,22 @@ gh rset export -r owner/repo -s settings.yaml
 
 ```bash
 # すべての変更をプレビュー（デフォルトパスを使用）
-gh rset plan
+gh repo-settings plan
 
 # 設定ファイルを指定
-gh rset plan -c custom-config.yaml
+gh repo-settings plan -c custom-config.yaml
 
 # ディレクトリ設定でプレビュー
-gh rset plan -d .github/repo-settings/
+gh repo-settings plan -d .github/repo-settings/
 
 # 現在のGitHub設定を表示（デバッグ用）
-gh rset plan --show-current
+gh repo-settings plan --show-current
 
 # シークレットの存在のみチェック
-gh rset plan --secrets
+gh repo-settings plan --secrets
 
 # 環境変数のみチェック
-gh rset plan --env
+gh repo-settings plan --env
 ```
 
 `--show-current` オプションは現在のGitHub設定を表示します。これは以下の場合に便利です：
@@ -124,16 +130,16 @@ YAML 設定を GitHub リポジトリに適用します。
 
 ```bash
 # 変更を適用（デフォルトパスを使用）
-gh rset apply
+gh repo-settings apply
 
 # ドライラン（plan と同じ）
-gh rset apply --dry-run
+gh repo-settings apply --dry-run
 
 # 設定ファイルを指定
-gh rset apply -c custom-config.yaml
+gh repo-settings apply -c custom-config.yaml
 
 # ディレクトリから適用
-gh rset apply -d .github/repo-settings/
+gh repo-settings apply -d .github/repo-settings/
 ```
 
 ## 設定
@@ -419,7 +425,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check drift
-        run: gh rset plan
+        run: gh repo-settings plan
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```

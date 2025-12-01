@@ -6,13 +6,13 @@
 
 ```bash
 # .github/repo-settings.yaml を対話形式で作成
-gh rset init
+gh repo-settings init
 
 # 出力先を指定
-gh rset init -o config.yaml
+gh repo-settings init -o config.yaml
 
 # 既存ファイルを上書き
-gh rset init -f
+gh repo-settings init -f
 ```
 
 ## `export` - リポジトリ設定のエクスポート
@@ -21,19 +21,19 @@ gh rset init -f
 
 ```bash
 # 標準出力にエクスポート
-gh rset export
+gh repo-settings export
 
 # 単一ファイルにエクスポート
-gh rset export -s .github/repo-settings.yaml
+gh repo-settings export -s .github/repo-settings.yaml
 
 # ディレクトリにエクスポート（複数ファイル）
-gh rset export -d .github/repo-settings/
+gh repo-settings export -d .github/repo-settings/
 
 # シークレット名を含める
-gh rset export -s settings.yaml --include-secrets
+gh repo-settings export -s settings.yaml --include-secrets
 
 # 特定のリポジトリからエクスポート
-gh rset export -r owner/repo -s settings.yaml
+gh repo-settings export -r owner/repo -s settings.yaml
 ```
 
 ## `plan` - 変更のプレビュー
@@ -42,22 +42,22 @@ gh rset export -r owner/repo -s settings.yaml
 
 ```bash
 # すべての変更をプレビュー（デフォルトパスを使用）
-gh rset plan
+gh repo-settings plan
 
 # 設定ファイルを指定
-gh rset plan -c custom-config.yaml
+gh repo-settings plan -c custom-config.yaml
 
 # ディレクトリ設定でプレビュー
-gh rset plan -d .github/repo-settings/
+gh repo-settings plan -d .github/repo-settings/
 
 # 現在のGitHub設定を表示（デバッグ用）
-gh rset plan --show-current
+gh repo-settings plan --show-current
 
 # シークレットの存在のみチェック
-gh rset plan --secrets
+gh repo-settings plan --secrets
 
 # 環境変数のみチェック
-gh rset plan --env
+gh repo-settings plan --env
 ```
 
 ### Status Check 検証
@@ -76,16 +76,16 @@ YAML 設定を GitHub リポジトリに適用します。
 
 ```bash
 # 変更を適用（デフォルトパスを使用）
-gh rset apply
+gh repo-settings apply
 
 # ドライラン（plan と同じ）
-gh rset apply --dry-run
+gh repo-settings apply --dry-run
 
 # 設定ファイルを指定
-gh rset apply -c custom-config.yaml
+gh repo-settings apply -c custom-config.yaml
 
 # ディレクトリから適用
-gh rset apply -d .github/repo-settings/
+gh repo-settings apply -d .github/repo-settings/
 ```
 
 ## グローバルオプション

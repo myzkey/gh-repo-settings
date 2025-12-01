@@ -324,5 +324,5 @@
   "additionalProperties": false,
   "type": "object",
   "title": "gh-repo-settings configuration",
-  "description": "Configuration schema for gh-repo-settings (gh rset) - GitHub repository settings management tool"
+  "description": "Configuration schema for gh-repo-settings - GitHub repository settings management tool"
 }
