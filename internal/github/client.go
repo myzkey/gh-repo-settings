@@ -261,9 +261,9 @@ func (c *Client) SetTopics(ctx context.Context, topics []string) error {
 // GetSecrets fetches repository secret names
 func (c *Client) GetSecrets(ctx context.Context) ([]string, error) {
 	endpoint := fmt.Sprintf("repos/%s/%s/actions/secrets", c.Repo.Owner, c.Repo.Name)
-	out, err := c.ghAPI(ctx, endpoint)
+	out, err := c.ghAPI(ctx, endpoint, "--paginate")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get secrets: %w", err)
 	}
 
 	var result struct {
@@ -273,7 +273,7 @@ func (c *Client) GetSecrets(ctx context.Context) ([]string, error) {
 	}
 
 	if err := json.Unmarshal(out, &result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse secrets: %w", err)
 	}
 
 	names := make([]string, len(result.Secrets))
