@@ -83,6 +83,16 @@ func (p *Plan) HasMissingVariables() bool {
 	return false
 }
 
+// HasDeletes returns true if there are any delete changes
+func (p *Plan) HasDeletes() bool {
+	for _, c := range p.Changes {
+		if c.Type == ChangeDelete {
+			return true
+		}
+	}
+	return false
+}
+
 // Calculator calculates diff between config and current state
 type Calculator struct {
 	client       github.GitHubClient

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -24,6 +25,7 @@ var (
 	checkEnv     bool
 	showCurrent  bool
 	syncDelete   bool
+	jsonOutput   bool
 )
 
 var planCmd = &cobra.Command{
@@ -41,6 +43,7 @@ func init() {
 	planCmd.Flags().BoolVar(&checkEnv, "env", false, "Check for required environment variables")
 	planCmd.Flags().BoolVar(&showCurrent, "show-current", false, "Show current GitHub settings")
 	planCmd.Flags().BoolVar(&syncDelete, "sync", false, "Show variables/secrets to delete (not in config)")
+	planCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output plan in JSON format")
 }
 
 func runPlan(cmd *cobra.Command, args []string) error {
@@ -53,9 +56,16 @@ func runPlan(cmd *cobra.Command, args []string) error {
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigCh
-		logger.Info("Received interrupt, cancelling...")
+		if !jsonOutput {
+			logger.Info("Received interrupt, cancelling...")
+		}
 		cancel()
 	}()
+
+	// Suppress all log output in JSON mode
+	if jsonOutput {
+		logger.SetDefaultLevel(logger.LevelQuiet)
+	}
 
 	logger.Debug("Starting plan command")
 	logger.Debug("Config dir: %s, Config file: %s", planDir, planConfig)
@@ -87,15 +97,17 @@ func runPlan(cmd *cobra.Command, args []string) error {
 		logger.Debug("Failed to load .env file: %v", err)
 	}
 
-	// Validate status checks against workflow files
-	validateStatusChecks(cfg)
+	// Validate status checks against workflow files (skip in JSON mode)
+	if !jsonOutput {
+		validateStatusChecks(cfg)
+	}
 
 	// Show current GitHub settings if requested
 	if showCurrent {
-		if err := printCurrentSettings(ctx, client); err != nil {
-			return err
+		if jsonOutput {
+			return printCurrentSettingsJSON(ctx, client)
 		}
-		return nil
+		return printCurrentSettings(ctx, client)
 	}
 
 	logger.Info("Planning changes for %s/%s...\n", client.RepoOwner(), client.RepoName())
@@ -108,6 +120,24 @@ func runPlan(cmd *cobra.Command, args []string) error {
 	})
 	if err != nil {
 		return err
+	}
+
+	// JSON output mode
+	if jsonOutput {
+		jsonBytes, err := plan.MarshalIndent()
+		if err != nil {
+			return fmt.Errorf("failed to marshal plan to JSON: %w", err)
+		}
+		fmt.Println(string(jsonBytes))
+
+		// Exit codes for JSON mode
+		if plan.HasMissingSecrets() || plan.HasMissingVariables() {
+			os.Exit(3)
+		}
+		if plan.HasDeletes() {
+			os.Exit(2)
+		}
+		return nil
 	}
 
 	if !plan.HasChanges() {
@@ -234,6 +264,115 @@ func validateStatusChecks(cfg *config.Config) {
 		}
 		fmt.Println()
 	}
+}
+
+func printCurrentSettingsJSON(ctx context.Context, client *github.Client) error {
+	settings := &github.CurrentSettings{}
+
+	// Repo settings
+	repo, err := client.GetRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get repo: %w", err)
+	}
+
+	settings.Repo = &github.CurrentRepoSettings{
+		Visibility:          repo.Visibility,
+		AllowMergeCommit:    repo.AllowMergeCommit,
+		AllowRebaseMerge:    repo.AllowRebaseMerge,
+		AllowSquashMerge:    repo.AllowSquashMerge,
+		DeleteBranchOnMerge: repo.DeleteBranchOnMerge,
+		AllowUpdateBranch:   repo.AllowUpdateBranch,
+	}
+	if repo.Description != nil {
+		settings.Repo.Description = *repo.Description
+	}
+	if repo.Homepage != nil {
+		settings.Repo.Homepage = *repo.Homepage
+	}
+
+	// Topics
+	settings.Topics = repo.Topics
+
+	// Labels
+	labels, err := client.GetLabels(ctx)
+	if err == nil {
+		settings.Labels = labels
+	}
+
+	// Branch protection (main branch)
+	settings.BranchProtection = make(map[string]*github.CurrentBranchRule)
+	bp, err := client.GetBranchProtection(ctx, "main")
+	if err == nil {
+		rule := &github.CurrentBranchRule{}
+		if bp.RequiredPullRequestReviews != nil {
+			rule.RequiredReviews = &bp.RequiredPullRequestReviews.RequiredApprovingReviewCount
+			rule.DismissStaleReviews = &bp.RequiredPullRequestReviews.DismissStaleReviews
+			rule.RequireCodeOwner = &bp.RequiredPullRequestReviews.RequireCodeOwnerReviews
+		}
+		if bp.RequiredStatusChecks != nil {
+			requireStatusChecks := true
+			rule.RequireStatusChecks = &requireStatusChecks
+			rule.StrictStatusChecks = &bp.RequiredStatusChecks.Strict
+			rule.StatusChecks = bp.RequiredStatusChecks.Contexts
+		} else {
+			requireStatusChecks := false
+			rule.RequireStatusChecks = &requireStatusChecks
+		}
+		if bp.EnforceAdmins != nil {
+			rule.EnforceAdmins = &bp.EnforceAdmins.Enabled
+		}
+		if bp.RequiredLinearHistory != nil {
+			rule.RequireLinearHistory = &bp.RequiredLinearHistory.Enabled
+		}
+		if bp.AllowForcePushes != nil {
+			rule.AllowForcePushes = &bp.AllowForcePushes.Enabled
+		}
+		if bp.AllowDeletions != nil {
+			rule.AllowDeletions = &bp.AllowDeletions.Enabled
+		}
+		settings.BranchProtection["main"] = rule
+	}
+
+	// Actions
+	actionsPerms, err := client.GetActionsPermissions(ctx)
+	if err == nil {
+		settings.Actions = &github.CurrentActionsSettings{
+			Enabled:        actionsPerms.Enabled,
+			AllowedActions: actionsPerms.AllowedActions,
+		}
+		workflowPerms, err := client.GetActionsWorkflowPermissions(ctx)
+		if err == nil {
+			settings.Actions.DefaultWorkflowPermissions = workflowPerms.DefaultWorkflowPermissions
+			settings.Actions.CanApprovePullRequestReviews = &workflowPerms.CanApprovePullRequestReviews
+		}
+	}
+
+	// Pages
+	pages, err := client.GetPages(ctx)
+	if err == nil {
+		settings.Pages = pages
+	}
+
+	// Variables
+	variables, err := client.GetVariables(ctx)
+	if err == nil {
+		settings.Variables = variables
+	}
+
+	// Secrets (names only)
+	secrets, err := client.GetSecrets(ctx)
+	if err == nil {
+		settings.Secrets = secrets
+	}
+
+	// Output JSON
+	jsonBytes, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal settings to JSON: %w", err)
+	}
+	fmt.Println(string(jsonBytes))
+
+	return nil
 }
 
 func printCurrentSettings(ctx context.Context, client *github.Client) error {
