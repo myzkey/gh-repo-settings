@@ -4,6 +4,25 @@
 
 GitHub リポジトリの設定を YAML で管理する GitHub CLI 拡張機能。Terraform のワークフローにインスパイアされており、望む状態をコードで定義し、変更をプレビューしてから適用できます。
 
+## なぜ gh-repo-settings？
+
+GitHub リポジトリの設定を一貫して管理するのは難しいです：
+
+- Settings UI をクリックして回るのはスケールしない
+- リポジトリ管理者が望ましい設定からドリフトしがち
+- Terraform の GitHub Provider は強力だが：
+  - 別途バックエンド（状態管理）が必要
+  - GitHub Provider の認証設定が必要
+  - HCL ファイルをリポジトリとは別に管理する必要がある
+
+**gh-repo-settings** は以下を提供します：
+
+- **バックエンド不要** - 状態ファイルの管理が不要
+- **外部依存なし** - GitHub CLI だけで動作
+- **YAML 設定** - `.github/` にコードと一緒に配置
+- **Terraform 風ワークフロー** - お馴染みの `plan` / `apply` コマンド
+- **ワークフロー検証** - `status_checks` と実際のワークフロージョブ名の不一致を検出
+
 ## 特徴
 
 - **Infrastructure as Code**: リポジトリ設定を YAML ファイルで定義
@@ -91,6 +110,25 @@ gh repo-settings export -r owner/repo -s settings.yaml
 
 設定を検証し、適用せずに計画された変更を表示します。
 
+#### 出力例
+
+```diff
+Repository: owner/my-repo
+
+repo:
+  ~ description: "古い説明" → "新しい説明"
+
+labels:
+  + feature (color: 0e8a16)
+  ~ bug: color ff0000 → d73a4a
+  - old-label
+
+branch_protection (main):
+  ~ required_reviews: 1 → 2
+
+Plan: 2 to add, 2 to change, 1 to delete
+```
+
 ```bash
 # すべての変更をプレビュー（デフォルトパスを使用）
 gh repo-settings plan
@@ -150,6 +188,26 @@ gh repo-settings apply --env --secrets
 # 同期モード: 設定にない変数/シークレットを削除
 gh repo-settings apply --env --secrets --sync
 ```
+
+### ⚠️ 同期モードの注意
+
+`--sync` フラグは**破壊的な操作**を有効にします：
+
+- 設定に定義されていないラベルを削除（`labels.replace_default: true` の場合）
+- 設定に定義されていない変数を削除
+- 設定に定義されていないシークレットを削除
+
+**適用前に必ず `plan --sync` を実行**して、削除される内容を確認してください：
+
+```bash
+# 適用前に削除内容をプレビュー
+gh repo-settings plan --env --secrets --sync
+
+# プランが正しければ適用
+gh repo-settings apply --env --secrets --sync
+```
+
+> **ヒント**: CI で `--sync` を使う場合は、人間によるレビューなしで実行しないでください。
 
 ## 設定
 
@@ -465,6 +523,47 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+### 複数リポジトリの管理
+
+このツールは**1回の実行で1つのリポジトリ**に設定を適用します。複数のリポジトリを同じ設定で管理するには、GitHub Actions の matrix 戦略を使用します：
+
+```yaml
+name: Sync Settings Across Repos
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/repo-settings.yaml"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo:
+          - myorg/service-a
+          - myorg/service-b
+          - myorg/service-c
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gh-repo-settings
+        run: gh extension install myzkey/gh-repo-settings
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+
+      - name: Apply settings to ${{ matrix.repo }}
+        run: gh repo-settings apply -y -r ${{ matrix.repo }}
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+```
+
+> **注意**: 対象の全リポジトリへの管理者アクセス権を持つ PAT（`ADMIN_TOKEN`）が必要です。
+
 ## グローバルオプション
 
 | オプション | 説明 |
@@ -472,6 +571,32 @@ jobs:
 | `-v, --verbose` | デバッグ出力を表示 |
 | `-q, --quiet` | エラーのみ表示 |
 | `-r, --repo <owner/name>` | 対象リポジトリ（デフォルト: 現在のリポジトリ） |
+
+## FAQ
+
+### 複数リポジトリに一括で設定を適用できますか？
+
+直接はできません。このツールは**1回の実行で1つのリポジトリ**を管理します。
+
+複数リポジトリに同じ設定を適用するには：
+1. 各リポジトリに同じ YAML 設定を配置する、または
+2. GitHub Actions の matrix 戦略を使用する（[複数リポジトリの管理](#複数リポジトリの管理)を参照）
+
+### 複数環境（dev/staging/prod）に対応していますか？
+
+ネイティブには対応していません。`env` ブロックは1リポジトリにつき1セットの変数/シークレットを管理します。
+
+環境固有の値については：
+- 異なる `.env` ファイル（`.env.dev`、`.env.staging`、`.env.prod`）を CI で切り替える
+- GitHub Environments を使用する（このツールではまだ未対応）
+
+### `plan` を実行せずに `apply` を実行するとどうなりますか？
+
+ツールは計画された変更を表示し、適用前に確認を求めます。`-y` フラグで確認をスキップできますが、初回使用時は推奨しません。
+
+### 組織レベルの設定を管理できますか？
+
+いいえ。このツールはリポジトリレベルの設定のみを管理します。組織設定は異なる API 権限が必要であり、対象外です。
 
 ## 開発
 

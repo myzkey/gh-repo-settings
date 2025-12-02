@@ -4,6 +4,25 @@
 
 YAML 설정을 통해 GitHub 저장소 설정을 관리하는 GitHub CLI 확장 프로그램입니다. Terraform의 워크플로우에서 영감을 받아 원하는 상태를 코드로 정의하고, 변경 사항을 미리 보고, 적용할 수 있습니다.
 
+## 왜 gh-repo-settings인가?
+
+GitHub 저장소 설정을 일관되게 관리하기는 어렵습니다:
+
+- Settings UI를 클릭하는 것은 확장성이 없음
+- 저장소 관리자가 원하는 설정에서 벗어나기 쉬움
+- Terraform의 GitHub Provider는 강력하지만 다음이 필요:
+  - 별도의 백엔드(상태 관리)
+  - GitHub Provider 인증 설정
+  - 저장소와 별도로 HCL 파일 관리
+
+**gh-repo-settings**가 제공하는 것:
+
+- **백엔드 불필요** - 상태 파일 관리 필요 없음
+- **외부 의존성 없음** - GitHub CLI만으로 동작
+- **YAML 설정** - `.github/`에 코드와 함께 배치
+- **Terraform 스타일 워크플로우** - 익숙한 `plan` / `apply` 명령어
+- **워크플로우 검증** - `status_checks`와 실제 워크플로우 작업 이름 불일치 감지
+
 ## 특징
 
 - **Infrastructure as Code**: YAML 파일로 저장소 설정 정의
@@ -91,6 +110,25 @@ gh repo-settings export -r owner/repo -s settings.yaml
 
 설정을 검증하고 적용하지 않고 계획된 변경 사항을 표시합니다.
 
+#### 출력 예시
+
+```diff
+Repository: owner/my-repo
+
+repo:
+  ~ description: "이전 설명" → "새 설명"
+
+labels:
+  + feature (color: 0e8a16)
+  ~ bug: color ff0000 → d73a4a
+  - old-label
+
+branch_protection (main):
+  ~ required_reviews: 1 → 2
+
+Plan: 2 to add, 2 to change, 1 to delete
+```
+
 ```bash
 # 모든 변경 사항 미리보기 (기본 경로 사용)
 gh repo-settings plan
@@ -150,6 +188,26 @@ gh repo-settings apply --env --secrets
 # 동기화 모드: 설정에 없는 변수/시크릿 삭제
 gh repo-settings apply --env --secrets --sync
 ```
+
+### ⚠️ 동기화 모드 경고
+
+`--sync` 플래그는 **파괴적인 작업**을 활성화합니다:
+
+- 설정에 정의되지 않은 라벨 삭제 (`labels.replace_default: true` 일 때)
+- 설정에 정의되지 않은 변수 삭제
+- 설정에 정의되지 않은 시크릿 삭제
+
+**적용 전 반드시 `plan --sync`를 실행**하여 삭제될 내용을 확인하세요:
+
+```bash
+# 적용 전 삭제 내용 미리보기
+gh repo-settings plan --env --secrets --sync
+
+# 계획이 올바르면 적용
+gh repo-settings apply --env --secrets --sync
+```
+
+> **팁**: CI에서 `--sync`를 사용할 때는 사람의 검토 없이 실행하지 마세요.
 
 ## 설정
 
@@ -465,6 +523,47 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+### 여러 저장소 관리
+
+이 도구는 **실행당 하나의 저장소**에 설정을 적용합니다. 동일한 설정을 여러 저장소에 적용하려면 GitHub Actions matrix 전략을 사용하세요:
+
+```yaml
+name: Sync Settings Across Repos
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/repo-settings.yaml"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo:
+          - myorg/service-a
+          - myorg/service-b
+          - myorg/service-c
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gh-repo-settings
+        run: gh extension install myzkey/gh-repo-settings
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+
+      - name: Apply settings to ${{ matrix.repo }}
+        run: gh repo-settings apply -y -r ${{ matrix.repo }}
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+```
+
+> **참고**: 모든 대상 저장소에 대한 관리자 권한이 있는 PAT (`ADMIN_TOKEN`)가 필요합니다.
+
 ## 전역 옵션
 
 | 옵션 | 설명 |
@@ -491,6 +590,32 @@ make build-all
 # 빌드 아티팩트 정리
 make clean
 ```
+
+## FAQ
+
+### 여러 저장소에 동시에 설정을 적용할 수 있나요?
+
+직접적으로는 불가능합니다. 이 도구는 **실행당 하나의 저장소**를 관리합니다.
+
+여러 저장소에 동일한 설정을 적용하려면:
+1. 각 저장소에 동일한 YAML 설정 배치, 또는
+2. GitHub Actions matrix 전략 사용 ([여러 저장소 관리](#여러-저장소-관리) 참조)
+
+### 여러 환경(dev/staging/prod)을 지원하나요?
+
+기본적으로 지원하지 않습니다. `env` 블록은 저장소당 하나의 변수/시크릿 세트를 관리합니다.
+
+환경별 값을 사용하려면:
+- 다른 `.env` 파일 (`.env.dev`, `.env.staging`, `.env.prod`)을 사용하고 CI에서 전환
+- GitHub Environments 사용 (아직 이 도구에서 미지원)
+
+### `plan` 없이 `apply`를 실행하면 어떻게 되나요?
+
+도구가 계획된 변경 사항을 표시하고 적용 전에 확인을 요청합니다. `-y` 플래그로 확인을 건너뛸 수 있습니다 (처음 사용 시에는 권장하지 않음).
+
+### 조직 수준 설정을 관리할 수 있나요?
+
+불가능합니다. 이 도구는 저장소 수준 설정만 관리합니다. 조직 설정은 다른 API 권한이 필요하며 범위를 벗어납니다.
 
 ## 라이선스
 
