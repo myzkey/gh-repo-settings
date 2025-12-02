@@ -247,14 +247,17 @@ func (c *Client) SetTopics(ctx context.Context, topics []string) error {
 	body := struct {
 		Names []string `json:"names"`
 	}{Names: topics}
-	bodyJSON, _ := json.Marshal(body)
+	bodyJSON, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("failed to marshal topics: %w", err)
+	}
 
 	args := []string{
 		"-X", "PUT",
 		"-H", "Accept: application/vnd.github+json",
 	}
 
-	_, err := c.ghAPIWithInput(ctx, endpoint, bodyJSON, args...)
+	_, err = c.ghAPIWithInput(ctx, endpoint, bodyJSON, args...)
 	return err
 }
 
@@ -328,25 +331,28 @@ func (c *Client) GetVariables(ctx context.Context) ([]VariableData, error) {
 func (c *Client) SetVariable(ctx context.Context, name, value string) error {
 	// First, try to get the variable to see if it exists
 	getEndpoint := fmt.Sprintf("repos/%s/%s/actions/variables/%s", c.Repo.Owner, c.Repo.Name, name)
-	_, err := c.ghAPI(ctx, getEndpoint)
+	_, getErr := c.ghAPI(ctx, getEndpoint)
 
 	payload := map[string]string{
 		"name":  name,
 		"value": value,
 	}
-	jsonData, _ := json.Marshal(payload)
-
+	jsonData, err := json.Marshal(payload)
 	if err != nil {
+		return fmt.Errorf("failed to marshal variable: %w", err)
+	}
+
+	if getErr != nil {
 		// Check if it's a 404 (not found) error
 		var apiErr *apperrors.APIError
-		if apperrors.As(err, &apiErr) && apiErr.StatusCode == 404 {
+		if apperrors.As(getErr, &apiErr) && apiErr.StatusCode == 404 {
 			// Variable doesn't exist, create it
 			createEndpoint := fmt.Sprintf("repos/%s/%s/actions/variables", c.Repo.Owner, c.Repo.Name)
 			_, err = c.ghAPIWithInput(ctx, createEndpoint, jsonData, "-X", "POST", "-H", "Accept: application/vnd.github+json")
 			return err
 		}
 		// Other error (permission denied, rate limited, etc.)
-		return fmt.Errorf("failed to check variable existence: %w", err)
+		return fmt.Errorf("failed to check variable existence: %w", getErr)
 	}
 
 	// Variable exists, update it

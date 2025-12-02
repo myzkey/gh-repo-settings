@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/myzkey/gh-repo-settings/internal/config"
@@ -185,14 +186,15 @@ func runInit(cmd *cobra.Command, args []string) error {
 		cfg.BranchProtection = make(map[string]*config.BranchRule)
 		rule := &config.BranchRule{}
 
-		var requiredReviews int
+		var requiredReviewsStr string
 		if err := survey.AskOne(&survey.Select{
 			Message: "Required approving reviews:",
 			Options: []string{"0", "1", "2", "3"},
 			Default: "1",
-		}, &requiredReviews); err != nil {
+		}, &requiredReviewsStr); err != nil {
 			return fmt.Errorf("prompt failed: %w", err)
 		}
+		requiredReviews, _ := strconv.Atoi(requiredReviewsStr)
 		if requiredReviews > 0 {
 			rule.RequiredReviews = &requiredReviews
 		}
