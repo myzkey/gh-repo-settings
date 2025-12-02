@@ -2,7 +2,28 @@
 
 [English](../README.md) | [日本語](./README.ja.md) | [简体中文](./README.zh-CN.md) | [한국어](./README.ko.md)
 
+**Gestiona la configuración de repositorios como código con YAML + GitHub CLI.**
+
 Una extensión de GitHub CLI para gestionar la configuración de repositorios mediante YAML. Inspirado en el flujo de trabajo de Terraform: define el estado deseado en código, previsualiza los cambios y aplícalos.
+
+## ¿Por qué gh-repo-settings?
+
+Gestionar la configuración de repositorios de GitHub de forma consistente es difícil:
+
+- Hacer clic en la UI de Settings no escala
+- Los administradores de repositorios suelen desviarse de la configuración deseada
+- El GitHub Provider de Terraform es potente, pero requiere:
+  - Un backend separado (gestión de estado)
+  - Configuración de autenticación del GitHub Provider
+  - Gestionar archivos HCL por separado del repositorio
+
+**gh-repo-settings** proporciona:
+
+- **Sin backend** - Sin archivos de estado que gestionar
+- **Sin dependencias externas** - Funciona completamente a través de GitHub CLI
+- **Configuración YAML** - Vive junto a tu código en `.github/`
+- **Flujo de trabajo estilo Terraform** - Comandos familiares `plan` / `apply`
+- **Validación de workflows** - Detecta discrepancias entre `status_checks` y nombres de jobs reales
 
 ## Características
 
@@ -91,6 +112,25 @@ gh repo-settings export -r owner/repo -s settings.yaml
 
 Valida la configuración y muestra los cambios planificados sin aplicarlos.
 
+#### Ejemplo de Salida
+
+```diff
+Repository: owner/my-repo
+
+repo:
+  ~ description: "Descripción anterior" → "Nueva descripción"
+
+labels:
+  + feature (color: 0e8a16)
+  ~ bug: color ff0000 → d73a4a
+  - old-label
+
+branch_protection (main):
+  ~ required_reviews: 1 → 2
+
+Plan: 2 to add, 2 to change, 1 to delete
+```
+
 ```bash
 # Previsualizar todos los cambios (usa ruta por defecto)
 gh repo-settings plan
@@ -150,6 +190,26 @@ gh repo-settings apply --env --secrets
 # Modo sincronización: eliminar variables/secrets no en config
 gh repo-settings apply --env --secrets --sync
 ```
+
+### ⚠️ Advertencia del Modo Sincronización
+
+El flag `--sync` habilita **operaciones destructivas**:
+
+- Elimina labels no definidos en tu configuración (cuando `labels.replace_default: true`)
+- Elimina variables no definidas en tu configuración
+- Elimina secrets no definidos en tu configuración
+
+**Siempre ejecuta `plan --sync` primero** para previsualizar qué se eliminará:
+
+```bash
+# Previsualizar eliminaciones ANTES de aplicar
+gh repo-settings plan --env --secrets --sync
+
+# Solo entonces aplica si el plan es correcto
+gh repo-settings apply --env --secrets --sync
+```
+
+> **Consejo**: Evita usar `--sync` en CI sin revisión humana.
 
 ## Configuración
 
@@ -465,6 +525,47 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+### Gestión de Múltiples Repositorios
+
+Esta herramienta aplica configuración a **un repositorio por ejecución**. Para aplicar la misma configuración a múltiples repositorios, usa la estrategia matrix de GitHub Actions:
+
+```yaml
+name: Sync Settings Across Repos
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/repo-settings.yaml"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo:
+          - myorg/service-a
+          - myorg/service-b
+          - myorg/service-c
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gh-repo-settings
+        run: gh extension install myzkey/gh-repo-settings
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+
+      - name: Apply settings to ${{ matrix.repo }}
+        run: gh repo-settings apply -y -r ${{ matrix.repo }}
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+```
+
+> **Nota**: Requiere un PAT (`ADMIN_TOKEN`) con acceso de administrador a todos los repositorios destino.
+
 ## Opciones Globales
 
 | Opción | Descripción |
@@ -491,6 +592,32 @@ make build-all
 # Limpiar artefactos de compilación
 make clean
 ```
+
+## FAQ
+
+### ¿Puedo aplicar configuración a múltiples repositorios a la vez?
+
+No directamente. Esta herramienta gestiona **un repositorio por ejecución**.
+
+Para aplicar la misma configuración a múltiples repositorios:
+1. Coloca la misma configuración YAML en cada repositorio, o
+2. Usa la estrategia matrix de GitHub Actions (ver [Gestión de Múltiples Repositorios](#gestión-de-múltiples-repositorios))
+
+### ¿Soporta múltiples entornos (dev/staging/prod)?
+
+No de forma nativa. El bloque `env` gestiona un conjunto de variables/secrets por repositorio.
+
+Para valores específicos por entorno, puedes:
+- Usar diferentes archivos `.env` (`.env.dev`, `.env.staging`, `.env.prod`) y cambiarlos en CI
+- Usar GitHub Environments (aún no soportado por esta herramienta)
+
+### ¿Qué pasa si ejecuto `apply` sin `plan` primero?
+
+La herramienta te mostrará los cambios planificados y pedirá confirmación antes de aplicar. Usa el flag `-y` para omitir la confirmación (no recomendado para el primer uso).
+
+### ¿Puedo gestionar configuración a nivel de organización?
+
+No. Esta herramienta solo gestiona configuración a nivel de repositorio. La configuración de organización requiere diferentes permisos de API y está fuera del alcance.
 
 ## Licencia
 

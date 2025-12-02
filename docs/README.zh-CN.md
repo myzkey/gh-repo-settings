@@ -4,6 +4,25 @@
 
 通过 YAML 配置管理 GitHub 仓库设置的 GitHub CLI 扩展。灵感来自 Terraform 的工作流程——用代码定义期望状态，预览变更，然后应用。
 
+## 为什么选择 gh-repo-settings？
+
+一致地管理 GitHub 仓库设置很困难：
+
+- 在 Settings UI 中点击操作无法扩展
+- 仓库管理员经常偏离期望的配置
+- Terraform 的 GitHub Provider 功能强大，但需要：
+  - 单独的后端（状态管理）
+  - GitHub Provider 认证设置
+  - 与仓库分开管理 HCL 文件
+
+**gh-repo-settings** 提供：
+
+- **零后端** - 无需管理状态文件
+- **零外部依赖** - 仅通过 GitHub CLI 工作
+- **YAML 配置** - 与代码一起放在 `.github/` 目录
+- **Terraform 风格工作流** - 熟悉的 `plan` / `apply` 命令
+- **工作流验证** - 检测 `status_checks` 与实际工作流作业名称的不匹配
+
 ## 特性
 
 - **基础设施即代码**: 用 YAML 文件定义仓库设置
@@ -91,6 +110,25 @@ gh repo-settings export -r owner/repo -s settings.yaml
 
 验证配置并显示计划的变更，不实际应用。
 
+#### 输出示例
+
+```diff
+Repository: owner/my-repo
+
+repo:
+  ~ description: "旧描述" → "新描述"
+
+labels:
+  + feature (color: 0e8a16)
+  ~ bug: color ff0000 → d73a4a
+  - old-label
+
+branch_protection (main):
+  ~ required_reviews: 1 → 2
+
+Plan: 2 to add, 2 to change, 1 to delete
+```
+
 ```bash
 # 预览所有变更（使用默认配置路径）
 gh repo-settings plan
@@ -150,6 +188,26 @@ gh repo-settings apply --env --secrets
 # 同步模式：删除配置中没有的变量/密钥
 gh repo-settings apply --env --secrets --sync
 ```
+
+### ⚠️ 同步模式警告
+
+`--sync` 标志启用**破坏性操作**：
+
+- 删除配置中未定义的标签（当 `labels.replace_default: true` 时）
+- 删除配置中未定义的变量
+- 删除配置中未定义的密钥
+
+**应用前务必先运行 `plan --sync`** 预览将被删除的内容：
+
+```bash
+# 应用前预览删除内容
+gh repo-settings plan --env --secrets --sync
+
+# 确认计划正确后再应用
+gh repo-settings apply --env --secrets --sync
+```
+
+> **提示**：在 CI 中使用 `--sync` 时，不要在没有人工审查的情况下运行。
 
 ## 配置
 
@@ -465,6 +523,47 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+### 管理多个仓库
+
+此工具**每次执行管理一个仓库**。要用相同配置管理多个仓库，请使用 GitHub Actions matrix 策略：
+
+```yaml
+name: Sync Settings Across Repos
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/repo-settings.yaml"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo:
+          - myorg/service-a
+          - myorg/service-b
+          - myorg/service-c
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gh-repo-settings
+        run: gh extension install myzkey/gh-repo-settings
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+
+      - name: Apply settings to ${{ matrix.repo }}
+        run: gh repo-settings apply -y -r ${{ matrix.repo }}
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+```
+
+> **注意**：需要对所有目标仓库具有管理员访问权限的 PAT（`ADMIN_TOKEN`）。
+
 ## 全局选项
 
 | 选项 | 描述 |
@@ -472,6 +571,32 @@ jobs:
 | `-v, --verbose` | 显示调试输出 |
 | `-q, --quiet` | 仅显示错误 |
 | `-r, --repo <owner/name>` | 目标仓库（默认：当前仓库） |
+
+## 常见问题
+
+### 可以一次性将设置应用到多个仓库吗？
+
+不能直接做到。此工具**每次执行管理一个仓库**。
+
+要将相同配置应用到多个仓库：
+1. 在每个仓库中放置相同的 YAML 配置，或
+2. 使用 GitHub Actions matrix 策略（参见[管理多个仓库](#管理多个仓库)）
+
+### 支持多环境（dev/staging/prod）吗？
+
+原生不支持。`env` 块为每个仓库管理一组变量/密钥。
+
+对于环境特定的值，您可以：
+- 在 CI 中切换不同的 `.env` 文件（`.env.dev`、`.env.staging`、`.env.prod`）
+- 使用 GitHub Environments（此工具尚不支持）
+
+### 不运行 `plan` 直接运行 `apply` 会怎样？
+
+工具会显示计划的变更并在应用前请求确认。使用 `-y` 标志可跳过确认（首次使用时不推荐）。
+
+### 可以管理组织级别的设置吗？
+
+不可以。此工具仅管理仓库级别的设置。组织设置需要不同的 API 权限，不在此工具范围内。
 
 ## 开发
 

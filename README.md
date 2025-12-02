@@ -7,9 +7,28 @@
 
 [日本語](./docs/README.ja.md) | [简体中文](./docs/README.zh-CN.md) | [한국어](./docs/README.ko.md) | [Español](./docs/README.es.md)
 
-**Keep your repo settings, labels and branch protections in sync across dozens of repositories via YAML + GitHub CLI.**
+**Manage repository settings as code with YAML + GitHub CLI.**
 
 A GitHub CLI extension to manage repository settings via YAML configuration. Inspired by Terraform's workflow - define your desired state in code, see planned changes, and apply them.
+
+## Why gh-repo-settings?
+
+GitHub repository settings are hard to manage consistently:
+
+- Clicking through the Settings UI doesn't scale
+- Repository admins often drift from the desired configuration
+- Terraform's GitHub provider is powerful, but requires:
+  - A separate backend (state management)
+  - GitHub provider authentication setup
+  - Managing HCL files separately from your repository
+
+**gh-repo-settings** provides:
+
+- **Zero backend** - No state files to manage
+- **Zero external dependencies** - Works entirely through GitHub CLI
+- **YAML configuration** - Lives alongside your code in `.github/`
+- **Terraform-like workflow** - Familiar `plan` / `apply` commands
+- **Workflow validation** - Detects mismatches between `status_checks` and actual workflow job names
 
 ## Features
 
@@ -98,6 +117,25 @@ gh repo-settings export -r owner/repo -s settings.yaml
 
 Validate configuration and show planned changes without applying them.
 
+#### Example Output
+
+```diff
+Repository: owner/my-repo
+
+repo:
+  ~ description: "Old description" → "New description"
+
+labels:
+  + feature (color: 0e8a16)
+  ~ bug: color ff0000 → d73a4a
+  - old-label
+
+branch_protection (main):
+  ~ required_reviews: 1 → 2
+
+Plan: 2 to add, 2 to change, 1 to delete
+```
+
 ```bash
 # Preview all changes (uses default config path)
 gh repo-settings plan
@@ -157,6 +195,26 @@ gh repo-settings apply --env --secrets
 # Sync mode: delete variables/secrets not in config
 gh repo-settings apply --env --secrets --sync
 ```
+
+### ⚠️ Sync Mode Warning
+
+The `--sync` flag enables **destructive operations**:
+
+- Deletes labels not defined in your config (when `labels.replace_default: true`)
+- Deletes variables not defined in your config
+- Deletes secrets not defined in your config
+
+**Always run `plan --sync` first** to preview what will be deleted:
+
+```bash
+# Preview deletions BEFORE applying
+gh repo-settings plan --env --secrets --sync
+
+# Only then apply if the plan looks correct
+gh repo-settings apply --env --secrets --sync
+```
+
+> **Tip**: Avoid using `--sync` in CI without human review.
 
 ## Configuration
 
@@ -472,6 +530,47 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+### Managing Multiple Repositories
+
+This tool applies settings to **one repository per execution**. To manage multiple repositories with the same configuration, use GitHub Actions matrix strategy:
+
+```yaml
+name: Sync Settings Across Repos
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/repo-settings.yaml"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo:
+          - myorg/service-a
+          - myorg/service-b
+          - myorg/service-c
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gh-repo-settings
+        run: gh extension install myzkey/gh-repo-settings
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+
+      - name: Apply settings to ${{ matrix.repo }}
+        run: gh repo-settings apply -y -r ${{ matrix.repo }}
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+```
+
+> **Note**: Requires a PAT (`ADMIN_TOKEN`) with admin access to all target repositories.
+
 ## Global Options
 
 | Option | Description |
@@ -502,6 +601,32 @@ gh auth login
 
 - **`GITHUB_TOKEN` (GitHub Actions)**: Works for most operations within the same repository. However, branch protection rules require admin access, which `GITHUB_TOKEN` may not have by default.
 - **Personal Access Token (PAT)**: Required for cross-repository operations or when `GITHUB_TOKEN` lacks sufficient permissions. Use a fine-grained PAT with `Repository administration` permission for full functionality.
+
+## FAQ
+
+### Can I apply settings to multiple repositories at once?
+
+Not directly. This tool manages **one repository per execution**.
+
+To apply the same configuration across multiple repositories:
+1. Place the same YAML config in each repository, or
+2. Use GitHub Actions matrix strategy (see [Managing Multiple Repositories](#managing-multiple-repositories))
+
+### Does this tool support multiple environments (dev/staging/prod)?
+
+Not natively. The `env` block manages one set of variables/secrets per repository.
+
+For environment-specific values, you can:
+- Use different `.env` files (`.env.dev`, `.env.staging`, `.env.prod`) and switch them in CI
+- Use GitHub Environments (not yet supported by this tool)
+
+### What happens if I run `apply` without `plan` first?
+
+The tool will show you the planned changes and ask for confirmation before applying. Use `-y` flag to skip confirmation (not recommended for first-time use).
+
+### Can I manage organization-level settings?
+
+No. This tool only manages repository-level settings. Organization settings require different API permissions and are out of scope.
 
 ## Development
 
