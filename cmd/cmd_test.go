@@ -509,6 +509,174 @@ func TestPrintPlan(t *testing.T) {
 	_ = plan
 }
 
+// Test printPlan output format
+func TestPrintPlanOutput(t *testing.T) {
+	tests := []struct {
+		name        string
+		changes     []diff.Change
+		wantDeletes bool
+	}{
+		{
+			name:        "empty plan",
+			changes:     []diff.Change{},
+			wantDeletes: false,
+		},
+		{
+			name: "repo update",
+			changes: []diff.Change{
+				{Category: "repo", Key: "description", Type: diff.ChangeUpdate, Old: "old", New: "new"},
+			},
+			wantDeletes: false,
+		},
+		{
+			name: "label add",
+			changes: []diff.Change{
+				{Category: "labels", Key: "bug", Type: diff.ChangeAdd, New: "color=red"},
+			},
+			wantDeletes: false,
+		},
+		{
+			name: "label delete",
+			changes: []diff.Change{
+				{Category: "labels", Key: "old-label", Type: diff.ChangeDelete, Old: "deleted"},
+			},
+			wantDeletes: true,
+		},
+		{
+			name: "multiple categories",
+			changes: []diff.Change{
+				{Category: "repo", Key: "visibility", Type: diff.ChangeUpdate, Old: "private", New: "public"},
+				{Category: "topics", Key: "topics", Type: diff.ChangeUpdate, Old: []string{"old"}, New: []string{"new"}},
+				{Category: "branch_protection", Key: "main.required_reviews", Type: diff.ChangeUpdate, Old: 1, New: 2},
+				{Category: "actions", Key: "enabled", Type: diff.ChangeUpdate, Old: false, New: true},
+				{Category: "pages", Key: "build_type", Type: diff.ChangeUpdate, Old: "legacy", New: "workflow"},
+				{Category: "variables", Key: "NODE_ENV", Type: diff.ChangeAdd, New: "production"},
+				{Category: "secrets", Key: "API_KEY", Type: diff.ChangeAdd, New: "***"},
+			},
+			wantDeletes: false,
+		},
+		{
+			name: "with delete",
+			changes: []diff.Change{
+				{Category: "variables", Key: "OLD_VAR", Type: diff.ChangeDelete, Old: "value"},
+			},
+			wantDeletes: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			plan := &diff.Plan{Changes: tt.changes}
+			hasDeletes := printPlan(plan)
+			if hasDeletes != tt.wantDeletes {
+				t.Errorf("printPlan() hasDeletes = %v, want %v", hasDeletes, tt.wantDeletes)
+			}
+		})
+	}
+}
+
+// Test groupChanges helper logic via applyChanges structure
+func TestChangeCategoryGrouping(t *testing.T) {
+	changes := []diff.Change{
+		{Category: "repo", Key: "description", Type: diff.ChangeUpdate},
+		{Category: "repo", Key: "visibility", Type: diff.ChangeUpdate},
+		{Category: "topics", Key: "topics", Type: diff.ChangeUpdate},
+		{Category: "labels", Key: "bug", Type: diff.ChangeAdd},
+		{Category: "labels", Key: "feature", Type: diff.ChangeUpdate},
+		{Category: "branch_protection", Key: "main.required_reviews", Type: diff.ChangeUpdate},
+		{Category: "branch_protection", Key: "develop.required_reviews", Type: diff.ChangeUpdate},
+		{Category: "actions", Key: "enabled", Type: diff.ChangeUpdate},
+		{Category: "pages", Key: "build_type", Type: diff.ChangeUpdate},
+		{Category: "variables", Key: "NODE_ENV", Type: diff.ChangeAdd},
+		{Category: "secrets", Key: "API_KEY", Type: diff.ChangeAdd},
+	}
+
+	// Group changes by category (same logic as applyChanges)
+	repoChanges := make(map[string]interface{})
+	var topicsChanged bool
+	var labelChanges []diff.Change
+	branchProtectionChanges := make(map[string][]diff.Change)
+	var actionsChanges []diff.Change
+	var pagesChanges []diff.Change
+	var variableChanges []diff.Change
+	var secretChanges []diff.Change
+
+	for _, change := range changes {
+		switch change.Category {
+		case "repo":
+			repoChanges[change.Key] = change.New
+		case "topics":
+			topicsChanged = true
+		case "labels":
+			labelChanges = append(labelChanges, change)
+		case "branch_protection":
+			branchName := extractBranchName(change.Key)
+			branchProtectionChanges[branchName] = append(branchProtectionChanges[branchName], change)
+		case "actions":
+			actionsChanges = append(actionsChanges, change)
+		case "pages":
+			pagesChanges = append(pagesChanges, change)
+		case "variables":
+			variableChanges = append(variableChanges, change)
+		case "secrets":
+			secretChanges = append(secretChanges, change)
+		}
+	}
+
+	// Verify grouping
+	if len(repoChanges) != 2 {
+		t.Errorf("expected 2 repo changes, got %d", len(repoChanges))
+	}
+	if !topicsChanged {
+		t.Error("expected topicsChanged to be true")
+	}
+	if len(labelChanges) != 2 {
+		t.Errorf("expected 2 label changes, got %d", len(labelChanges))
+	}
+	if len(branchProtectionChanges) != 2 {
+		t.Errorf("expected 2 branch protection branches, got %d", len(branchProtectionChanges))
+	}
+	if len(actionsChanges) != 1 {
+		t.Errorf("expected 1 actions change, got %d", len(actionsChanges))
+	}
+	if len(pagesChanges) != 1 {
+		t.Errorf("expected 1 pages change, got %d", len(pagesChanges))
+	}
+	if len(variableChanges) != 1 {
+		t.Errorf("expected 1 variable change, got %d", len(variableChanges))
+	}
+	if len(secretChanges) != 1 {
+		t.Errorf("expected 1 secret change, got %d", len(secretChanges))
+	}
+}
+
+// Test extractBranchName with more edge cases
+func TestExtractBranchNameEdgeCases(t *testing.T) {
+	tests := []struct {
+		key    string
+		expect string
+	}{
+		{"main.required_reviews", "main"},
+		{"develop.dismiss_stale_reviews", "develop"},
+		{"feature/test.strict_status_checks", "feature/test"},
+		{"release-1.0.enforce_admins", "release-1"},
+		{"no-dot-here", "no-dot-here"},
+		{"", ""},
+		{".", ""},
+		{".only-dot", ""},
+		{"a.b.c.d", "a"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			got := extractBranchName(tt.key)
+			if got != tt.expect {
+				t.Errorf("extractBranchName(%q) = %q, want %q", tt.key, got, tt.expect)
+			}
+		})
+	}
+}
+
 // Helper function
 func containsStr(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstr(s, substr))
