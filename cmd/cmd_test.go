@@ -413,6 +413,21 @@ func TestPlanCommand(t *testing.T) {
 		if envFlag == nil {
 			t.Error("missing --env flag")
 		}
+
+		showCurrentFlag := planCmd.Flags().Lookup("show-current")
+		if showCurrentFlag == nil {
+			t.Error("missing --show-current flag")
+		}
+
+		syncFlag := planCmd.Flags().Lookup("sync")
+		if syncFlag == nil {
+			t.Error("missing --sync flag")
+		}
+
+		jsonFlag := planCmd.Flags().Lookup("json")
+		if jsonFlag == nil {
+			t.Error("missing --json flag")
+		}
 	})
 }
 
