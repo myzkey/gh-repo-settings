@@ -38,6 +38,16 @@ func (e *EnvConfig) Validate() error {
 		}
 	}
 
+	// Check for name conflicts between variables and secrets
+	for _, secretName := range e.Secrets {
+		if _, exists := e.Variables[secretName]; exists {
+			return apperrors.NewValidationError(
+				"env",
+				fmt.Sprintf("name %q is defined as both a variable and a secret", secretName),
+			)
+		}
+	}
+
 	return nil
 }
 
