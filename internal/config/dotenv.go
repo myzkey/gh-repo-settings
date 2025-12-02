@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/myzkey/gh-repo-settings/internal/logger"
 )
 
 // DotEnvValues holds parsed values from .github/.env file
@@ -33,7 +35,9 @@ func LoadDotEnv(configPath string) (*DotEnvValues, error) {
 	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
+	lineNum := 0
 	for scanner.Scan() {
+		lineNum++
 		line := strings.TrimSpace(scanner.Text())
 
 		// Skip empty lines and comments
@@ -44,6 +48,7 @@ func LoadDotEnv(configPath string) (*DotEnvValues, error) {
 		// Parse KEY=VALUE
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) != 2 {
+			logger.Warn(".env:%d: skipping malformed line (missing '='): %s", lineNum, line)
 			continue
 		}
 
