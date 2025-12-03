@@ -68,6 +68,15 @@ type BranchRule struct {
 type EnvConfig struct {
 	Variables map[string]string `yaml:"variables,omitempty" json:"variables,omitempty" jsonschema:"description=Repository variables with optional default values"`
 	Secrets   []string          `yaml:"secrets,omitempty" json:"secrets,omitempty" jsonschema:"description=List of secret names to manage"`
+	Provider  *ProviderConfig   `yaml:"provider,omitempty" json:"provider,omitempty" jsonschema:"description=External secret provider configuration"`
+}
+
+// ProviderConfig represents the configuration for a secret provider
+type ProviderConfig struct {
+	Name   string `yaml:"name" json:"name" jsonschema:"description=Provider name,enum=secretsmanager,required"`
+	Secret string `yaml:"secret" json:"secret" jsonschema:"description=Secret name/path in AWS Secrets Manager,required"`
+	Region string `yaml:"region,omitempty" json:"region,omitempty" jsonschema:"description=AWS region"`
+	Output string `yaml:"output,omitempty" json:"output,omitempty" jsonschema:"description=Output mode: file (write to .env) or memory (in-memory only),enum=file,enum=memory,default=file"`
 }
 
 // ActionsConfig represents GitHub Actions permissions configuration

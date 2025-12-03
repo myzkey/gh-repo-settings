@@ -110,18 +110,22 @@
     "EnvConfig": {
       "properties": {
         "variables": {
-          "type": "object",
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Repository variables (key-value pairs). Values can be overridden by .env file"
+          "type": "object",
+          "description": "Repository variables with optional default values"
         },
         "secrets": {
           "items": {
             "type": "string"
           },
           "type": "array",
-          "description": "List of secret names. Values are read from .env file or prompted interactively"
+          "description": "List of secret names to manage"
+        },
+        "provider": {
+          "$ref": "#/$defs/ProviderConfig",
+          "description": "External secret provider configuration"
         }
       },
       "additionalProperties": false,
@@ -202,6 +206,40 @@
       },
       "additionalProperties": false,
       "type": "object"
+    },
+    "ProviderConfig": {
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "secretsmanager"
+          ],
+          "description": "Provider name"
+        },
+        "secret": {
+          "type": "string",
+          "description": "Secret name/path in AWS Secrets Manager"
+        },
+        "region": {
+          "type": "string",
+          "description": "AWS region"
+        },
+        "output": {
+          "type": "string",
+          "enum": [
+            "file",
+            "memory"
+          ],
+          "description": "Output mode: file (write to .env) or memory (in-memory only)",
+          "default": "file"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "name",
+        "secret"
+      ]
     },
     "RepoConfig": {
       "properties": {

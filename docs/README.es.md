@@ -404,6 +404,67 @@ gh repo-settings apply --env --secrets --sync
 
 Si el valor de un secret no se encuentra en `.env`, se solicitará entrada interactiva durante `apply`.
 
+#### Carga de Secrets desde AWS Secrets Manager
+
+Puede cargar automáticamente secrets desde AWS Secrets Manager y escribirlos en `.env`:
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets  # Nombre del secret en AWS Secrets Manager
+    region: ap-northeast-1
+```
+
+Esto obtiene todas las claves del JSON del secret y las escribe en `.github/.env`.
+
+**Ejemplo**: Si su secret de AWS contiene:
+```json
+{
+  "API_TOKEN": "secret-value",
+  "DB_PASSWORD": "db-secret"
+}
+```
+
+Ejecutar `gh repo-settings plan --secrets` escribirá en `.github/.env`:
+```
+# Added by provider: 2024-01-15 10:30:00
+API_TOKEN=secret-value
+DB_PASSWORD=db-secret
+```
+
+**Filtrar claves específicas**: Para cargar solo claves específicas, especifíquelas en `secrets`:
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets
+    region: ap-northeast-1
+  secrets:
+    - API_TOKEN  # Solo cargar esta clave
+```
+
+**Modo memoria**: Para cargar secrets sin escribir en archivo (solo en memoria):
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets
+    region: ap-northeast-1
+    output: memory
+```
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `provider.name` | `secretsmanager` | Tipo de proveedor |
+| `provider.secret` | string | Nombre/ruta del secret en AWS Secrets Manager |
+| `provider.region` | string | Región de AWS |
+| `provider.output` | `file` \| `memory` | Modo de salida (predeterminado: `file`) |
+
+> **Nota**: Requiere AWS CLI configurado con credenciales apropiadas.
+
 ### `actions` - Permisos de GitHub Actions
 
 Configura los permisos de GitHub Actions para el repositorio:

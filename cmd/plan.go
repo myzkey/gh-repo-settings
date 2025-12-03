@@ -92,9 +92,33 @@ func runPlan(cmd *cobra.Command, args []string) error {
 	if configPath == "" {
 		configPath = config.DefaultSingleFile
 	}
+
+	var providerResult *config.ProviderResult
+
+	// Load secrets from provider if configured
+	if cfg.Env != nil && cfg.Env.Provider != nil {
+		// Collect keys to filter (empty means all keys)
+		var keysToLoad []string
+		keysToLoad = append(keysToLoad, cfg.Env.Secrets...)
+
+		var err error
+		providerResult, err = config.LoadFromProvider(ctx, cfg.Env.Provider, keysToLoad, configPath)
+		if err != nil {
+			if !jsonOutput {
+				logger.Warn("Failed to load from provider: %v", err)
+			}
+		}
+	}
+
+	// Load .env file
 	dotEnvValues, err := config.LoadDotEnv(configPath)
 	if err != nil {
 		logger.Debug("Failed to load .env file: %v", err)
+	}
+
+	// If provider used memory mode, merge the values
+	if providerResult != nil && !providerResult.WrittenFile && len(providerResult.Values) > 0 {
+		dotEnvValues.Merge(&config.DotEnvValues{Values: providerResult.Values})
 	}
 
 	// Validate status checks against workflow files (skip in JSON mode)

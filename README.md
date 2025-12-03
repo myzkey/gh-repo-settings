@@ -409,6 +409,67 @@ gh repo-settings apply --env --secrets --sync
 
 If a secret value is not found in `.env`, you'll be prompted to enter it interactively during `apply`.
 
+#### Loading Secrets from AWS Secrets Manager
+
+You can automatically load secrets from AWS Secrets Manager and write them to `.env`:
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets  # Secret name in AWS Secrets Manager
+    region: ap-northeast-1
+```
+
+This fetches all keys from the secret JSON and writes them to `.github/.env`.
+
+**Example**: If your AWS secret contains:
+```json
+{
+  "API_TOKEN": "secret-value",
+  "DB_PASSWORD": "db-secret"
+}
+```
+
+Running `gh repo-settings plan --secrets` will write to `.github/.env`:
+```
+# Added by provider: 2024-01-15 10:30:00
+API_TOKEN=secret-value
+DB_PASSWORD=db-secret
+```
+
+**Filter specific keys**: To load only specific keys, specify them in `secrets`:
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets
+    region: ap-northeast-1
+  secrets:
+    - API_TOKEN  # Only load this key
+```
+
+**Memory mode**: To load secrets without writing to file (in-memory only):
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets
+    region: ap-northeast-1
+    output: memory
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `provider.name` | `secretsmanager` | Provider type |
+| `provider.secret` | string | Secret name/path in AWS Secrets Manager |
+| `provider.region` | string | AWS region |
+| `provider.output` | `file` \| `memory` | Output mode (default: `file`) |
+
+> **Note**: Requires AWS CLI configured with appropriate credentials.
+
 ### `actions` - GitHub Actions Permissions
 
 Configure GitHub Actions permissions for the repository:
