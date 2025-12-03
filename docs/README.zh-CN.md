@@ -402,6 +402,67 @@ gh repo-settings apply --env --secrets --sync
 
 如果密钥的值在 `.env` 中不存在，`apply` 时会提示交互式输入。
 
+#### 从 AWS Secrets Manager 加载密钥
+
+可以自动从 AWS Secrets Manager 加载密钥并写入 `.env`：
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets  # AWS Secrets Manager 中的密钥名称
+    region: ap-northeast-1
+```
+
+这将从密钥 JSON 中获取所有键并写入 `.github/.env`。
+
+**示例**：如果 AWS 密钥包含：
+```json
+{
+  "API_TOKEN": "secret-value",
+  "DB_PASSWORD": "db-secret"
+}
+```
+
+运行 `gh repo-settings plan --secrets` 将写入 `.github/.env`：
+```
+# Added by provider: 2024-01-15 10:30:00
+API_TOKEN=secret-value
+DB_PASSWORD=db-secret
+```
+
+**只获取特定键**：要只加载特定的键，在 `secrets` 中指定：
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets
+    region: ap-northeast-1
+  secrets:
+    - API_TOKEN  # 只获取此键
+```
+
+**内存模式**：不写入文件，只在内存中加载：
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets
+    region: ap-northeast-1
+    output: memory
+```
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| `provider.name` | `secretsmanager` | 提供者类型 |
+| `provider.secret` | string | AWS Secrets Manager 中的密钥名称/路径 |
+| `provider.region` | string | AWS 区域 |
+| `provider.output` | `file` \| `memory` | 输出模式（默认：`file`） |
+
+> **注意**：需要配置好凭证的 AWS CLI。
+
 ### `actions` - GitHub Actions 权限设置
 
 配置仓库的 GitHub Actions 权限：

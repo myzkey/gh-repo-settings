@@ -402,6 +402,67 @@ gh repo-settings apply --env --secrets --sync
 
 시크릿 값이 `.env`에 없으면 `apply` 시 대화형으로 입력을 요청합니다.
 
+#### AWS Secrets Manager에서 시크릿 로드
+
+AWS Secrets Manager에서 자동으로 시크릿을 로드하여 `.env`에 기록할 수 있습니다:
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets  # AWS Secrets Manager의 시크릿 이름
+    region: ap-northeast-1
+```
+
+시크릿 JSON에서 모든 키를 가져와 `.github/.env`에 기록합니다.
+
+**예시**: AWS 시크릿에 다음이 포함된 경우:
+```json
+{
+  "API_TOKEN": "secret-value",
+  "DB_PASSWORD": "db-secret"
+}
+```
+
+`gh repo-settings plan --secrets` 실행 시 `.github/.env`에 기록됩니다:
+```
+# Added by provider: 2024-01-15 10:30:00
+API_TOKEN=secret-value
+DB_PASSWORD=db-secret
+```
+
+**특정 키만 가져오기**: 특정 키만 로드하려면 `secrets`에 지정:
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets
+    region: ap-northeast-1
+  secrets:
+    - API_TOKEN  # 이 키만 가져오기
+```
+
+**메모리 모드**: 파일에 기록하지 않고 메모리에서만 로드:
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets
+    region: ap-northeast-1
+    output: memory
+```
+
+| 필드 | 타입 | 설명 |
+|-----|------|------|
+| `provider.name` | `secretsmanager` | 프로바이더 유형 |
+| `provider.secret` | string | AWS Secrets Manager의 시크릿 이름/경로 |
+| `provider.region` | string | AWS 리전 |
+| `provider.output` | `file` \| `memory` | 출력 모드 (기본값: `file`) |
+
+> **참고**: 적절한 자격 증명이 구성된 AWS CLI가 필요합니다.
+
 ### `actions` - GitHub Actions 권한 설정
 
 저장소의 GitHub Actions 권한을 설정합니다:

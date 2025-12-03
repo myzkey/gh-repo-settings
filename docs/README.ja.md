@@ -402,6 +402,67 @@ gh repo-settings apply --env --secrets --sync
 
 シークレットの値が `.env` にない場合、`apply` 時に対話形式で入力を求められます。
 
+#### AWS Secrets Manager からのシークレット読み込み
+
+AWS Secrets Manager からシークレットを自動的に読み込み、`.env` に書き出すことができます：
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets  # AWS Secrets Manager のシークレット名
+    region: ap-northeast-1
+```
+
+シークレットの JSON から全てのキーを取得し、`.github/.env` に書き出します。
+
+**例**: AWS シークレットに以下が含まれている場合：
+```json
+{
+  "API_TOKEN": "secret-value",
+  "DB_PASSWORD": "db-secret"
+}
+```
+
+`gh repo-settings plan --secrets` を実行すると `.github/.env` に書き出されます：
+```
+# Added by provider: 2024-01-15 10:30:00
+API_TOKEN=secret-value
+DB_PASSWORD=db-secret
+```
+
+**特定のキーのみ取得**: 特定のキーのみを読み込む場合は `secrets` で指定：
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets
+    region: ap-northeast-1
+  secrets:
+    - API_TOKEN  # このキーのみ取得
+```
+
+**メモリモード**: ファイルに書き出さず、メモリ上でのみ読み込む場合：
+
+```yaml
+env:
+  provider:
+    name: secretsmanager
+    secret: /myapp/prod/secrets
+    region: ap-northeast-1
+    output: memory
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `provider.name` | `secretsmanager` | プロバイダー種別 |
+| `provider.secret` | string | AWS Secrets Manager のシークレット名/パス |
+| `provider.region` | string | AWS リージョン |
+| `provider.output` | `file` \| `memory` | 出力モード（デフォルト: `file`） |
+
+> **注意**: 適切な認証情報が設定された AWS CLI が必要です。
+
 ### `actions` - GitHub Actions 権限設定
 
 リポジトリの GitHub Actions 権限を設定:
