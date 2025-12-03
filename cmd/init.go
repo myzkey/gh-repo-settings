@@ -1,31 +1,58 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
+	"syscall"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/myzkey/gh-repo-settings/internal/config"
+	"github.com/myzkey/gh-repo-settings/internal/github"
+	"github.com/myzkey/gh-repo-settings/internal/logger"
 	"github.com/spf13/cobra"
 )
 
-var initOutput string
+var (
+	initOutput     string
+	initFromRepo   string
+	initSingleFile bool
+	initDirectory  bool
+)
 
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize a new configuration file interactively",
-	Long:  `Create a new repository settings configuration file with interactive prompts.`,
-	RunE:  runInit,
+	Long: `Create a new repository settings configuration file with interactive prompts.
+
+When --from-repo is specified, it imports settings from an existing GitHub repository
+instead of using interactive prompts. This is useful for bootstrapping new repositories
+based on a template or known-good configuration.
+
+Example:
+  gh repo-settings init --from-repo owner/repo-template
+  gh repo-settings init --from-repo owner/repo-template --single-file
+  gh repo-settings init --from-repo owner/repo-template --directory`,
+	RunE: runInit,
 }
 
 func init() {
 	rootCmd.AddCommand(initCmd)
 	initCmd.Flags().StringVarP(&initOutput, "output", "o", "", "Output file path (default: .github/repo-settings.yaml)")
+	initCmd.Flags().StringVar(&initFromRepo, "from-repo", "", "Import settings from an existing repository (owner/repo)")
+	initCmd.Flags().BoolVar(&initSingleFile, "single-file", false, "Output as a single YAML file (with --from-repo)")
+	initCmd.Flags().BoolVar(&initDirectory, "directory", false, "Output as directory with multiple YAML files (with --from-repo)")
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
+	// If --from-repo is specified, import from existing repository
+	if initFromRepo != "" {
+		return runInitFromRepo(cmd, args)
+	}
+
 	fmt.Println("gh-repo-settings configuration wizard")
 	fmt.Println()
 
@@ -361,4 +388,199 @@ func trimString(s string) string {
 		end--
 	}
 	return s[start:end]
+}
+
+// runInitFromRepo imports settings from an existing GitHub repository
+func runInitFromRepo(cmd *cobra.Command, args []string) error {
+	// Validate flags
+	if initSingleFile && initDirectory {
+		return fmt.Errorf("cannot use both --single-file and --directory flags")
+	}
+
+	// Setup context with cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle interrupt signals
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		logger.Info("Received interrupt, cancelling...")
+		cancel()
+	}()
+
+	logger.Info("Importing settings from %s...", initFromRepo)
+
+	// Fetch settings from the source repository
+	cfg, err := fetchRepoSettings(ctx, initFromRepo)
+	if err != nil {
+		return fmt.Errorf("failed to fetch settings from %s: %w", initFromRepo, err)
+	}
+
+	// Determine output path
+	outputPath := initOutput
+	if outputPath == "" {
+		if initDirectory {
+			outputPath = ".github/repo-settings/"
+		} else {
+			outputPath = ".github/repo-settings.yaml"
+		}
+	}
+
+	// Write config
+	if initDirectory || (outputPath != "" && outputPath[len(outputPath)-1] == '/') {
+		return writeConfigToDirectory(cfg, outputPath)
+	}
+	return writeConfigToFile(cfg, outputPath)
+}
+
+// fetchRepoSettings fetches settings from a GitHub repository
+func fetchRepoSettings(ctx context.Context, repoArg string) (*config.Config, error) {
+	client, err := github.NewClientWithContext(ctx, repoArg)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := &config.Config{}
+
+	// Get repo settings
+	repoData, err := client.GetRepo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repo settings: %w", err)
+	}
+
+	cfg.Repo = &config.RepoConfig{
+		Description:         repoData.Description,
+		Homepage:            repoData.Homepage,
+		Visibility:          &repoData.Visibility,
+		AllowMergeCommit:    &repoData.AllowMergeCommit,
+		AllowRebaseMerge:    &repoData.AllowRebaseMerge,
+		AllowSquashMerge:    &repoData.AllowSquashMerge,
+		DeleteBranchOnMerge: &repoData.DeleteBranchOnMerge,
+		AllowUpdateBranch:   &repoData.AllowUpdateBranch,
+	}
+
+	// Get topics
+	if len(repoData.Topics) > 0 {
+		cfg.Topics = repoData.Topics
+	}
+
+	// Get labels
+	labels, err := client.GetLabels(ctx)
+	if err == nil && len(labels) > 0 {
+		cfg.Labels = &config.LabelsConfig{
+			ReplaceDefault: false,
+			Items:          make([]config.Label, len(labels)),
+		}
+		for i, l := range labels {
+			cfg.Labels.Items[i] = config.Label{
+				Name:        l.Name,
+				Color:       l.Color,
+				Description: l.Description,
+			}
+		}
+	}
+
+	// Note: Secrets cannot be read via API, so we skip them
+	// Variables can be read, but we skip them by default for security
+
+	// Get actions permissions
+	actionsPerms, err := client.GetActionsPermissions(ctx)
+	if err == nil {
+		cfg.Actions = &config.ActionsConfig{
+			Enabled:        &actionsPerms.Enabled,
+			AllowedActions: &actionsPerms.AllowedActions,
+		}
+
+		// Get selected actions if applicable
+		if actionsPerms.AllowedActions == "selected" {
+			selected, err := client.GetActionsSelectedActions(ctx)
+			if err == nil {
+				cfg.Actions.SelectedActions = &config.SelectedActionsConfig{
+					GithubOwnedAllowed: &selected.GithubOwnedAllowed,
+					VerifiedAllowed:    &selected.VerifiedAllowed,
+					PatternsAllowed:    selected.PatternsAllowed,
+				}
+			}
+		}
+
+		// Get workflow permissions
+		workflowPerms, err := client.GetActionsWorkflowPermissions(ctx)
+		if err == nil {
+			cfg.Actions.DefaultWorkflowPermissions = &workflowPerms.DefaultWorkflowPermissions
+			cfg.Actions.CanApprovePullRequestReviews = &workflowPerms.CanApprovePullRequestReviews
+		}
+	}
+
+	// Get pages configuration
+	pagesData, err := client.GetPages(ctx)
+	if err == nil {
+		cfg.Pages = &config.PagesConfig{
+			BuildType: &pagesData.BuildType,
+		}
+		if pagesData.Source != nil && pagesData.BuildType == "legacy" {
+			cfg.Pages.Source = &config.PagesSourceConfig{
+				Branch: &pagesData.Source.Branch,
+				Path:   &pagesData.Source.Path,
+			}
+		}
+	}
+	// Note: Pages not enabled returns 404, which is fine to ignore
+
+	// Get branch protection for common branches
+	for _, branch := range []string{"main", "master"} {
+		protection, err := client.GetBranchProtection(ctx, branch)
+		if err != nil {
+			continue // Branch protection not enabled or branch doesn't exist
+		}
+
+		if cfg.BranchProtection == nil {
+			cfg.BranchProtection = make(map[string]*config.BranchRule)
+		}
+
+		rule := &config.BranchRule{}
+
+		// Required reviews
+		if protection.RequiredPullRequestReviews != nil {
+			rule.RequiredReviews = &protection.RequiredPullRequestReviews.RequiredApprovingReviewCount
+			rule.DismissStaleReviews = &protection.RequiredPullRequestReviews.DismissStaleReviews
+			rule.RequireCodeOwner = &protection.RequiredPullRequestReviews.RequireCodeOwnerReviews
+		}
+
+		// Enforce admins
+		if protection.EnforceAdmins != nil {
+			rule.EnforceAdmins = &protection.EnforceAdmins.Enabled
+		}
+
+		// Required status checks
+		if protection.RequiredStatusChecks != nil {
+			requireChecks := true
+			rule.RequireStatusChecks = &requireChecks
+			rule.StrictStatusChecks = &protection.RequiredStatusChecks.Strict
+			if len(protection.RequiredStatusChecks.Contexts) > 0 {
+				rule.StatusChecks = protection.RequiredStatusChecks.Contexts
+			}
+		}
+
+		// Linear history
+		if protection.RequiredLinearHistory != nil {
+			rule.RequireLinearHistory = &protection.RequiredLinearHistory.Enabled
+		}
+
+		// Force pushes
+		if protection.AllowForcePushes != nil {
+			rule.AllowForcePushes = &protection.AllowForcePushes.Enabled
+		}
+
+		// Deletions
+		if protection.AllowDeletions != nil {
+			rule.AllowDeletions = &protection.AllowDeletions.Enabled
+		}
+
+		cfg.BranchProtection[branch] = rule
+	}
+
+	logger.Success("Fetched settings from %s/%s", client.RepoOwner(), client.RepoName())
+	return cfg, nil
 }

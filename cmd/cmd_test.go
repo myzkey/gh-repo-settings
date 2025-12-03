@@ -499,6 +499,43 @@ func TestInitCommand(t *testing.T) {
 		if oFlag == nil {
 			t.Error("missing --output flag")
 		}
+
+		fromRepoFlag := initCmd.Flags().Lookup("from-repo")
+		if fromRepoFlag == nil {
+			t.Error("missing --from-repo flag")
+		}
+
+		singleFileFlag := initCmd.Flags().Lookup("single-file")
+		if singleFileFlag == nil {
+			t.Error("missing --single-file flag")
+		}
+
+		directoryFlag := initCmd.Flags().Lookup("directory")
+		if directoryFlag == nil {
+			t.Error("missing --directory flag")
+		}
+	})
+}
+
+func TestInitFromRepoFlagValidation(t *testing.T) {
+	// Test that --single-file and --directory are mutually exclusive
+	// We can't easily test the runtime behavior, but we can verify the flags exist
+
+	t.Run("flags are defined correctly", func(t *testing.T) {
+		fromRepoFlag := initCmd.Flags().Lookup("from-repo")
+		if fromRepoFlag.DefValue != "" {
+			t.Errorf("--from-repo default should be empty, got %q", fromRepoFlag.DefValue)
+		}
+
+		singleFileFlag := initCmd.Flags().Lookup("single-file")
+		if singleFileFlag.DefValue != "false" {
+			t.Errorf("--single-file default should be false, got %q", singleFileFlag.DefValue)
+		}
+
+		directoryFlag := initCmd.Flags().Lookup("directory")
+		if directoryFlag.DefValue != "false" {
+			t.Errorf("--directory default should be false, got %q", directoryFlag.DefValue)
+		}
 	})
 }
 
