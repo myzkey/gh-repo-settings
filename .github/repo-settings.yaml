@@ -50,7 +50,7 @@ actions:
   enabled: true
   allowed_actions: all
   default_workflow_permissions: write
-  can_approve_pull_request_reviews: false
+  can_approve_pull_request_reviews: true
 
 branch_protection:
   main:
