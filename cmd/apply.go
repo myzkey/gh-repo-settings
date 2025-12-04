@@ -127,11 +127,11 @@ func runApply(cmd *cobra.Command, args []string) error {
 
 	// Check for missing secrets/env before proceeding
 	if plan.HasMissingSecrets() || plan.HasMissingVariables() {
-		_ = printPlan(plan)
+		_ = printPlanWithOptions(plan, false)
 		return fmt.Errorf("cannot apply: required secrets or environment variables are missing")
 	}
 
-	_ = printPlan(plan)
+	_ = printPlanWithOptions(plan, false)
 
 	if !autoApprove {
 		fmt.Print("Do you want to apply these changes? (yes/no): ")

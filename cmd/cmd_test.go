@@ -627,6 +627,40 @@ func TestPrintPlanOutput(t *testing.T) {
 	}
 }
 
+// Test printPlanWithOptions function
+func TestPrintPlanWithOptions(t *testing.T) {
+	plan := &diff.Plan{
+		Changes: []diff.Change{
+			{Category: "repo", Key: "description", Type: diff.ChangeUpdate, Old: "old", New: "new"},
+		},
+	}
+
+	t.Run("with showApplyHint true", func(t *testing.T) {
+		// Should not panic and return correct hasDeletes value
+		hasDeletes := printPlanWithOptions(plan, true)
+		if hasDeletes {
+			t.Error("printPlanWithOptions() hasDeletes = true, want false")
+		}
+	})
+
+	t.Run("with showApplyHint false", func(t *testing.T) {
+		// Should not panic and return correct hasDeletes value
+		hasDeletes := printPlanWithOptions(plan, false)
+		if hasDeletes {
+			t.Error("printPlanWithOptions() hasDeletes = true, want false")
+		}
+	})
+
+	t.Run("printPlan calls printPlanWithOptions with true", func(t *testing.T) {
+		// Verify printPlan returns same result as printPlanWithOptions(plan, true)
+		hasDeletesPlan := printPlan(plan)
+		hasDeletesWithOptions := printPlanWithOptions(plan, true)
+		if hasDeletesPlan != hasDeletesWithOptions {
+			t.Errorf("printPlan() = %v, printPlanWithOptions(plan, true) = %v, want equal", hasDeletesPlan, hasDeletesWithOptions)
+		}
+	})
+}
+
 // Test groupChanges helper logic via applyChanges structure
 func TestChangeCategoryGrouping(t *testing.T) {
 	changes := []diff.Change{
