@@ -13,6 +13,7 @@ import (
 	"github.com/myzkey/gh-repo-settings/internal/config"
 	"github.com/myzkey/gh-repo-settings/internal/github"
 	"github.com/myzkey/gh-repo-settings/internal/logger"
+	"github.com/oapi-codegen/nullable"
 	"github.com/spf13/cobra"
 )
 
@@ -451,19 +452,19 @@ func fetchRepoSettings(ctx context.Context, repoArg string) (*config.Config, err
 	}
 
 	cfg.Repo = &config.RepoConfig{
-		Description:         repoData.Description,
-		Homepage:            repoData.Homepage,
-		Visibility:          &repoData.Visibility,
-		AllowMergeCommit:    &repoData.AllowMergeCommit,
-		AllowRebaseMerge:    &repoData.AllowRebaseMerge,
-		AllowSquashMerge:    &repoData.AllowSquashMerge,
-		DeleteBranchOnMerge: &repoData.DeleteBranchOnMerge,
-		AllowUpdateBranch:   &repoData.AllowUpdateBranch,
+		Description:         initNullableToPtr(repoData.Description),
+		Homepage:            initNullableToPtr(repoData.Homepage),
+		Visibility:          repoData.Visibility,
+		AllowMergeCommit:    repoData.AllowMergeCommit,
+		AllowRebaseMerge:    repoData.AllowRebaseMerge,
+		AllowSquashMerge:    repoData.AllowSquashMerge,
+		DeleteBranchOnMerge: repoData.DeleteBranchOnMerge,
+		AllowUpdateBranch:   repoData.AllowUpdateBranch,
 	}
 
 	// Get topics
-	if len(repoData.Topics) > 0 {
-		cfg.Topics = repoData.Topics
+	if repoData.Topics != nil && len(*repoData.Topics) > 0 {
+		cfg.Topics = *repoData.Topics
 	}
 
 	// Get labels
@@ -477,7 +478,7 @@ func fetchRepoSettings(ctx context.Context, repoArg string) (*config.Config, err
 			cfg.Labels.Items[i] = config.Label{
 				Name:        l.Name,
 				Color:       l.Color,
-				Description: l.Description,
+				Description: initNullableStringVal(l.Description),
 			}
 		}
 	}
@@ -488,19 +489,27 @@ func fetchRepoSettings(ctx context.Context, repoArg string) (*config.Config, err
 	// Get actions permissions
 	actionsPerms, err := client.GetActionsPermissions(ctx)
 	if err == nil {
+		enabled := bool(actionsPerms.Enabled)
+		var allowedActions *string
+		if actionsPerms.AllowedActions != nil {
+			s := string(*actionsPerms.AllowedActions)
+			allowedActions = &s
+		}
 		cfg.Actions = &config.ActionsConfig{
-			Enabled:        &actionsPerms.Enabled,
-			AllowedActions: &actionsPerms.AllowedActions,
+			Enabled:        &enabled,
+			AllowedActions: allowedActions,
 		}
 
 		// Get selected actions if applicable
-		if actionsPerms.AllowedActions == "selected" {
+		if actionsPerms.AllowedActions != nil && *actionsPerms.AllowedActions == "selected" {
 			selected, err := client.GetActionsSelectedActions(ctx)
 			if err == nil {
 				cfg.Actions.SelectedActions = &config.SelectedActionsConfig{
-					GithubOwnedAllowed: &selected.GithubOwnedAllowed,
-					VerifiedAllowed:    &selected.VerifiedAllowed,
-					PatternsAllowed:    selected.PatternsAllowed,
+					GithubOwnedAllowed: selected.GithubOwnedAllowed,
+					VerifiedAllowed:    selected.VerifiedAllowed,
+				}
+				if selected.PatternsAllowed != nil {
+					cfg.Actions.SelectedActions.PatternsAllowed = *selected.PatternsAllowed
 				}
 			}
 		}
@@ -508,18 +517,25 @@ func fetchRepoSettings(ctx context.Context, repoArg string) (*config.Config, err
 		// Get workflow permissions
 		workflowPerms, err := client.GetActionsWorkflowPermissions(ctx)
 		if err == nil {
-			cfg.Actions.DefaultWorkflowPermissions = &workflowPerms.DefaultWorkflowPermissions
-			cfg.Actions.CanApprovePullRequestReviews = &workflowPerms.CanApprovePullRequestReviews
+			perms := string(workflowPerms.DefaultWorkflowPermissions)
+			cfg.Actions.DefaultWorkflowPermissions = &perms
+			canApprove := bool(workflowPerms.CanApprovePullRequestReviews)
+			cfg.Actions.CanApprovePullRequestReviews = &canApprove
 		}
 	}
 
 	// Get pages configuration
 	pagesData, err := client.GetPages(ctx)
 	if err == nil {
-		cfg.Pages = &config.PagesConfig{
-			BuildType: &pagesData.BuildType,
+		var buildType *string
+		if pagesData.BuildType.IsSpecified() && !pagesData.BuildType.IsNull() {
+			bt := string(pagesData.BuildType.MustGet())
+			buildType = &bt
 		}
-		if pagesData.Source != nil && pagesData.BuildType == "legacy" {
+		cfg.Pages = &config.PagesConfig{
+			BuildType: buildType,
+		}
+		if pagesData.Source != nil && buildType != nil && *buildType == "legacy" {
 			cfg.Pages.Source = &config.PagesSourceConfig{
 				Branch: &pagesData.Source.Branch,
 				Path:   &pagesData.Source.Path,
@@ -543,7 +559,7 @@ func fetchRepoSettings(ctx context.Context, repoArg string) (*config.Config, err
 
 		// Required reviews
 		if protection.RequiredPullRequestReviews != nil {
-			rule.RequiredReviews = &protection.RequiredPullRequestReviews.RequiredApprovingReviewCount
+			rule.RequiredReviews = protection.RequiredPullRequestReviews.RequiredApprovingReviewCount
 			rule.DismissStaleReviews = &protection.RequiredPullRequestReviews.DismissStaleReviews
 			rule.RequireCodeOwner = &protection.RequiredPullRequestReviews.RequireCodeOwnerReviews
 		}
@@ -557,7 +573,7 @@ func fetchRepoSettings(ctx context.Context, repoArg string) (*config.Config, err
 		if protection.RequiredStatusChecks != nil {
 			requireChecks := true
 			rule.RequireStatusChecks = &requireChecks
-			rule.StrictStatusChecks = &protection.RequiredStatusChecks.Strict
+			rule.StrictStatusChecks = protection.RequiredStatusChecks.Strict
 			if len(protection.RequiredStatusChecks.Contexts) > 0 {
 				rule.StatusChecks = protection.RequiredStatusChecks.Contexts
 			}
@@ -565,17 +581,17 @@ func fetchRepoSettings(ctx context.Context, repoArg string) (*config.Config, err
 
 		// Linear history
 		if protection.RequiredLinearHistory != nil {
-			rule.RequireLinearHistory = &protection.RequiredLinearHistory.Enabled
+			rule.RequireLinearHistory = protection.RequiredLinearHistory.Enabled
 		}
 
 		// Force pushes
 		if protection.AllowForcePushes != nil {
-			rule.AllowForcePushes = &protection.AllowForcePushes.Enabled
+			rule.AllowForcePushes = protection.AllowForcePushes.Enabled
 		}
 
 		// Deletions
 		if protection.AllowDeletions != nil {
-			rule.AllowDeletions = &protection.AllowDeletions.Enabled
+			rule.AllowDeletions = protection.AllowDeletions.Enabled
 		}
 
 		cfg.BranchProtection[branch] = rule
@@ -583,4 +599,21 @@ func fetchRepoSettings(ctx context.Context, repoArg string) (*config.Config, err
 
 	logger.Success("Fetched settings from %s/%s", client.RepoOwner(), client.RepoName())
 	return cfg, nil
+}
+
+// initNullableToPtr converts a nullable.Nullable[string] to *string
+func initNullableToPtr(n nullable.Nullable[string]) *string {
+	if !n.IsSpecified() || n.IsNull() {
+		return nil
+	}
+	s := n.MustGet()
+	return &s
+}
+
+// initNullableStringVal returns the string value from a nullable.Nullable[string]
+func initNullableStringVal(n nullable.Nullable[string]) string {
+	if !n.IsSpecified() || n.IsNull() {
+		return ""
+	}
+	return n.MustGet()
 }

@@ -97,7 +97,7 @@ func TestLoadDotEnv(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create .env file
 			envPath := filepath.Join(tmpDir, ".env")
-			if err := os.WriteFile(envPath, []byte(tt.content), 0644); err != nil {
+			if err := os.WriteFile(envPath, []byte(tt.content), 0o644); err != nil {
 				t.Fatalf("failed to write .env file: %v", err)
 			}
 
@@ -343,13 +343,13 @@ func TestResolveDotEnvPath(t *testing.T) {
 
 	// Create .github directory
 	githubDir := filepath.Join(tmpDir, ".github")
-	if err := os.MkdirAll(githubDir, 0755); err != nil {
+	if err := os.MkdirAll(githubDir, 0o755); err != nil {
 		t.Fatalf("failed to create .github dir: %v", err)
 	}
 
 	// Create a config file
 	configFile := filepath.Join(githubDir, "repo-settings.yaml")
-	if err := os.WriteFile(configFile, []byte(""), 0644); err != nil {
+	if err := os.WriteFile(configFile, []byte(""), 0o644); err != nil {
 		t.Fatalf("failed to create config file: %v", err)
 	}
 
@@ -452,7 +452,7 @@ func TestWriteToEnvFile(t *testing.T) {
 
 			// Write existing content if any
 			if tt.existingContent != "" {
-				if err := os.WriteFile(envPath, []byte(tt.existingContent), 0644); err != nil {
+				if err := os.WriteFile(envPath, []byte(tt.existingContent), 0o644); err != nil {
 					t.Fatalf("failed to write existing content: %v", err)
 				}
 			}

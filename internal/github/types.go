@@ -1,97 +1,41 @@
 package github
 
-// RepoData represents repository data from GitHub API
-type RepoData struct {
-	Description         *string  `json:"description"`
-	Homepage            *string  `json:"homepage"`
-	Visibility          string   `json:"visibility"`
-	AllowMergeCommit    bool     `json:"allow_merge_commit"`
-	AllowRebaseMerge    bool     `json:"allow_rebase_merge"`
-	AllowSquashMerge    bool     `json:"allow_squash_merge"`
-	DeleteBranchOnMerge bool     `json:"delete_branch_on_merge"`
-	AllowUpdateBranch   bool     `json:"allow_update_branch"`
-	Topics              []string `json:"topics"`
-}
+import (
+	"github.com/myzkey/gh-repo-settings/internal/githubopenapi"
+)
 
-// LabelData represents label data from GitHub API
-type LabelData struct {
-	Name        string `json:"name"`
-	Color       string `json:"color"`
-	Description string `json:"description"`
-}
+// Type aliases for generated OpenAPI types.
+// These provide backward compatibility while using the generated types.
 
-// BranchProtectionData represents branch protection data from GitHub API
-type BranchProtectionData struct {
-	RequiredPullRequestReviews *struct {
-		RequiredApprovingReviewCount int  `json:"required_approving_review_count"`
-		DismissStaleReviews          bool `json:"dismiss_stale_reviews"`
-		RequireCodeOwnerReviews      bool `json:"require_code_owner_reviews"`
-	} `json:"required_pull_request_reviews"`
+// RepoData is an alias for the generated FullRepository type.
+type RepoData = githubopenapi.FullRepository
 
-	RequiredStatusChecks *struct {
-		Strict   bool     `json:"strict"`
-		Contexts []string `json:"contexts"`
-	} `json:"required_status_checks"`
+// LabelData is an alias for the generated Label type.
+type LabelData = githubopenapi.Label
 
-	EnforceAdmins *struct {
-		Enabled bool `json:"enabled"`
-	} `json:"enforce_admins"`
+// BranchProtectionData is an alias for the generated BranchProtection type.
+type BranchProtectionData = githubopenapi.BranchProtection
 
-	RequiredLinearHistory *struct {
-		Enabled bool `json:"enabled"`
-	} `json:"required_linear_history"`
+// ActionsPermissionsData is an alias for the generated ActionsRepositoryPermissions type.
+type ActionsPermissionsData = githubopenapi.ActionsRepositoryPermissions
 
-	AllowForcePushes *struct {
-		Enabled bool `json:"enabled"`
-	} `json:"allow_force_pushes"`
+// ActionsSelectedData is an alias for the generated SelectedActions type.
+type ActionsSelectedData = githubopenapi.SelectedActions
 
-	AllowDeletions *struct {
-		Enabled bool `json:"enabled"`
-	} `json:"allow_deletions"`
+// ActionsWorkflowPermissionsData is an alias for the generated ActionsGetDefaultWorkflowPermissions type.
+type ActionsWorkflowPermissionsData = githubopenapi.ActionsGetDefaultWorkflowPermissions
 
-	RequiredSignatures *struct {
-		Enabled bool `json:"enabled"`
-	} `json:"required_signatures"`
-}
+// PagesData is an alias for the generated GitHubPage type.
+type PagesData = githubopenapi.GitHubPage
 
-// ActionsPermissionsData represents GitHub Actions permissions from API
-type ActionsPermissionsData struct {
-	Enabled        bool   `json:"enabled"`
-	AllowedActions string `json:"allowed_actions"` // "all", "local_only", "selected"
-}
+// PagesSourceData is an alias for the generated PagesSourceHash type.
+type PagesSourceData = githubopenapi.PagesSourceHash
 
-// ActionsSelectedData represents selected actions configuration from API
-type ActionsSelectedData struct {
-	GithubOwnedAllowed bool     `json:"github_owned_allowed"`
-	VerifiedAllowed    bool     `json:"verified_allowed"`
-	PatternsAllowed    []string `json:"patterns_allowed"`
-}
+// VariableData is an alias for the generated ActionsVariable type.
+type VariableData = githubopenapi.ActionsVariable
 
-// ActionsWorkflowPermissionsData represents workflow permissions from API
-type ActionsWorkflowPermissionsData struct {
-	DefaultWorkflowPermissions   string `json:"default_workflow_permissions"` // "read" or "write"
-	CanApprovePullRequestReviews bool   `json:"can_approve_pull_request_reviews"`
-}
-
-// PagesData represents GitHub Pages data from API
-type PagesData struct {
-	BuildType string           `json:"build_type"` // "workflow" or "legacy"
-	Source    *PagesSourceData `json:"source"`
-}
-
-// PagesSourceData represents the source configuration for GitHub Pages
-type PagesSourceData struct {
-	Branch string `json:"branch"`
-	Path   string `json:"path"` // "/" or "/docs"
-}
-
-// VariableData represents repository variable data from GitHub API
-type VariableData struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
-
-// CurrentSettings represents the current GitHub repository settings for JSON output
+// CurrentSettings represents the current GitHub repository settings for JSON output.
+// This is a custom type for export functionality, not from OpenAPI.
 type CurrentSettings struct {
 	Repo             *CurrentRepoSettings          `json:"repo,omitempty"`
 	Topics           []string                      `json:"topics,omitempty"`
@@ -103,7 +47,7 @@ type CurrentSettings struct {
 	Secrets          []string                      `json:"secrets,omitempty"`
 }
 
-// CurrentRepoSettings represents current repository settings
+// CurrentRepoSettings represents current repository settings for export.
 type CurrentRepoSettings struct {
 	Description         string `json:"description,omitempty"`
 	Homepage            string `json:"homepage,omitempty"`
@@ -115,7 +59,7 @@ type CurrentRepoSettings struct {
 	AllowUpdateBranch   bool   `json:"allow_update_branch"`
 }
 
-// CurrentBranchRule represents current branch protection rule
+// CurrentBranchRule represents current branch protection rule for export.
 type CurrentBranchRule struct {
 	RequiredReviews      *int     `json:"required_reviews,omitempty"`
 	DismissStaleReviews  *bool    `json:"dismiss_stale_reviews,omitempty"`
@@ -129,7 +73,7 @@ type CurrentBranchRule struct {
 	AllowDeletions       *bool    `json:"allow_deletions,omitempty"`
 }
 
-// CurrentActionsSettings represents current actions settings
+// CurrentActionsSettings represents current actions settings for export.
 type CurrentActionsSettings struct {
 	Enabled                      bool   `json:"enabled"`
 	AllowedActions               string `json:"allowed_actions"`

@@ -37,3 +37,10 @@ coverage.html
 *.temp
 .cache/
 .claude
+
+# OpenAPI schema files (large, regenerate with: make generate)
+internal/githubopenapi/github-openapi-full.json
+internal/githubopenapi/openapi-subset.json
+internal/githubopenapi/github-openapi-full.yaml
+internal/githubopenapi/openapi-subset.yaml
+# Note: types.gen.go is committed for stable builds and code review

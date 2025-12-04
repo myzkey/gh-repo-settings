@@ -8,6 +8,7 @@ import (
 	"github.com/myzkey/gh-repo-settings/internal/config"
 	apperrors "github.com/myzkey/gh-repo-settings/internal/errors"
 	"github.com/myzkey/gh-repo-settings/internal/github"
+	"github.com/oapi-codegen/nullable"
 )
 
 // Change represents a single configuration change
@@ -208,82 +209,82 @@ func (c *Calculator) compareRepo(ctx context.Context) ([]Change, error) {
 	var changes []Change
 	cfg := c.config.Repo
 
-	if cfg.Description != nil && !ptrEqual(cfg.Description, current.Description) {
+	if cfg.Description != nil && !nullableStringEqual(cfg.Description, current.Description) {
 		changes = append(changes, Change{
 			Type:     ChangeUpdate,
 			Category: "repo",
 			Key:      "description",
-			Old:      ptrVal(current.Description),
+			Old:      nullableStringVal(current.Description),
 			New:      ptrVal(cfg.Description),
 		})
 	}
 
-	if cfg.Homepage != nil && !ptrEqual(cfg.Homepage, current.Homepage) {
+	if cfg.Homepage != nil && !nullableStringEqual(cfg.Homepage, current.Homepage) {
 		changes = append(changes, Change{
 			Type:     ChangeUpdate,
 			Category: "repo",
 			Key:      "homepage",
-			Old:      ptrVal(current.Homepage),
+			Old:      nullableStringVal(current.Homepage),
 			New:      ptrVal(cfg.Homepage),
 		})
 	}
 
-	if cfg.Visibility != nil && *cfg.Visibility != current.Visibility {
+	if cfg.Visibility != nil && !ptrStringEqual(cfg.Visibility, current.Visibility) {
 		changes = append(changes, Change{
 			Type:     ChangeUpdate,
 			Category: "repo",
 			Key:      "visibility",
-			Old:      current.Visibility,
+			Old:      ptrVal(current.Visibility),
 			New:      *cfg.Visibility,
 		})
 	}
 
-	if cfg.AllowMergeCommit != nil && *cfg.AllowMergeCommit != current.AllowMergeCommit {
+	if cfg.AllowMergeCommit != nil && !ptrBoolEqual(cfg.AllowMergeCommit, current.AllowMergeCommit) {
 		changes = append(changes, Change{
 			Type:     ChangeUpdate,
 			Category: "repo",
 			Key:      "allow_merge_commit",
-			Old:      current.AllowMergeCommit,
+			Old:      ptrBoolVal(current.AllowMergeCommit),
 			New:      *cfg.AllowMergeCommit,
 		})
 	}
 
-	if cfg.AllowRebaseMerge != nil && *cfg.AllowRebaseMerge != current.AllowRebaseMerge {
+	if cfg.AllowRebaseMerge != nil && !ptrBoolEqual(cfg.AllowRebaseMerge, current.AllowRebaseMerge) {
 		changes = append(changes, Change{
 			Type:     ChangeUpdate,
 			Category: "repo",
 			Key:      "allow_rebase_merge",
-			Old:      current.AllowRebaseMerge,
+			Old:      ptrBoolVal(current.AllowRebaseMerge),
 			New:      *cfg.AllowRebaseMerge,
 		})
 	}
 
-	if cfg.AllowSquashMerge != nil && *cfg.AllowSquashMerge != current.AllowSquashMerge {
+	if cfg.AllowSquashMerge != nil && !ptrBoolEqual(cfg.AllowSquashMerge, current.AllowSquashMerge) {
 		changes = append(changes, Change{
 			Type:     ChangeUpdate,
 			Category: "repo",
 			Key:      "allow_squash_merge",
-			Old:      current.AllowSquashMerge,
+			Old:      ptrBoolVal(current.AllowSquashMerge),
 			New:      *cfg.AllowSquashMerge,
 		})
 	}
 
-	if cfg.DeleteBranchOnMerge != nil && *cfg.DeleteBranchOnMerge != current.DeleteBranchOnMerge {
+	if cfg.DeleteBranchOnMerge != nil && !ptrBoolEqual(cfg.DeleteBranchOnMerge, current.DeleteBranchOnMerge) {
 		changes = append(changes, Change{
 			Type:     ChangeUpdate,
 			Category: "repo",
 			Key:      "delete_branch_on_merge",
-			Old:      current.DeleteBranchOnMerge,
+			Old:      ptrBoolVal(current.DeleteBranchOnMerge),
 			New:      *cfg.DeleteBranchOnMerge,
 		})
 	}
 
-	if cfg.AllowUpdateBranch != nil && *cfg.AllowUpdateBranch != current.AllowUpdateBranch {
+	if cfg.AllowUpdateBranch != nil && !ptrBoolEqual(cfg.AllowUpdateBranch, current.AllowUpdateBranch) {
 		changes = append(changes, Change{
 			Type:     ChangeUpdate,
 			Category: "repo",
 			Key:      "allow_update_branch",
-			Old:      current.AllowUpdateBranch,
+			Old:      ptrBoolVal(current.AllowUpdateBranch),
 			New:      *cfg.AllowUpdateBranch,
 		})
 	}
@@ -297,12 +298,17 @@ func (c *Calculator) compareTopics(ctx context.Context) ([]Change, error) {
 		return nil, err
 	}
 
-	if !stringSliceEqualIgnoreOrder(c.config.Topics, current.Topics) {
+	var currentTopics []string
+	if current.Topics != nil {
+		currentTopics = *current.Topics
+	}
+
+	if !stringSliceEqualIgnoreOrder(c.config.Topics, currentTopics) {
 		return []Change{{
 			Type:     ChangeUpdate,
 			Category: "topics",
 			Key:      "topics",
-			Old:      current.Topics,
+			Old:      currentTopics,
 			New:      c.config.Topics,
 		}}, nil
 	}
@@ -349,12 +355,13 @@ func (c *Calculator) compareLabels(ctx context.Context) ([]Change, error) {
 	for _, cfgLabel := range c.config.Labels.Items {
 		if current, exists := currentMap[cfgLabel.Name]; exists {
 			// Check for updates
-			if cfgLabel.Color != current.Color || cfgLabel.Description != current.Description {
+			currentDesc := nullableStringVal(current.Description)
+			if cfgLabel.Color != current.Color || cfgLabel.Description != currentDesc {
 				changes = append(changes, Change{
 					Type:     ChangeUpdate,
 					Category: "labels",
 					Key:      cfgLabel.Name,
-					Old:      fmt.Sprintf("color=%s, description=%s", current.Color, current.Description),
+					Old:      fmt.Sprintf("color=%s, description=%s", current.Color, currentDesc),
 					New:      fmt.Sprintf("color=%s, description=%s", cfgLabel.Color, cfgLabel.Description),
 				})
 			}
@@ -377,7 +384,7 @@ func (c *Calculator) compareLabels(ctx context.Context) ([]Change, error) {
 					Type:     ChangeDelete,
 					Category: "labels",
 					Key:      currentLabel.Name,
-					Old:      fmt.Sprintf("color=%s, description=%s", currentLabel.Color, currentLabel.Description),
+					Old:      fmt.Sprintf("color=%s, description=%s", currentLabel.Color, nullableStringVal(currentLabel.Description)),
 				})
 			}
 		}
@@ -420,8 +427,8 @@ func compareBranchRule(branch string, current *github.BranchProtectionData, desi
 	// Required reviews
 	if desired.RequiredReviews != nil {
 		currentReviews := 0
-		if current.RequiredPullRequestReviews != nil {
-			currentReviews = current.RequiredPullRequestReviews.RequiredApprovingReviewCount
+		if current.RequiredPullRequestReviews != nil && current.RequiredPullRequestReviews.RequiredApprovingReviewCount != nil {
+			currentReviews = *current.RequiredPullRequestReviews.RequiredApprovingReviewCount
 		}
 		if *desired.RequiredReviews != currentReviews {
 			changes = append(changes, Change{
@@ -471,8 +478,8 @@ func compareBranchRule(branch string, current *github.BranchProtectionData, desi
 	// Strict status checks
 	if desired.StrictStatusChecks != nil {
 		currentVal := false
-		if current.RequiredStatusChecks != nil {
-			currentVal = current.RequiredStatusChecks.Strict
+		if current.RequiredStatusChecks != nil && current.RequiredStatusChecks.Strict != nil {
+			currentVal = *current.RequiredStatusChecks.Strict
 		}
 		if *desired.StrictStatusChecks != currentVal {
 			changes = append(changes, Change{
@@ -522,8 +529,8 @@ func compareBranchRule(branch string, current *github.BranchProtectionData, desi
 	// Require linear history
 	if desired.RequireLinearHistory != nil {
 		currentVal := false
-		if current.RequiredLinearHistory != nil {
-			currentVal = current.RequiredLinearHistory.Enabled
+		if current.RequiredLinearHistory != nil && current.RequiredLinearHistory.Enabled != nil {
+			currentVal = *current.RequiredLinearHistory.Enabled
 		}
 		if *desired.RequireLinearHistory != currentVal {
 			changes = append(changes, Change{
@@ -539,8 +546,8 @@ func compareBranchRule(branch string, current *github.BranchProtectionData, desi
 	// Allow force pushes
 	if desired.AllowForcePushes != nil {
 		currentVal := false
-		if current.AllowForcePushes != nil {
-			currentVal = current.AllowForcePushes.Enabled
+		if current.AllowForcePushes != nil && current.AllowForcePushes.Enabled != nil {
+			currentVal = *current.AllowForcePushes.Enabled
 		}
 		if *desired.AllowForcePushes != currentVal {
 			changes = append(changes, Change{
@@ -556,8 +563,8 @@ func compareBranchRule(branch string, current *github.BranchProtectionData, desi
 	// Allow deletions
 	if desired.AllowDeletions != nil {
 		currentVal := false
-		if current.AllowDeletions != nil {
-			currentVal = current.AllowDeletions.Enabled
+		if current.AllowDeletions != nil && current.AllowDeletions.Enabled != nil {
+			currentVal = *current.AllowDeletions.Enabled
 		}
 		if *desired.AllowDeletions != currentVal {
 			changes = append(changes, Change{
@@ -749,21 +756,63 @@ func (c *Calculator) compareEnv(ctx context.Context, checkSecrets, checkVars, sy
 	return changes, nil
 }
 
-func ptrEqual(a, b *string) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	return *a == *b
-}
-
 func ptrVal(s *string) string {
 	if s == nil {
 		return ""
 	}
 	return *s
+}
+
+// nullableStringEqual compares a *string (from config) with a nullable.Nullable[string] (from API)
+func nullableStringEqual(cfg *string, current nullable.Nullable[string]) bool {
+	if cfg == nil {
+		return true // config not specified, no comparison needed
+	}
+	if !current.IsSpecified() {
+		return false
+	}
+	if current.IsNull() {
+		return *cfg == ""
+	}
+	return *cfg == current.MustGet()
+}
+
+// nullableStringVal returns the string value from a nullable.Nullable[string]
+func nullableStringVal(n nullable.Nullable[string]) string {
+	if !n.IsSpecified() || n.IsNull() {
+		return ""
+	}
+	return n.MustGet()
+}
+
+// ptrBoolEqual compares *bool values, returning true if they're equal or if cfg is nil
+func ptrBoolEqual(cfg, current *bool) bool {
+	if cfg == nil {
+		return true // config not specified
+	}
+	if current == nil {
+		return false
+	}
+	return *cfg == *current
+}
+
+// ptrBoolVal returns the bool value from a *bool, defaulting to false if nil
+func ptrBoolVal(b *bool) bool {
+	if b == nil {
+		return false
+	}
+	return *b
+}
+
+// ptrStringEqual compares *string values, returning true if they're equal or if cfg is nil
+func ptrStringEqual(cfg, current *string) bool {
+	if cfg == nil {
+		return true // config not specified
+	}
+	if current == nil {
+		return false
+	}
+	return *cfg == *current
 }
 
 func (c *Calculator) compareActions(ctx context.Context) ([]Change, error) {
@@ -788,14 +837,20 @@ func (c *Calculator) compareActions(ctx context.Context) ([]Change, error) {
 	}
 
 	// Compare allowed_actions
-	if cfg.AllowedActions != nil && *cfg.AllowedActions != currentPerms.AllowedActions {
-		changes = append(changes, Change{
-			Type:     ChangeUpdate,
-			Category: "actions",
-			Key:      "allowed_actions",
-			Old:      currentPerms.AllowedActions,
-			New:      *cfg.AllowedActions,
-		})
+	if cfg.AllowedActions != nil {
+		currentAllowed := ""
+		if currentPerms.AllowedActions != nil {
+			currentAllowed = string(*currentPerms.AllowedActions)
+		}
+		if *cfg.AllowedActions != currentAllowed {
+			changes = append(changes, Change{
+				Type:     ChangeUpdate,
+				Category: "actions",
+				Key:      "allowed_actions",
+				Old:      currentAllowed,
+				New:      *cfg.AllowedActions,
+			})
+		}
 	}
 
 	// Compare selected actions (only if allowed_actions is "selected")
@@ -806,34 +861,40 @@ func (c *Calculator) compareActions(ctx context.Context) ([]Change, error) {
 			currentSelected = &github.ActionsSelectedData{}
 		}
 
-		if cfg.SelectedActions.GithubOwnedAllowed != nil && *cfg.SelectedActions.GithubOwnedAllowed != currentSelected.GithubOwnedAllowed {
+		if cfg.SelectedActions.GithubOwnedAllowed != nil && !ptrBoolEqual(cfg.SelectedActions.GithubOwnedAllowed, currentSelected.GithubOwnedAllowed) {
 			changes = append(changes, Change{
 				Type:     ChangeUpdate,
 				Category: "actions",
 				Key:      "github_owned_allowed",
-				Old:      currentSelected.GithubOwnedAllowed,
+				Old:      ptrBoolVal(currentSelected.GithubOwnedAllowed),
 				New:      *cfg.SelectedActions.GithubOwnedAllowed,
 			})
 		}
 
-		if cfg.SelectedActions.VerifiedAllowed != nil && *cfg.SelectedActions.VerifiedAllowed != currentSelected.VerifiedAllowed {
+		if cfg.SelectedActions.VerifiedAllowed != nil && !ptrBoolEqual(cfg.SelectedActions.VerifiedAllowed, currentSelected.VerifiedAllowed) {
 			changes = append(changes, Change{
 				Type:     ChangeUpdate,
 				Category: "actions",
 				Key:      "verified_allowed",
-				Old:      currentSelected.VerifiedAllowed,
+				Old:      ptrBoolVal(currentSelected.VerifiedAllowed),
 				New:      *cfg.SelectedActions.VerifiedAllowed,
 			})
 		}
 
-		if len(cfg.SelectedActions.PatternsAllowed) > 0 && !reflect.DeepEqual(cfg.SelectedActions.PatternsAllowed, currentSelected.PatternsAllowed) {
-			changes = append(changes, Change{
-				Type:     ChangeUpdate,
-				Category: "actions",
-				Key:      "patterns_allowed",
-				Old:      currentSelected.PatternsAllowed,
-				New:      cfg.SelectedActions.PatternsAllowed,
-			})
+		if len(cfg.SelectedActions.PatternsAllowed) > 0 {
+			var currentPatterns []string
+			if currentSelected.PatternsAllowed != nil {
+				currentPatterns = *currentSelected.PatternsAllowed
+			}
+			if !reflect.DeepEqual(cfg.SelectedActions.PatternsAllowed, currentPatterns) {
+				changes = append(changes, Change{
+					Type:     ChangeUpdate,
+					Category: "actions",
+					Key:      "patterns_allowed",
+					Old:      currentPatterns,
+					New:      cfg.SelectedActions.PatternsAllowed,
+				})
+			}
 		}
 	}
 
@@ -843,12 +904,12 @@ func (c *Calculator) compareActions(ctx context.Context) ([]Change, error) {
 		return nil, err
 	}
 
-	if cfg.DefaultWorkflowPermissions != nil && *cfg.DefaultWorkflowPermissions != currentWorkflow.DefaultWorkflowPermissions {
+	if cfg.DefaultWorkflowPermissions != nil && *cfg.DefaultWorkflowPermissions != string(currentWorkflow.DefaultWorkflowPermissions) {
 		changes = append(changes, Change{
 			Type:     ChangeUpdate,
 			Category: "actions",
 			Key:      "default_workflow_permissions",
-			Old:      currentWorkflow.DefaultWorkflowPermissions,
+			Old:      string(currentWorkflow.DefaultWorkflowPermissions),
 			New:      *cfg.DefaultWorkflowPermissions,
 		})
 	}
@@ -890,14 +951,20 @@ func (c *Calculator) comparePages(ctx context.Context) ([]Change, error) {
 	}
 
 	// Compare build_type
-	if cfg.BuildType != nil && *cfg.BuildType != current.BuildType {
-		changes = append(changes, Change{
-			Type:     ChangeUpdate,
-			Category: "pages",
-			Key:      "build_type",
-			Old:      current.BuildType,
-			New:      *cfg.BuildType,
-		})
+	if cfg.BuildType != nil {
+		currentBuildType := ""
+		if current.BuildType.IsSpecified() && !current.BuildType.IsNull() {
+			currentBuildType = string(current.BuildType.MustGet())
+		}
+		if *cfg.BuildType != currentBuildType {
+			changes = append(changes, Change{
+				Type:     ChangeUpdate,
+				Category: "pages",
+				Key:      "build_type",
+				Old:      currentBuildType,
+				New:      *cfg.BuildType,
+			})
+		}
 	}
 
 	// Compare source (only for legacy build type)

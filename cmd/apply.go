@@ -340,12 +340,14 @@ func applyActionsChanges(ctx context.Context, client *github.Client, cfg *config
 		fmt.Print("  Updating selected actions... ")
 		settings := &github.ActionsSelectedData{}
 		if cfg.Actions.SelectedActions.GithubOwnedAllowed != nil {
-			settings.GithubOwnedAllowed = *cfg.Actions.SelectedActions.GithubOwnedAllowed
+			settings.GithubOwnedAllowed = cfg.Actions.SelectedActions.GithubOwnedAllowed
 		}
 		if cfg.Actions.SelectedActions.VerifiedAllowed != nil {
-			settings.VerifiedAllowed = *cfg.Actions.SelectedActions.VerifiedAllowed
+			settings.VerifiedAllowed = cfg.Actions.SelectedActions.VerifiedAllowed
 		}
-		settings.PatternsAllowed = cfg.Actions.SelectedActions.PatternsAllowed
+		if len(cfg.Actions.SelectedActions.PatternsAllowed) > 0 {
+			settings.PatternsAllowed = &cfg.Actions.SelectedActions.PatternsAllowed
+		}
 		if err := client.UpdateActionsSelectedActions(ctx, settings); err != nil {
 			fmt.Println(red("✗"))
 			return fmt.Errorf("failed to update selected actions: %w", err)
