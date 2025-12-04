@@ -1,4 +1,5 @@
-.PHONY: build install install-local clean test lint schema
+.PHONY: build install install-local clean test lint schema \
+       fetch-openapi extract-openapi generate-github-types generate
 
 BINARY_NAME=gh-repo-settings
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -37,3 +38,24 @@ build-all:
 # Generate JSON Schema from Go types
 schema:
 	go run ./cmd/schema/main.go > schema.json
+
+# ============================================
+# GitHub OpenAPI Type Generation
+# ============================================
+
+# Download GitHub OpenAPI schema
+fetch-openapi:
+	@chmod +x scripts/fetch-github-openapi.sh
+	@scripts/fetch-github-openapi.sh
+
+# Extract required endpoints from OpenAPI schema
+extract-openapi: fetch-openapi
+	@go run scripts/extract-openapi-subset.go
+
+# Generate Go types from OpenAPI schema
+generate-github-types: extract-openapi
+	@chmod +x scripts/generate-types.sh
+	@scripts/generate-types.sh
+
+# Alias for generate-github-types
+generate: generate-github-types

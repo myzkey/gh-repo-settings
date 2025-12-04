@@ -1,0 +1,29 @@
+# oapi-codegen configuration
+# See: https://github.com/oapi-codegen/oapi-codegen#configuration
+#
+# This configuration generates only types (no client code) since we use
+# gh CLI for transport and authentication.
+
+package: githubopenapi
+output: internal/githubopenapi/types.gen.go
+
+generate:
+  # Generate model types from components/schemas
+  models: true
+  # Do not generate HTTP client (we use gh CLI)
+  client: false
+  # Do not generate server stubs
+  chi-server: false
+  echo-server: false
+  gin-server: false
+  gorilla-server: false
+  fiber-server: false
+  strict-server: false
+  # Do not generate embedded spec
+  embedded-spec: false
+
+output-options:
+  # Skip generating response types (we don't need them)
+  skip-prune: false
+  # Use pointer for optional fields
+  nullable-type: true

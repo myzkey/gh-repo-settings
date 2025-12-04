@@ -37,3 +37,11 @@ coverage.html
 *.temp
 .cache/
 .claude
+
+# OpenAPI generated files (regenerate with: make generate)
+internal/githubopenapi/github-openapi-full.json
+internal/githubopenapi/openapi-subset.json
+internal/githubopenapi/types.gen.go
+# Keep old yaml files out too
+internal/githubopenapi/github-openapi-full.yaml
+internal/githubopenapi/openapi-subset.yaml
