@@ -14,14 +14,8 @@ CONFIG_FILE="${OPENAPI_DIR}/oapi-codegen.yaml"
 INPUT_FILE="${OPENAPI_DIR}/openapi-subset.json"
 OUTPUT_FILE="${OPENAPI_DIR}/types.gen.go"
 
-# Add GOPATH/bin to PATH
-export PATH="${PATH}:${HOME}/go/bin:$(go env GOPATH)/bin"
-
-# Check if oapi-codegen is installed
-if ! command -v oapi-codegen &> /dev/null; then
-    echo "oapi-codegen not found. Installing..."
-    go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
-fi
+# oapi-codegen version
+OAPI_CODEGEN_VERSION="v2.4.1"
 
 # Check if input file exists
 if [[ ! -f "$INPUT_FILE" ]]; then
@@ -42,7 +36,7 @@ echo "Output: $OUTPUT_FILE"
 
 # Run oapi-codegen from project root so relative paths in config work correctly
 cd "$PROJECT_ROOT"
-oapi-codegen --config "$CONFIG_FILE" "$INPUT_FILE"
+go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@${OAPI_CODEGEN_VERSION} --config "$CONFIG_FILE" "$INPUT_FILE"
 
 echo "Done! Generated: $OUTPUT_FILE"
 

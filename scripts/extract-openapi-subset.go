@@ -87,7 +87,7 @@ func main() {
 	fmt.Printf("Collected %d schemas\n", len(schemas))
 
 	// Create output directory if needed
-	if err := os.MkdirAll(filepath.Dir(*outputFile), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(*outputFile), 0o755); err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating output directory: %v\n", err)
 		os.Exit(1)
 	}
@@ -99,7 +99,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := os.WriteFile(*outputFile, out, 0644); err != nil {
+	if err := os.WriteFile(*outputFile, out, 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing output file: %v\n", err)
 		os.Exit(1)
 	}

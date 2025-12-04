@@ -1551,17 +1551,17 @@ func TestCalculatorCompareEnvSyncDelete(t *testing.T) {
 			expectDeletes:  0,
 		},
 		{
-			name:        "delete variables with syncDelete",
-			currentVars: []github.VariableData{{Name: "KEEP", Value: "v1"}, {Name: "DELETE_ME", Value: "v2"}},
-			configVars:  map[string]string{"KEEP": "v1"},
-			syncDelete:  true,
+			name:          "delete variables with syncDelete",
+			currentVars:   []github.VariableData{{Name: "KEEP", Value: "v1"}, {Name: "DELETE_ME", Value: "v2"}},
+			configVars:    map[string]string{"KEEP": "v1"},
+			syncDelete:    true,
 			expectDeletes: 1,
 		},
 		{
-			name:        "no delete variables without syncDelete",
-			currentVars: []github.VariableData{{Name: "KEEP", Value: "v1"}, {Name: "DELETE_ME", Value: "v2"}},
-			configVars:  map[string]string{"KEEP": "v1"},
-			syncDelete:  false,
+			name:          "no delete variables without syncDelete",
+			currentVars:   []github.VariableData{{Name: "KEEP", Value: "v1"}, {Name: "DELETE_ME", Value: "v2"}},
+			configVars:    map[string]string{"KEEP": "v1"},
+			syncDelete:    false,
 			expectDeletes: 0,
 		},
 	}
@@ -1610,8 +1610,8 @@ func TestCalculatorCompareEnvWithDotEnv(t *testing.T) {
 
 	dotEnv := &config.DotEnvValues{
 		Values: map[string]string{
-			"SECRET1":  "secret_value",
-			"VAR1":     "env_value",
+			"SECRET1": "secret_value",
+			"VAR1":    "env_value",
 		},
 	}
 

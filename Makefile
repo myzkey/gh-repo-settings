@@ -1,10 +1,14 @@
-.PHONY: build install install-local clean test lint schema \
+.PHONY: build install install-local clean test lint fmt schema \
        fetch-openapi extract-openapi generate-github-types generate
 
 BINARY_NAME=gh-repo-settings
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS=-ldflags "-X main.version=$(VERSION)"
 GH_EXTENSION_DIR=$(HOME)/.local/share/gh/extensions/gh-repo-settings
+
+# Tool versions (keep in sync with CI)
+GOLANGCI_LINT_VERSION=v2.0.2
+GOFUMPT_VERSION=v0.7.0
 
 build:
 	go build $(LDFLAGS) -o $(BINARY_NAME) .
@@ -25,7 +29,10 @@ test:
 	go test -v ./...
 
 lint:
-	golangci-lint run
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run
+
+fmt:
+	go run mvdan.cc/gofumpt@$(GOFUMPT_VERSION) -w .
 
 # Cross-compile for all platforms
 build-all:
