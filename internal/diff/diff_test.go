@@ -7,10 +7,28 @@ import (
 	"github.com/myzkey/gh-repo-settings/internal/config"
 	apperrors "github.com/myzkey/gh-repo-settings/internal/errors"
 	"github.com/myzkey/gh-repo-settings/internal/github"
+	"github.com/myzkey/gh-repo-settings/internal/githubopenapi"
+	"github.com/oapi-codegen/nullable"
 )
 
 func ptr[T any](v T) *T {
 	return &v
+}
+
+// nullStr creates a nullable.Nullable[string] with a value
+func nullStr(s string) nullable.Nullable[string] {
+	return nullable.NewNullableWithValue(s)
+}
+
+// allowedActions creates a pointer to AllowedActions
+func allowedActions(s string) *githubopenapi.AllowedActions {
+	a := githubopenapi.AllowedActions(s)
+	return &a
+}
+
+// nullBuildType creates a nullable.Nullable[GithubPageBuildType] with a value
+func nullBuildType(s string) nullable.Nullable[githubopenapi.GithubPageBuildType] {
+	return nullable.NewNullableWithValue(githubopenapi.GithubPageBuildType(s))
 }
 
 func TestToStringSet(t *testing.T) {
@@ -71,8 +89,8 @@ func TestCalculatorCompareRepo(t *testing.T) {
 		{
 			name: "no changes",
 			current: &github.RepoData{
-				Description: ptr("Test"),
-				Visibility:  "public",
+				Description: nullStr("Test"),
+				Visibility:  ptr("public"),
 			},
 			config: &config.RepoConfig{
 				Description: ptr("Test"),
@@ -83,7 +101,7 @@ func TestCalculatorCompareRepo(t *testing.T) {
 		{
 			name: "description change",
 			current: &github.RepoData{
-				Description: ptr("Old"),
+				Description: nullStr("Old"),
 			},
 			config: &config.RepoConfig{
 				Description: ptr("New"),
@@ -101,7 +119,7 @@ func TestCalculatorCompareRepo(t *testing.T) {
 		{
 			name: "visibility change",
 			current: &github.RepoData{
-				Visibility: "private",
+				Visibility: ptr("private"),
 			},
 			config: &config.RepoConfig{
 				Visibility: ptr("public"),
@@ -119,8 +137,8 @@ func TestCalculatorCompareRepo(t *testing.T) {
 		{
 			name: "merge options change",
 			current: &github.RepoData{
-				AllowMergeCommit: true,
-				AllowSquashMerge: false,
+				AllowMergeCommit: ptr(true),
+				AllowSquashMerge: ptr(false),
 			},
 			config: &config.RepoConfig{
 				AllowMergeCommit: ptr(false),
@@ -204,7 +222,7 @@ func TestCalculatorCompareLabels(t *testing.T) {
 		{
 			name: "update existing label",
 			current: []github.LabelData{
-				{Name: "bug", Color: "d73a4a", Description: "Old description"},
+				{Name: "bug", Color: "d73a4a", Description: nullStr("Old description")},
 			},
 			config: &config.LabelsConfig{
 				Items: []config.Label{
@@ -316,12 +334,8 @@ func TestCalculatorCompareBranchProtection(t *testing.T) {
 			name: "update existing protection",
 			current: map[string]*github.BranchProtectionData{
 				"main": {
-					RequiredPullRequestReviews: &struct {
-						RequiredApprovingReviewCount int  `json:"required_approving_review_count"`
-						DismissStaleReviews          bool `json:"dismiss_stale_reviews"`
-						RequireCodeOwnerReviews      bool `json:"require_code_owner_reviews"`
-					}{
-						RequiredApprovingReviewCount: 1,
+					RequiredPullRequestReviews: &githubopenapi.ProtectedBranchPullRequestReview{
+						RequiredApprovingReviewCount: ptr(1),
 					},
 				},
 			},
@@ -337,12 +351,8 @@ func TestCalculatorCompareBranchProtection(t *testing.T) {
 			name: "no changes",
 			current: map[string]*github.BranchProtectionData{
 				"main": {
-					RequiredPullRequestReviews: &struct {
-						RequiredApprovingReviewCount int  `json:"required_approving_review_count"`
-						DismissStaleReviews          bool `json:"dismiss_stale_reviews"`
-						RequireCodeOwnerReviews      bool `json:"require_code_owner_reviews"`
-					}{
-						RequiredApprovingReviewCount: 2,
+					RequiredPullRequestReviews: &githubopenapi.ProtectedBranchPullRequestReview{
+						RequiredApprovingReviewCount: ptr(2),
 					},
 				},
 			},
@@ -662,7 +672,7 @@ func TestCalculatorCompareTopics(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mock := github.NewMockClient()
 			mock.RepoData = &github.RepoData{
-				Topics: tt.currentTopics,
+				Topics: &tt.currentTopics,
 			}
 
 			cfg := &config.Config{Topics: tt.configTopics}
@@ -691,36 +701,30 @@ func TestCalculatorCompareTopics(t *testing.T) {
 func TestCompareBranchRuleAllFields(t *testing.T) {
 	// Test all branch rule fields for coverage
 	current := &github.BranchProtectionData{
-		RequiredPullRequestReviews: &struct {
-			RequiredApprovingReviewCount int  `json:"required_approving_review_count"`
-			DismissStaleReviews          bool `json:"dismiss_stale_reviews"`
-			RequireCodeOwnerReviews      bool `json:"require_code_owner_reviews"`
-		}{
-			RequiredApprovingReviewCount: 1,
+		RequiredPullRequestReviews: &githubopenapi.ProtectedBranchPullRequestReview{
+			RequiredApprovingReviewCount: ptr(1),
 			DismissStaleReviews:          false,
 			RequireCodeOwnerReviews:      false,
 		},
-		RequiredStatusChecks: &struct {
-			Strict   bool     `json:"strict"`
-			Contexts []string `json:"contexts"`
-		}{
-			Strict:   false,
+		RequiredStatusChecks: &githubopenapi.ProtectedBranchRequiredStatusCheck{
+			Strict:   ptr(false),
 			Contexts: []string{"test"},
 		},
-		EnforceAdmins: &struct {
-			Enabled bool `json:"enabled"`
-		}{Enabled: false},
+		EnforceAdmins: &githubopenapi.ProtectedBranchAdminEnforced{
+			Enabled: false,
+		},
 		RequiredLinearHistory: &struct {
-			Enabled bool `json:"enabled"`
-		}{Enabled: false},
+			Enabled *bool `json:"enabled,omitempty"`
+		}{Enabled: ptr(false)},
 		AllowForcePushes: &struct {
-			Enabled bool `json:"enabled"`
-		}{Enabled: false},
+			Enabled *bool `json:"enabled,omitempty"`
+		}{Enabled: ptr(false)},
 		AllowDeletions: &struct {
-			Enabled bool `json:"enabled"`
-		}{Enabled: false},
+			Enabled *bool `json:"enabled,omitempty"`
+		}{Enabled: ptr(false)},
 		RequiredSignatures: &struct {
-			Enabled bool `json:"enabled"`
+			Enabled bool   `json:"enabled"`
+			Url     string `json:"url"`
 		}{Enabled: false},
 	}
 
@@ -876,7 +880,7 @@ func TestCalculatorCompareActions(t *testing.T) {
 			name: "no changes",
 			currentPerms: &github.ActionsPermissionsData{
 				Enabled:        true,
-				AllowedActions: "all",
+				AllowedActions: allowedActions("all"),
 			},
 			currentWorkflow: &github.ActionsWorkflowPermissionsData{
 				DefaultWorkflowPermissions:   "read",
@@ -895,7 +899,7 @@ func TestCalculatorCompareActions(t *testing.T) {
 			name: "enabled change",
 			currentPerms: &github.ActionsPermissionsData{
 				Enabled:        true,
-				AllowedActions: "all",
+				AllowedActions: allowedActions("all"),
 			},
 			currentWorkflow: &github.ActionsWorkflowPermissionsData{
 				DefaultWorkflowPermissions:   "read",
@@ -911,7 +915,7 @@ func TestCalculatorCompareActions(t *testing.T) {
 			name: "allowed_actions change",
 			currentPerms: &github.ActionsPermissionsData{
 				Enabled:        true,
-				AllowedActions: "all",
+				AllowedActions: allowedActions("all"),
 			},
 			currentWorkflow: &github.ActionsWorkflowPermissionsData{
 				DefaultWorkflowPermissions:   "read",
@@ -927,7 +931,7 @@ func TestCalculatorCompareActions(t *testing.T) {
 			name: "workflow permissions change",
 			currentPerms: &github.ActionsPermissionsData{
 				Enabled:        true,
-				AllowedActions: "all",
+				AllowedActions: allowedActions("all"),
 			},
 			currentWorkflow: &github.ActionsWorkflowPermissionsData{
 				DefaultWorkflowPermissions:   "read",
@@ -944,7 +948,7 @@ func TestCalculatorCompareActions(t *testing.T) {
 			name: "multiple changes",
 			currentPerms: &github.ActionsPermissionsData{
 				Enabled:        true,
-				AllowedActions: "all",
+				AllowedActions: allowedActions("all"),
 			},
 			currentWorkflow: &github.ActionsWorkflowPermissionsData{
 				DefaultWorkflowPermissions:   "read",
@@ -963,16 +967,16 @@ func TestCalculatorCompareActions(t *testing.T) {
 			name: "selected actions change",
 			currentPerms: &github.ActionsPermissionsData{
 				Enabled:        true,
-				AllowedActions: "selected",
+				AllowedActions: allowedActions("selected"),
 			},
 			currentWorkflow: &github.ActionsWorkflowPermissionsData{
 				DefaultWorkflowPermissions:   "read",
 				CanApprovePullRequestReviews: false,
 			},
 			currentSelected: &github.ActionsSelectedData{
-				GithubOwnedAllowed: true,
-				VerifiedAllowed:    false,
-				PatternsAllowed:    []string{},
+				GithubOwnedAllowed: ptr(true),
+				VerifiedAllowed:    ptr(false),
+				PatternsAllowed:    &[]string{},
 			},
 			config: &config.ActionsConfig{
 				SelectedActions: &config.SelectedActionsConfig{
@@ -1028,16 +1032,16 @@ func TestCompareActionsWithPatternsAllowed(t *testing.T) {
 	mock := github.NewMockClient()
 	mock.ActionsPermissions = &github.ActionsPermissionsData{
 		Enabled:        true,
-		AllowedActions: "selected",
+		AllowedActions: allowedActions("selected"),
 	}
 	mock.ActionsWorkflowPerms = &github.ActionsWorkflowPermissionsData{
 		DefaultWorkflowPermissions:   "read",
 		CanApprovePullRequestReviews: false,
 	}
 	mock.ActionsSelected = &github.ActionsSelectedData{
-		GithubOwnedAllowed: true,
-		VerifiedAllowed:    false,
-		PatternsAllowed:    []string{"actions/*"},
+		GithubOwnedAllowed: ptr(true),
+		VerifiedAllowed:    ptr(false),
+		PatternsAllowed:    &[]string{"actions/*"},
 	}
 
 	cfg := &config.Config{
@@ -1069,15 +1073,16 @@ func TestCompareActionsWithPatternsAllowed(t *testing.T) {
 func TestCalculatorCompareRepoAllFields(t *testing.T) {
 	// Test all repo fields for coverage
 	mock := github.NewMockClient()
+	//nolint:unusedwrite // fields are used by Calculator.Calculate()
 	mock.RepoData = &github.RepoData{
-		Description:         ptr("old"),
-		Homepage:            ptr("https://old.com"),
-		Visibility:          "private",
-		AllowMergeCommit:    true,
-		AllowRebaseMerge:    true,
-		AllowSquashMerge:    true,
-		DeleteBranchOnMerge: false,
-		AllowUpdateBranch:   false,
+		Description:         nullStr("old"),
+		Homepage:            nullStr("https://old.com"),
+		Visibility:          ptr("private"),
+		AllowMergeCommit:    ptr(true),
+		AllowRebaseMerge:    ptr(true),
+		AllowSquashMerge:    ptr(true),
+		DeleteBranchOnMerge: ptr(false),
+		AllowUpdateBranch:   ptr(false),
 	}
 
 	cfg := &config.Config{
@@ -1251,48 +1256,42 @@ func TestJoinParts(t *testing.T) {
 	}
 }
 
-func TestPtrEqual(t *testing.T) {
+func TestPtrStringEqual(t *testing.T) {
 	tests := []struct {
 		name     string
-		a        *string
-		b        *string
+		cfg      *string
+		current  *string
 		expected bool
 	}{
 		{
-			name:     "both nil",
-			a:        nil,
-			b:        nil,
+			name:     "cfg nil (not specified) returns true",
+			cfg:      nil,
+			current:  ptr("test"),
 			expected: true,
 		},
 		{
-			name:     "a nil b not nil",
-			a:        nil,
-			b:        ptr("test"),
-			expected: false,
-		},
-		{
-			name:     "a not nil b nil",
-			a:        ptr("test"),
-			b:        nil,
+			name:     "cfg not nil current nil",
+			cfg:      ptr("test"),
+			current:  nil,
 			expected: false,
 		},
 		{
 			name:     "both equal",
-			a:        ptr("test"),
-			b:        ptr("test"),
+			cfg:      ptr("test"),
+			current:  ptr("test"),
 			expected: true,
 		},
 		{
 			name:     "both not equal",
-			a:        ptr("test1"),
-			b:        ptr("test2"),
+			cfg:      ptr("test1"),
+			current:  ptr("test2"),
 			expected: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ptrEqual(tt.a, tt.b)
+			result := ptrStringEqual(tt.cfg, tt.current)
 			if result != tt.expected {
 				t.Errorf("expected %v, got %v", tt.expected, result)
 			}
@@ -1422,7 +1421,7 @@ func TestCalculatorComparePages(t *testing.T) {
 		{
 			name: "no changes",
 			currentPages: &github.PagesData{
-				BuildType: "workflow",
+				BuildType: nullBuildType("workflow"),
 			},
 			config: &config.PagesConfig{
 				BuildType: ptr("workflow"),
@@ -1432,7 +1431,7 @@ func TestCalculatorComparePages(t *testing.T) {
 		{
 			name: "build type change",
 			currentPages: &github.PagesData{
-				BuildType: "legacy",
+				BuildType: nullBuildType("legacy"),
 			},
 			config: &config.PagesConfig{
 				BuildType: ptr("workflow"),
@@ -1442,7 +1441,7 @@ func TestCalculatorComparePages(t *testing.T) {
 		{
 			name: "source branch change",
 			currentPages: &github.PagesData{
-				BuildType: "legacy",
+				BuildType: nullBuildType("legacy"),
 				Source: &github.PagesSourceData{
 					Branch: "main",
 					Path:   "/",
@@ -1460,7 +1459,7 @@ func TestCalculatorComparePages(t *testing.T) {
 		{
 			name: "source path change",
 			currentPages: &github.PagesData{
-				BuildType: "legacy",
+				BuildType: nullBuildType("legacy"),
 				Source: &github.PagesSourceData{
 					Branch: "main",
 					Path:   "/",

@@ -11,6 +11,7 @@ import (
 	"github.com/myzkey/gh-repo-settings/internal/config"
 	"github.com/myzkey/gh-repo-settings/internal/github"
 	"github.com/myzkey/gh-repo-settings/internal/logger"
+	"github.com/oapi-codegen/nullable"
 	"github.com/spf13/cobra"
 )
 
@@ -66,19 +67,19 @@ func runExport(cmd *cobra.Command, args []string) error {
 	}
 
 	cfg.Repo = &config.RepoConfig{
-		Description:         repoData.Description,
-		Homepage:            repoData.Homepage,
-		Visibility:          &repoData.Visibility,
-		AllowMergeCommit:    &repoData.AllowMergeCommit,
-		AllowRebaseMerge:    &repoData.AllowRebaseMerge,
-		AllowSquashMerge:    &repoData.AllowSquashMerge,
-		DeleteBranchOnMerge: &repoData.DeleteBranchOnMerge,
-		AllowUpdateBranch:   &repoData.AllowUpdateBranch,
+		Description:         nullableToPtr(repoData.Description),
+		Homepage:            nullableToPtr(repoData.Homepage),
+		Visibility:          repoData.Visibility,
+		AllowMergeCommit:    repoData.AllowMergeCommit,
+		AllowRebaseMerge:    repoData.AllowRebaseMerge,
+		AllowSquashMerge:    repoData.AllowSquashMerge,
+		DeleteBranchOnMerge: repoData.DeleteBranchOnMerge,
+		AllowUpdateBranch:   repoData.AllowUpdateBranch,
 	}
 
 	// Get topics
-	if len(repoData.Topics) > 0 {
-		cfg.Topics = repoData.Topics
+	if repoData.Topics != nil && len(*repoData.Topics) > 0 {
+		cfg.Topics = *repoData.Topics
 	}
 
 	// Get labels
@@ -92,7 +93,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 			cfg.Labels.Items[i] = config.Label{
 				Name:        l.Name,
 				Color:       l.Color,
-				Description: l.Description,
+				Description: nullableStringVal(l.Description),
 			}
 		}
 	}
@@ -123,19 +124,27 @@ func runExport(cmd *cobra.Command, args []string) error {
 	// Get actions permissions
 	actionsPerms, err := client.GetActionsPermissions(ctx)
 	if err == nil {
+		enabled := bool(actionsPerms.Enabled)
+		var allowedActions *string
+		if actionsPerms.AllowedActions != nil {
+			s := string(*actionsPerms.AllowedActions)
+			allowedActions = &s
+		}
 		cfg.Actions = &config.ActionsConfig{
-			Enabled:        &actionsPerms.Enabled,
-			AllowedActions: &actionsPerms.AllowedActions,
+			Enabled:        &enabled,
+			AllowedActions: allowedActions,
 		}
 
 		// Get selected actions if applicable
-		if actionsPerms.AllowedActions == "selected" {
+		if actionsPerms.AllowedActions != nil && *actionsPerms.AllowedActions == "selected" {
 			selected, err := client.GetActionsSelectedActions(ctx)
 			if err == nil {
 				cfg.Actions.SelectedActions = &config.SelectedActionsConfig{
-					GithubOwnedAllowed: &selected.GithubOwnedAllowed,
-					VerifiedAllowed:    &selected.VerifiedAllowed,
-					PatternsAllowed:    selected.PatternsAllowed,
+					GithubOwnedAllowed: selected.GithubOwnedAllowed,
+					VerifiedAllowed:    selected.VerifiedAllowed,
+				}
+				if selected.PatternsAllowed != nil {
+					cfg.Actions.SelectedActions.PatternsAllowed = *selected.PatternsAllowed
 				}
 			}
 		}
@@ -143,8 +152,10 @@ func runExport(cmd *cobra.Command, args []string) error {
 		// Get workflow permissions
 		workflowPerms, err := client.GetActionsWorkflowPermissions(ctx)
 		if err == nil {
-			cfg.Actions.DefaultWorkflowPermissions = &workflowPerms.DefaultWorkflowPermissions
-			cfg.Actions.CanApprovePullRequestReviews = &workflowPerms.CanApprovePullRequestReviews
+			perms := string(workflowPerms.DefaultWorkflowPermissions)
+			cfg.Actions.DefaultWorkflowPermissions = &perms
+			canApprove := bool(workflowPerms.CanApprovePullRequestReviews)
+			cfg.Actions.CanApprovePullRequestReviews = &canApprove
 		}
 	}
 
@@ -224,4 +235,21 @@ func writeYAMLFile(path string, data interface{}) error {
 		return err
 	}
 	return os.WriteFile(path, yamlData, 0o644)
+}
+
+// nullableToPtr converts a nullable.Nullable[string] to *string
+func nullableToPtr(n nullable.Nullable[string]) *string {
+	if !n.IsSpecified() || n.IsNull() {
+		return nil
+	}
+	s := n.MustGet()
+	return &s
+}
+
+// nullableStringVal returns the string value from a nullable.Nullable[string]
+func nullableStringVal(n nullable.Nullable[string]) string {
+	if !n.IsSpecified() || n.IsNull() {
+		return ""
+	}
+	return n.MustGet()
 }

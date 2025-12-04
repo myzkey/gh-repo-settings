@@ -2,6 +2,9 @@ package github
 
 import (
 	"testing"
+
+	"github.com/myzkey/gh-repo-settings/internal/githubopenapi"
+	"github.com/oapi-codegen/nullable"
 )
 
 func TestParseRepoArg(t *testing.T) {
@@ -233,29 +236,34 @@ func TestBranchProtectionSettingsAllFields(t *testing.T) {
 }
 
 func TestRepoData(t *testing.T) {
-	desc := "Test repo"
-	homepage := "https://example.com"
+	visibility := "public"
+	allowMerge := true
+	allowRebase := true
+	allowSquash := true
+	deleteBranch := true
+	allowUpdate := true
+	topics := []string{"go", "cli"}
 
 	data := &RepoData{
-		Description:         &desc,
-		Homepage:            &homepage,
-		Visibility:          "public",
-		AllowMergeCommit:    true,
-		AllowRebaseMerge:    true,
-		AllowSquashMerge:    true,
-		DeleteBranchOnMerge: true,
-		AllowUpdateBranch:   true,
-		Topics:              []string{"go", "cli"},
+		Description:         nullable.NewNullableWithValue("Test repo"),
+		Homepage:            nullable.NewNullableWithValue("https://example.com"),
+		Visibility:          &visibility,
+		AllowMergeCommit:    &allowMerge,
+		AllowRebaseMerge:    &allowRebase,
+		AllowSquashMerge:    &allowSquash,
+		DeleteBranchOnMerge: &deleteBranch,
+		AllowUpdateBranch:   &allowUpdate,
+		Topics:              &topics,
 	}
 
-	if *data.Description != "Test repo" {
-		t.Errorf("expected description 'Test repo', got %q", *data.Description)
+	if data.Description.MustGet() != "Test repo" {
+		t.Errorf("expected description 'Test repo', got %q", data.Description.MustGet())
 	}
-	if data.Visibility != "public" {
-		t.Errorf("expected visibility 'public', got %q", data.Visibility)
+	if *data.Visibility != "public" {
+		t.Errorf("expected visibility 'public', got %q", *data.Visibility)
 	}
-	if len(data.Topics) != 2 {
-		t.Errorf("expected 2 topics, got %d", len(data.Topics))
+	if len(*data.Topics) != 2 {
+		t.Errorf("expected 2 topics, got %d", len(*data.Topics))
 	}
 }
 
@@ -263,7 +271,7 @@ func TestLabelData(t *testing.T) {
 	label := LabelData{
 		Name:        "bug",
 		Color:       "d73a4a",
-		Description: "Something isn't working",
+		Description: nullable.NewNullableWithValue("Something isn't working"),
 	}
 
 	if label.Name != "bug" {
@@ -289,40 +297,44 @@ func TestVariableData(t *testing.T) {
 }
 
 func TestActionsPermissionsData(t *testing.T) {
+	allowedActions := githubopenapi.AllowedActions("selected")
 	data := ActionsPermissionsData{
 		Enabled:        true,
-		AllowedActions: "selected",
+		AllowedActions: &allowedActions,
 	}
 
 	if !data.Enabled {
 		t.Error("expected Enabled to be true")
 	}
-	if data.AllowedActions != "selected" {
-		t.Errorf("expected AllowedActions 'selected', got %q", data.AllowedActions)
+	if *data.AllowedActions != "selected" {
+		t.Errorf("expected AllowedActions 'selected', got %q", *data.AllowedActions)
 	}
 }
 
 func TestActionsSelectedData(t *testing.T) {
+	githubOwned := true
+	verified := true
+	patterns := []string{"actions/*", "github/*"}
 	data := ActionsSelectedData{
-		GithubOwnedAllowed: true,
-		VerifiedAllowed:    true,
-		PatternsAllowed:    []string{"actions/*", "github/*"},
+		GithubOwnedAllowed: &githubOwned,
+		VerifiedAllowed:    &verified,
+		PatternsAllowed:    &patterns,
 	}
 
-	if !data.GithubOwnedAllowed {
+	if !*data.GithubOwnedAllowed {
 		t.Error("expected GithubOwnedAllowed to be true")
 	}
-	if !data.VerifiedAllowed {
+	if !*data.VerifiedAllowed {
 		t.Error("expected VerifiedAllowed to be true")
 	}
-	if len(data.PatternsAllowed) != 2 {
-		t.Errorf("expected 2 patterns, got %d", len(data.PatternsAllowed))
+	if len(*data.PatternsAllowed) != 2 {
+		t.Errorf("expected 2 patterns, got %d", len(*data.PatternsAllowed))
 	}
 }
 
 func TestActionsWorkflowPermissionsData(t *testing.T) {
 	data := ActionsWorkflowPermissionsData{
-		DefaultWorkflowPermissions:   "read",
+		DefaultWorkflowPermissions:   githubopenapi.ActionsDefaultWorkflowPermissions("read"),
 		CanApprovePullRequestReviews: false,
 	}
 
@@ -336,15 +348,15 @@ func TestActionsWorkflowPermissionsData(t *testing.T) {
 
 func TestPagesData(t *testing.T) {
 	data := PagesData{
-		BuildType: "workflow",
+		BuildType: nullable.NewNullableWithValue(githubopenapi.GithubPageBuildType("workflow")),
 		Source: &PagesSourceData{
 			Branch: "main",
 			Path:   "/docs",
 		},
 	}
 
-	if data.BuildType != "workflow" {
-		t.Errorf("expected BuildType 'workflow', got %q", data.BuildType)
+	if data.BuildType.MustGet() != "workflow" {
+		t.Errorf("expected BuildType 'workflow', got %q", data.BuildType.MustGet())
 	}
 	if data.Source.Branch != "main" {
 		t.Errorf("expected Source.Branch 'main', got %q", data.Source.Branch)
@@ -369,57 +381,30 @@ func TestPagesSourceData(t *testing.T) {
 }
 
 func TestBranchProtectionData(t *testing.T) {
+	reviewCount := 2
+	strictChecks := true
 	data := BranchProtectionData{
-		RequiredPullRequestReviews: &struct {
-			RequiredApprovingReviewCount int  `json:"required_approving_review_count"`
-			DismissStaleReviews          bool `json:"dismiss_stale_reviews"`
-			RequireCodeOwnerReviews      bool `json:"require_code_owner_reviews"`
-		}{
-			RequiredApprovingReviewCount: 2,
+		RequiredPullRequestReviews: &githubopenapi.ProtectedBranchPullRequestReview{
+			RequiredApprovingReviewCount: &reviewCount,
 			DismissStaleReviews:          true,
 			RequireCodeOwnerReviews:      true,
 		},
-		RequiredStatusChecks: &struct {
-			Strict   bool     `json:"strict"`
-			Contexts []string `json:"contexts"`
-		}{
-			Strict:   true,
+		RequiredStatusChecks: &githubopenapi.ProtectedBranchRequiredStatusCheck{
+			Strict:   &strictChecks,
 			Contexts: []string{"ci/test", "ci/lint"},
 		},
-		EnforceAdmins: &struct {
-			Enabled bool `json:"enabled"`
-		}{
-			Enabled: true,
-		},
-		RequiredLinearHistory: &struct {
-			Enabled bool `json:"enabled"`
-		}{
-			Enabled: true,
-		},
-		AllowForcePushes: &struct {
-			Enabled bool `json:"enabled"`
-		}{
-			Enabled: false,
-		},
-		AllowDeletions: &struct {
-			Enabled bool `json:"enabled"`
-		}{
-			Enabled: false,
-		},
-		RequiredSignatures: &struct {
-			Enabled bool `json:"enabled"`
-		}{
+		EnforceAdmins: &githubopenapi.ProtectedBranchAdminEnforced{
 			Enabled: true,
 		},
 	}
 
-	if data.RequiredPullRequestReviews.RequiredApprovingReviewCount != 2 {
-		t.Errorf("expected 2 required reviews, got %d", data.RequiredPullRequestReviews.RequiredApprovingReviewCount)
+	if data.RequiredPullRequestReviews.RequiredApprovingReviewCount == nil || *data.RequiredPullRequestReviews.RequiredApprovingReviewCount != 2 {
+		t.Errorf("expected 2 required reviews, got %v", data.RequiredPullRequestReviews.RequiredApprovingReviewCount)
 	}
 	if !data.RequiredPullRequestReviews.DismissStaleReviews {
 		t.Error("expected DismissStaleReviews to be true")
 	}
-	if !data.RequiredStatusChecks.Strict {
+	if data.RequiredStatusChecks.Strict == nil || !*data.RequiredStatusChecks.Strict {
 		t.Error("expected Strict status checks to be true")
 	}
 	if len(data.RequiredStatusChecks.Contexts) != 2 {

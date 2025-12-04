@@ -2,6 +2,8 @@ package github
 
 import (
 	"context"
+
+	"github.com/myzkey/gh-repo-settings/internal/githubopenapi"
 )
 
 // MockClient is a mock implementation of GitHubClient for testing
@@ -287,7 +289,8 @@ func (m *MockClient) GetActionsPermissions(ctx context.Context) (*ActionsPermiss
 		return nil, m.GetActionsPermissionsError
 	}
 	if m.ActionsPermissions == nil {
-		return &ActionsPermissionsData{Enabled: true, AllowedActions: "all"}, nil
+		allowedActions := githubopenapi.AllowedActions("all")
+		return &ActionsPermissionsData{Enabled: true, AllowedActions: &allowedActions}, nil
 	}
 	return m.ActionsPermissions, nil
 }
@@ -330,7 +333,7 @@ func (m *MockClient) GetActionsWorkflowPermissions(ctx context.Context) (*Action
 		return nil, m.GetActionsWorkflowPermissionsError
 	}
 	if m.ActionsWorkflowPerms == nil {
-		return &ActionsWorkflowPermissionsData{DefaultWorkflowPermissions: "read", CanApprovePullRequestReviews: false}, nil
+		return &ActionsWorkflowPermissionsData{DefaultWorkflowPermissions: githubopenapi.ActionsDefaultWorkflowPermissions("read"), CanApprovePullRequestReviews: false}, nil
 	}
 	return m.ActionsWorkflowPerms, nil
 }

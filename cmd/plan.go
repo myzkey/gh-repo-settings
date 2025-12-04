@@ -15,6 +15,7 @@ import (
 	"github.com/myzkey/gh-repo-settings/internal/github"
 	"github.com/myzkey/gh-repo-settings/internal/logger"
 	"github.com/myzkey/gh-repo-settings/internal/workflow"
+	"github.com/oapi-codegen/nullable"
 	"github.com/spf13/cobra"
 )
 
@@ -306,22 +307,20 @@ func printCurrentSettingsJSON(ctx context.Context, client *github.Client) error 
 	}
 
 	settings.Repo = &github.CurrentRepoSettings{
-		Visibility:          repo.Visibility,
-		AllowMergeCommit:    repo.AllowMergeCommit,
-		AllowRebaseMerge:    repo.AllowRebaseMerge,
-		AllowSquashMerge:    repo.AllowSquashMerge,
-		DeleteBranchOnMerge: repo.DeleteBranchOnMerge,
-		AllowUpdateBranch:   repo.AllowUpdateBranch,
+		Visibility:          ptrStringVal(repo.Visibility),
+		AllowMergeCommit:    ptrBoolValDefault(repo.AllowMergeCommit),
+		AllowRebaseMerge:    ptrBoolValDefault(repo.AllowRebaseMerge),
+		AllowSquashMerge:    ptrBoolValDefault(repo.AllowSquashMerge),
+		DeleteBranchOnMerge: ptrBoolValDefault(repo.DeleteBranchOnMerge),
+		AllowUpdateBranch:   ptrBoolValDefault(repo.AllowUpdateBranch),
 	}
-	if repo.Description != nil {
-		settings.Repo.Description = *repo.Description
-	}
-	if repo.Homepage != nil {
-		settings.Repo.Homepage = *repo.Homepage
-	}
+	settings.Repo.Description = planNullableStringVal(repo.Description)
+	settings.Repo.Homepage = planNullableStringVal(repo.Homepage)
 
 	// Topics
-	settings.Topics = repo.Topics
+	if repo.Topics != nil {
+		settings.Topics = *repo.Topics
+	}
 
 	// Labels
 	labels, err := client.GetLabels(ctx)
@@ -335,14 +334,14 @@ func printCurrentSettingsJSON(ctx context.Context, client *github.Client) error 
 	if err == nil {
 		rule := &github.CurrentBranchRule{}
 		if bp.RequiredPullRequestReviews != nil {
-			rule.RequiredReviews = &bp.RequiredPullRequestReviews.RequiredApprovingReviewCount
+			rule.RequiredReviews = bp.RequiredPullRequestReviews.RequiredApprovingReviewCount
 			rule.DismissStaleReviews = &bp.RequiredPullRequestReviews.DismissStaleReviews
 			rule.RequireCodeOwner = &bp.RequiredPullRequestReviews.RequireCodeOwnerReviews
 		}
 		if bp.RequiredStatusChecks != nil {
 			requireStatusChecks := true
 			rule.RequireStatusChecks = &requireStatusChecks
-			rule.StrictStatusChecks = &bp.RequiredStatusChecks.Strict
+			rule.StrictStatusChecks = bp.RequiredStatusChecks.Strict
 			rule.StatusChecks = bp.RequiredStatusChecks.Contexts
 		} else {
 			requireStatusChecks := false
@@ -352,13 +351,13 @@ func printCurrentSettingsJSON(ctx context.Context, client *github.Client) error 
 			rule.EnforceAdmins = &bp.EnforceAdmins.Enabled
 		}
 		if bp.RequiredLinearHistory != nil {
-			rule.RequireLinearHistory = &bp.RequiredLinearHistory.Enabled
+			rule.RequireLinearHistory = bp.RequiredLinearHistory.Enabled
 		}
 		if bp.AllowForcePushes != nil {
-			rule.AllowForcePushes = &bp.AllowForcePushes.Enabled
+			rule.AllowForcePushes = bp.AllowForcePushes.Enabled
 		}
 		if bp.AllowDeletions != nil {
-			rule.AllowDeletions = &bp.AllowDeletions.Enabled
+			rule.AllowDeletions = bp.AllowDeletions.Enabled
 		}
 		settings.BranchProtection["main"] = rule
 	}
@@ -366,14 +365,19 @@ func printCurrentSettingsJSON(ctx context.Context, client *github.Client) error 
 	// Actions
 	actionsPerms, err := client.GetActionsPermissions(ctx)
 	if err == nil {
+		allowedActions := ""
+		if actionsPerms.AllowedActions != nil {
+			allowedActions = string(*actionsPerms.AllowedActions)
+		}
 		settings.Actions = &github.CurrentActionsSettings{
-			Enabled:        actionsPerms.Enabled,
-			AllowedActions: actionsPerms.AllowedActions,
+			Enabled:        bool(actionsPerms.Enabled),
+			AllowedActions: allowedActions,
 		}
 		workflowPerms, err := client.GetActionsWorkflowPermissions(ctx)
 		if err == nil {
-			settings.Actions.DefaultWorkflowPermissions = workflowPerms.DefaultWorkflowPermissions
-			settings.Actions.CanApprovePullRequestReviews = &workflowPerms.CanApprovePullRequestReviews
+			settings.Actions.DefaultWorkflowPermissions = string(workflowPerms.DefaultWorkflowPermissions)
+			canApprove := bool(workflowPerms.CanApprovePullRequestReviews)
+			settings.Actions.CanApprovePullRequestReviews = &canApprove
 		}
 	}
 
@@ -405,6 +409,30 @@ func printCurrentSettingsJSON(ctx context.Context, client *github.Client) error 
 	return nil
 }
 
+// ptrStringVal returns the string value from a *string, defaulting to empty string if nil
+func ptrStringVal(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+// ptrBoolValDefault returns the bool value from a *bool, defaulting to false if nil
+func ptrBoolValDefault(b *bool) bool {
+	if b == nil {
+		return false
+	}
+	return *b
+}
+
+// planNullableStringVal returns the string value from a nullable.Nullable[string]
+func planNullableStringVal(n nullable.Nullable[string]) string {
+	if !n.IsSpecified() || n.IsNull() {
+		return ""
+	}
+	return n.MustGet()
+}
+
 func printCurrentSettings(ctx context.Context, client *github.Client) error {
 	cyan := color.New(color.FgCyan).SprintFunc()
 	gray := color.New(color.FgHiBlack).SprintFunc()
@@ -418,23 +446,23 @@ func printCurrentSettings(ctx context.Context, client *github.Client) error {
 	}
 
 	fmt.Printf("%s:\n", cyan("repo"))
-	if repo.Description != nil && *repo.Description != "" {
-		fmt.Printf("  description: %s\n", *repo.Description)
+	if desc := planNullableStringVal(repo.Description); desc != "" {
+		fmt.Printf("  description: %s\n", desc)
 	}
-	if repo.Homepage != nil && *repo.Homepage != "" {
-		fmt.Printf("  homepage: %s\n", *repo.Homepage)
+	if homepage := planNullableStringVal(repo.Homepage); homepage != "" {
+		fmt.Printf("  homepage: %s\n", homepage)
 	}
-	fmt.Printf("  visibility: %s\n", repo.Visibility)
-	fmt.Printf("  allow_merge_commit: %v\n", repo.AllowMergeCommit)
-	fmt.Printf("  allow_rebase_merge: %v\n", repo.AllowRebaseMerge)
-	fmt.Printf("  allow_squash_merge: %v\n", repo.AllowSquashMerge)
-	fmt.Printf("  delete_branch_on_merge: %v\n", repo.DeleteBranchOnMerge)
-	fmt.Printf("  allow_update_branch: %v\n", repo.AllowUpdateBranch)
+	fmt.Printf("  visibility: %s\n", ptrStringVal(repo.Visibility))
+	fmt.Printf("  allow_merge_commit: %v\n", ptrBoolValDefault(repo.AllowMergeCommit))
+	fmt.Printf("  allow_rebase_merge: %v\n", ptrBoolValDefault(repo.AllowRebaseMerge))
+	fmt.Printf("  allow_squash_merge: %v\n", ptrBoolValDefault(repo.AllowSquashMerge))
+	fmt.Printf("  delete_branch_on_merge: %v\n", ptrBoolValDefault(repo.DeleteBranchOnMerge))
+	fmt.Printf("  allow_update_branch: %v\n", ptrBoolValDefault(repo.AllowUpdateBranch))
 
 	// Topics
-	if len(repo.Topics) > 0 {
+	if repo.Topics != nil && len(*repo.Topics) > 0 {
 		fmt.Printf("\n%s:\n", cyan("topics"))
-		for _, t := range repo.Topics {
+		for _, t := range *repo.Topics {
 			fmt.Printf("  - %s\n", t)
 		}
 	}
@@ -486,7 +514,11 @@ func printCurrentSettings(ctx context.Context, client *github.Client) error {
 		fmt.Printf("  %s\n", gray("(failed to get)"))
 	} else {
 		fmt.Printf("  enabled: %v\n", actionsPerms.Enabled)
-		fmt.Printf("  allowed_actions: %s\n", actionsPerms.AllowedActions)
+		allowedActions := ""
+		if actionsPerms.AllowedActions != nil {
+			allowedActions = string(*actionsPerms.AllowedActions)
+		}
+		fmt.Printf("  allowed_actions: %s\n", allowedActions)
 	}
 
 	workflowPerms, err := client.GetActionsWorkflowPermissions(ctx)
