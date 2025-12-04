@@ -185,6 +185,10 @@ func runPlan(cmd *cobra.Command, args []string) error {
 }
 
 func printPlan(plan *diff.Plan) (hasDeletes bool) {
+	return printPlanWithOptions(plan, true)
+}
+
+func printPlanWithOptions(plan *diff.Plan, showApplyHint bool) (hasDeletes bool) {
 	green := color.New(color.FgGreen).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
@@ -249,7 +253,9 @@ func printPlan(plan *diff.Plan) (hasDeletes bool) {
 		fmt.Println()
 	}
 
-	fmt.Printf("Run %s to apply these changes.\n", cyan("gh repo-settings apply"))
+	if showApplyHint {
+		fmt.Printf("Run %s to apply these changes.\n", cyan("gh repo-settings apply"))
+	}
 
 	return deletes > 0
 }
