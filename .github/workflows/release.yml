@@ -1,4 +1,4 @@
-name: Tag and Release from PR
+name: Release
 
 on:
   pull_request:
@@ -7,88 +7,144 @@ on:
       - main
 
 jobs:
-  tag-and-release:
-    # Only run on merged PRs
-    if: github.event.pull_request.merged == true
+  # Job 1: When release/* PR is merged, create a version bump PR
+  create-version-pr:
+    if: |
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
 
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Extract version from branch name
+        id: version
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          # Extract version from branch name (release/v0.1.5 -> 0.1.5)
+          VERSION="${BRANCH#release/}"
+          VERSION="${VERSION#v}"
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+          echo "Extracted version: ${VERSION}"
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          git fetch --tags
+          TAG="v${{ steps.version.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists. Skipping."
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create version bump branch
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "version/v${{ steps.version.outputs.version }}"
+
+      - name: Update version.go
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cat > version.go << EOF
+          package main
+
+          // Version is the current version of gh-repo-settings.
+          // This file is automatically updated by the release workflow.
+          const Version = "${VERSION}"
+          EOF
+
+      - name: Build binary for gh extension
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          GOOS=darwin GOARCH=arm64 go build -o gh-repo-settings .
+
+      - name: Commit and push
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git add version.go gh-repo-settings
+          git commit -m "release: v${VERSION}"
+          git push origin "version/v${VERSION}"
+
+      - name: Create Pull Request
+        if: steps.check_tag.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          gh pr create \
+            --title "release: v${VERSION}" \
+            --body "## Release v${VERSION}
+
+          This PR finalizes the release of v${VERSION}.
+
+          ### Changes
+          - Updated \`version.go\` to \`${VERSION}\`
+          - Rebuilt \`gh-repo-settings\` binary
+
+          ### What happens on merge
+          Tag \`v${VERSION}\` will be created and GoReleaser will publish the release.
+
+          ---
+          🤖 Automatically created by the Release workflow." \
+            --base main \
+            --head "version/v${VERSION}"
+
+  # Job 2: When version/* PR is merged, create tag and release
+  tag-and-release:
+    if: |
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'version/')
+    runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Show PR info (debug)
-        run: |
-          echo "base: ${{ github.event.pull_request.base.ref }}"
-          echo "head: ${{ github.event.pull_request.head.ref }}"
-          echo "merged: ${{ github.event.pull_request.merged }}"
-          echo "merge_commit_sha: ${{ github.event.pull_request.merge_commit_sha }}"
-
-      - name: Extract version from branch name
-        id: meta
-        env:
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-        run: |
-          BRANCH="$HEAD_REF"
-          PREFIX="release/"
-
-          echo "Branch: $BRANCH"
-
-          # Skip if not a release branch
-          if [[ "$BRANCH" != $PREFIX* ]]; then
-            echo "Not a release branch. Skipping."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          VERSION="${BRANCH#$PREFIX}"  # Remove release/ prefix
-
-          # Add v prefix if missing
-          if [[ "$VERSION" != v* ]]; then
-            TAG="v${VERSION}"
-          else
-            TAG="$VERSION"
-          fi
-
-          echo "VERSION=${VERSION}"
-          echo "TAG=${TAG}"
-
-          echo "skip=false" >> "$GITHUB_OUTPUT"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-
       - name: Checkout
-        if: steps.meta.outputs.skip == 'false'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Setup Go
-        if: steps.meta.outputs.skip == 'false'
         uses: actions/setup-go@v5
         with:
           go-version: "1.23"
 
-      - name: Create tag on merge commit
-        if: steps.meta.outputs.skip == 'false'
-        env:
-          TAG: ${{ steps.meta.outputs.tag }}
-          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+      - name: Extract version from version.go
+        id: version
         run: |
+          VERSION=$(grep 'const Version' version.go | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+          echo "Extracted version: ${VERSION}"
+
+      - name: Create tag
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Check if tag already exists
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists. Skipping."
-            exit 0
-          fi
-
-          echo "Tagging $TAG at $MERGE_SHA"
-          git tag "$TAG" "$MERGE_SHA"
+          git tag "$TAG"
           git push origin "$TAG"
 
       - name: Run GoReleaser
-        if: steps.meta.outputs.skip == 'false'
         uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
