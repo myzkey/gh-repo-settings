@@ -1,14 +1,118 @@
 name: Release
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - main
-    paths:
-      - "version.go"
 
 jobs:
-  release:
+  # Job 1: When release/* PR is merged, create a version bump PR
+  create-version-pr:
+    if: |
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Extract version from branch name
+        id: version
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          # Extract version from branch name (release/v0.1.5 -> 0.1.5)
+          VERSION="${BRANCH#release/}"
+          VERSION="${VERSION#v}"
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+          echo "Extracted version: ${VERSION}"
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          git fetch --tags
+          TAG="v${{ steps.version.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists. Skipping."
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create version bump branch
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "version/v${{ steps.version.outputs.version }}"
+
+      - name: Update version.go
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cat > version.go << EOF
+          package main
+
+          // Version is the current version of gh-repo-settings.
+          // This file is automatically updated by the release workflow.
+          const Version = "${VERSION}"
+          EOF
+
+      - name: Build binary for gh extension
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          GOOS=darwin GOARCH=arm64 go build -o gh-repo-settings .
+
+      - name: Commit and push
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git add version.go gh-repo-settings
+          git commit -m "release: v${VERSION}"
+          git push origin "version/v${VERSION}"
+
+      - name: Create Pull Request
+        if: steps.check_tag.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          gh pr create \
+            --title "release: v${VERSION}" \
+            --body "## Release v${VERSION}
+
+          This PR finalizes the release of v${VERSION}.
+
+          ### Changes
+          - Updated \`version.go\` to \`${VERSION}\`
+          - Rebuilt \`gh-repo-settings\` binary
+
+          ### What happens on merge
+          Tag \`v${VERSION}\` will be created and GoReleaser will publish the release.
+
+          ---
+          🤖 Automatically created by the Release workflow." \
+            --base main \
+            --head "version/v${VERSION}"
+
+  # Job 2: When version/* PR is merged, create tag and release
+  tag-and-release:
+    if: |
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'version/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -32,38 +136,7 @@ jobs:
           echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
           echo "Extracted version: ${VERSION}"
 
-      - name: Check if tag already exists
-        id: check_tag
-        run: |
-          TAG="v${{ steps.version.outputs.version }}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists. Skipping release."
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "Tag $TAG does not exist. Proceeding with release."
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build binary for gh extension
-        if: steps.check_tag.outputs.exists == 'false'
-        run: |
-          GOOS=darwin GOARCH=arm64 go build -o gh-repo-settings .
-
-      - name: Commit updated binary
-        if: steps.check_tag.outputs.exists == 'false'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add gh-repo-settings
-          if git diff --staged --quiet; then
-            echo "No changes to binary"
-          else
-            git commit -m "build: update binary for v${{ steps.version.outputs.version }}"
-            git push
-          fi
-
       - name: Create tag
-        if: steps.check_tag.outputs.exists == 'false'
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           git config user.name "github-actions[bot]"
@@ -72,7 +145,6 @@ jobs:
           git push origin "$TAG"
 
       - name: Run GoReleaser
-        if: steps.check_tag.outputs.exists == 'false'
         uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
