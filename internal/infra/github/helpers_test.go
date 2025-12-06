@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"testing"
 )
 
@@ -91,7 +92,7 @@ func TestCallAPI_GetWithBodyReturnsError(t *testing.T) {
 		Repo: RepoInfo{Owner: "owner", Name: "repo"},
 	}
 
-	_, err := client.callAPI(t.Context(), httpGet, "test/endpoint", []byte(`{"test": true}`))
+	_, err := client.callAPI(context.Background(), httpGet, "test/endpoint", []byte(`{"test": true}`))
 	if err == nil {
 		t.Fatal("expected error for GET request with body, got nil")
 	}
