@@ -2,6 +2,8 @@ package diff
 
 import (
 	"encoding/json"
+
+	"github.com/myzkey/gh-repo-settings/internal/diff/domain/model"
 )
 
 // JSONPlan represents the JSON output structure for plan
@@ -33,13 +35,13 @@ type JSONSummary struct {
 	Missing int `json:"missing"`
 }
 
-// ToJSON converts a Plan to JSON output structure
-func (p *Plan) ToJSON() *JSONPlan {
+// PlanToJSON converts a Plan to JSON output structure
+func PlanToJSON(p *model.Plan) *JSONPlan {
 	jsonPlan := &JSONPlan{}
 
 	var adds, updates, deletes, missing int
 
-	for _, change := range p.Changes {
+	for _, change := range p.Changes() {
 		jc := JSONChange{
 			Type: change.Type.String(),
 			Key:  change.Key,
@@ -67,13 +69,13 @@ func (p *Plan) ToJSON() *JSONPlan {
 		}
 
 		switch change.Type {
-		case ChangeAdd:
+		case model.ChangeAdd:
 			adds++
-		case ChangeUpdate:
+		case model.ChangeUpdate:
 			updates++
-		case ChangeDelete:
+		case model.ChangeDelete:
 			deletes++
-		case ChangeMissing:
+		case model.ChangeMissing:
 			missing++
 		}
 	}
@@ -88,7 +90,7 @@ func (p *Plan) ToJSON() *JSONPlan {
 	return jsonPlan
 }
 
-// MarshalIndent returns pretty-printed JSON bytes
-func (p *Plan) MarshalIndent() ([]byte, error) {
-	return json.MarshalIndent(p.ToJSON(), "", "  ")
+// PlanMarshalIndent returns pretty-printed JSON bytes for a plan
+func PlanMarshalIndent(p *model.Plan) ([]byte, error) {
+	return json.MarshalIndent(PlanToJSON(p), "", "  ")
 }

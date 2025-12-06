@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/myzkey/gh-repo-settings/internal/logger"
-	"github.com/myzkey/gh-repo-settings/internal/provider"
+	"github.com/myzkey/gh-repo-settings/internal/infra/logger"
+	"github.com/myzkey/gh-repo-settings/internal/infra/provider"
 )
 
 // DotEnvValues holds parsed values from .github/.env file

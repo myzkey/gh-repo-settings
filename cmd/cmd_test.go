@@ -7,6 +7,7 @@ import (
 
 	"github.com/myzkey/gh-repo-settings/internal/config"
 	"github.com/myzkey/gh-repo-settings/internal/diff"
+	"github.com/myzkey/gh-repo-settings/internal/diff/domain/model"
 )
 
 // Test utility functions from init.go
@@ -543,14 +544,12 @@ func TestInitFromRepoFlagValidation(t *testing.T) {
 
 func TestPrintPlan(t *testing.T) {
 	// Create a plan with various change types
-	plan := &diff.Plan{
-		Changes: []diff.Change{
-			{Category: "repo", Key: "description", Type: diff.ChangeUpdate, Old: "old", New: "new"},
-			{Category: "labels", Key: "bug", Type: diff.ChangeAdd, New: "new label"},
-			{Category: "labels", Key: "old-label", Type: diff.ChangeDelete, Old: "deleted"},
-			{Category: "secrets", Key: "API_KEY", Type: diff.ChangeMissing, New: "required"},
-		},
-	}
+	plan := model.NewPlanFromChanges([]diff.Change{
+		{Category: "repo", Key: "description", Type: diff.ChangeUpdate, Old: "old", New: "new"},
+		{Category: "labels", Key: "bug", Type: diff.ChangeAdd, New: "new label"},
+		{Category: "labels", Key: "old-label", Type: diff.ChangeDelete, Old: "deleted"},
+		{Category: "secrets", Key: "API_KEY", Type: diff.ChangeMissing, New: "required"},
+	})
 
 	// printPlan writes to stdout and calls os.Exit on deletes, so we just verify it doesn't panic
 	// In real testing, we'd capture stdout and verify the output format
@@ -618,7 +617,7 @@ func TestPrintPlanOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			plan := &diff.Plan{Changes: tt.changes}
+			plan := model.NewPlanFromChanges(tt.changes)
 			hasDeletes := printPlan(plan)
 			if hasDeletes != tt.wantDeletes {
 				t.Errorf("printPlan() hasDeletes = %v, want %v", hasDeletes, tt.wantDeletes)
@@ -629,11 +628,9 @@ func TestPrintPlanOutput(t *testing.T) {
 
 // Test printPlanWithOptions function
 func TestPrintPlanWithOptions(t *testing.T) {
-	plan := &diff.Plan{
-		Changes: []diff.Change{
-			{Category: "repo", Key: "description", Type: diff.ChangeUpdate, Old: "old", New: "new"},
-		},
-	}
+	plan := model.NewPlanFromChanges([]diff.Change{
+		{Category: "repo", Key: "description", Type: diff.ChangeUpdate, Old: "old", New: "new"},
+	})
 
 	t.Run("with showApplyHint true", func(t *testing.T) {
 		// Should not panic and return correct hasDeletes value
