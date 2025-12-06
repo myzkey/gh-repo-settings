@@ -9,8 +9,8 @@ import (
 	"syscall"
 
 	"github.com/myzkey/gh-repo-settings/internal/config"
-	"github.com/myzkey/gh-repo-settings/internal/github"
-	"github.com/myzkey/gh-repo-settings/internal/logger"
+	"github.com/myzkey/gh-repo-settings/internal/infra/github"
+	"github.com/myzkey/gh-repo-settings/internal/infra/logger"
 	"github.com/oapi-codegen/nullable"
 	"github.com/spf13/cobra"
 )

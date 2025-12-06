@@ -12,8 +12,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/myzkey/gh-repo-settings/internal/config"
 	"github.com/myzkey/gh-repo-settings/internal/diff"
-	"github.com/myzkey/gh-repo-settings/internal/github"
-	"github.com/myzkey/gh-repo-settings/internal/logger"
+	"github.com/myzkey/gh-repo-settings/internal/infra/github"
+	"github.com/myzkey/gh-repo-settings/internal/infra/logger"
 	"github.com/spf13/cobra"
 )
 
@@ -166,7 +166,7 @@ func applyChanges(ctx context.Context, client *github.Client, cfg *config.Config
 	var variableChanges []diff.Change
 	var secretChanges []diff.Change
 
-	for _, change := range plan.Changes {
+	for _, change := range plan.Changes() {
 		switch change.Category {
 		case "repo":
 			repoChanges[change.Key] = change.New

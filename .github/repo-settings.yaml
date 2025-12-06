@@ -45,6 +45,12 @@ labels:
     - name: wontfix
       color: ffffff
       description: This will not be worked on
+    - name: dependencies
+      color: 0366d6
+      description: Pull requests that update a dependency file
+    - name: automated
+      color: "5319e7"
+      description: Automated pull requests
 
 actions:
   enabled: true

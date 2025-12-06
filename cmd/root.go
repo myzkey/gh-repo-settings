@@ -3,7 +3,7 @@ package cmd
 import (
 	"os"
 
-	"github.com/myzkey/gh-repo-settings/internal/logger"
+	"github.com/myzkey/gh-repo-settings/internal/infra/logger"
 	"github.com/spf13/cobra"
 )
 

@@ -12,9 +12,9 @@ import (
 	"github.com/fatih/color"
 	"github.com/myzkey/gh-repo-settings/internal/config"
 	"github.com/myzkey/gh-repo-settings/internal/diff"
-	"github.com/myzkey/gh-repo-settings/internal/github"
-	"github.com/myzkey/gh-repo-settings/internal/logger"
-	"github.com/myzkey/gh-repo-settings/internal/workflow"
+	"github.com/myzkey/gh-repo-settings/internal/infra/github"
+	"github.com/myzkey/gh-repo-settings/internal/infra/logger"
+	"github.com/myzkey/gh-repo-settings/internal/infra/workflow"
 	"github.com/oapi-codegen/nullable"
 	"github.com/spf13/cobra"
 )
@@ -149,7 +149,7 @@ func runPlan(cmd *cobra.Command, args []string) error {
 
 	// JSON output mode
 	if jsonOutput {
-		jsonBytes, err := plan.MarshalIndent()
+		jsonBytes, err := diff.PlanMarshalIndent(plan)
 		if err != nil {
 			return fmt.Errorf("failed to marshal plan to JSON: %w", err)
 		}
@@ -201,13 +201,13 @@ func printPlanWithOptions(plan *diff.Plan, showApplyHint bool) (hasDeletes bool)
 	fmt.Println("Planned changes:")
 	fmt.Println()
 
-	currentCategory := ""
-	for _, change := range plan.Changes {
+	currentCategory := diff.ChangeCategory("")
+	for _, change := range plan.Changes() {
 		if change.Category != currentCategory {
 			if currentCategory != "" {
 				fmt.Println()
 			}
-			fmt.Printf("%s:\n", cyan(change.Category))
+			fmt.Printf("%s:\n", cyan(change.Category.String()))
 			currentCategory = change.Category
 		}
 

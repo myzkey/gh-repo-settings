@@ -3,28 +3,28 @@ package diff
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/myzkey/gh-repo-settings/internal/diff/domain/model"
 )
 
 func TestPlanToJSON(t *testing.T) {
 	tests := []struct {
 		name     string
-		plan     *Plan
+		plan     *model.Plan
 		expected *JSONPlan
 	}{
 		{
 			name: "empty plan",
-			plan: &Plan{Changes: []Change{}},
+			plan: model.NewPlanFromChanges([]model.Change{}),
 			expected: &JSONPlan{
 				Summary: JSONSummary{Add: 0, Update: 0, Delete: 0, Missing: 0},
 			},
 		},
 		{
 			name: "single repo change",
-			plan: &Plan{
-				Changes: []Change{
-					{Type: ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
-				},
-			},
+			plan: model.NewPlanFromChanges([]model.Change{
+				{Type: model.ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
+			}),
 			expected: &JSONPlan{
 				Repo: []JSONChange{
 					{Type: "update", Key: "description", Old: "old", New: "new"},
@@ -34,15 +34,13 @@ func TestPlanToJSON(t *testing.T) {
 		},
 		{
 			name: "multiple categories",
-			plan: &Plan{
-				Changes: []Change{
-					{Type: ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
-					{Type: ChangeAdd, Category: "labels", Key: "bug", New: "color=d73a4a"},
-					{Type: ChangeDelete, Category: "labels", Key: "old-label", Old: "color=000000"},
-					{Type: ChangeUpdate, Category: "branch_protection", Key: "main.required_reviews", Old: 1, New: 2},
-					{Type: ChangeMissing, Category: "secrets", Key: "API_KEY", New: "not in .env"},
-				},
-			},
+			plan: model.NewPlanFromChanges([]model.Change{
+				{Type: model.ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
+				{Type: model.ChangeAdd, Category: "labels", Key: "bug", New: "color=d73a4a"},
+				{Type: model.ChangeDelete, Category: "labels", Key: "old-label", Old: "color=000000"},
+				{Type: model.ChangeUpdate, Category: "branch_protection", Key: "main.required_reviews", Old: 1, New: 2},
+				{Type: model.ChangeMissing, Category: "secrets", Key: "API_KEY", New: "not in .env"},
+			}),
 			expected: &JSONPlan{
 				Repo: []JSONChange{
 					{Type: "update", Key: "description", Old: "old", New: "new"},
@@ -62,18 +60,16 @@ func TestPlanToJSON(t *testing.T) {
 		},
 		{
 			name: "all categories",
-			plan: &Plan{
-				Changes: []Change{
-					{Type: ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
-					{Type: ChangeUpdate, Category: "topics", Key: "topics", Old: []string{"go"}, New: []string{"go", "cli"}},
-					{Type: ChangeAdd, Category: "labels", Key: "feature", New: "color=a2eeef"},
-					{Type: ChangeAdd, Category: "branch_protection", Key: "main", New: "{required_reviews=2}"},
-					{Type: ChangeUpdate, Category: "actions", Key: "enabled", Old: false, New: true},
-					{Type: ChangeAdd, Category: "pages", Key: "pages", New: "build_type=workflow"},
-					{Type: ChangeAdd, Category: "variables", Key: "NODE_ENV", New: "production"},
-					{Type: ChangeMissing, Category: "secrets", Key: "DEPLOY_KEY", New: "not in .env"},
-				},
-			},
+			plan: model.NewPlanFromChanges([]model.Change{
+				{Type: model.ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
+				{Type: model.ChangeUpdate, Category: "topics", Key: "topics", Old: []string{"go"}, New: []string{"go", "cli"}},
+				{Type: model.ChangeAdd, Category: "labels", Key: "feature", New: "color=a2eeef"},
+				{Type: model.ChangeAdd, Category: "branch_protection", Key: "main", New: "{required_reviews=2}"},
+				{Type: model.ChangeUpdate, Category: "actions", Key: "enabled", Old: false, New: true},
+				{Type: model.ChangeAdd, Category: "pages", Key: "pages", New: "build_type=workflow"},
+				{Type: model.ChangeAdd, Category: "variables", Key: "NODE_ENV", New: "production"},
+				{Type: model.ChangeMissing, Category: "secrets", Key: "DEPLOY_KEY", New: "not in .env"},
+			}),
 			expected: &JSONPlan{
 				Repo: []JSONChange{
 					{Type: "update", Key: "description", Old: "old", New: "new"},
@@ -106,7 +102,7 @@ func TestPlanToJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.plan.ToJSON()
+			result := PlanToJSON(tt.plan)
 
 			// Check summary
 			if result.Summary != tt.expected.Summary {
@@ -143,14 +139,12 @@ func checkJSONChanges(t *testing.T, category string, got, want []JSONChange) {
 }
 
 func TestPlanMarshalIndent(t *testing.T) {
-	plan := &Plan{
-		Changes: []Change{
-			{Type: ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
-			{Type: ChangeAdd, Category: "labels", Key: "bug", New: "color=d73a4a"},
-		},
-	}
+	plan := model.NewPlanFromChanges([]model.Change{
+		{Type: model.ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
+		{Type: model.ChangeAdd, Category: "labels", Key: "bug", New: "color=d73a4a"},
+	})
 
-	jsonBytes, err := plan.MarshalIndent()
+	jsonBytes, err := PlanMarshalIndent(plan)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -181,13 +175,11 @@ func TestPlanMarshalIndent(t *testing.T) {
 
 func TestJSONPlanOmitempty(t *testing.T) {
 	// Test that empty categories are omitted from JSON output
-	plan := &Plan{
-		Changes: []Change{
-			{Type: ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
-		},
-	}
+	plan := model.NewPlanFromChanges([]model.Change{
+		{Type: model.ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
+	})
 
-	jsonBytes, err := plan.MarshalIndent()
+	jsonBytes, err := PlanMarshalIndent(plan)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -221,39 +213,39 @@ func containsString(s, substr string) bool {
 func TestPlanHasDeletes(t *testing.T) {
 	tests := []struct {
 		name     string
-		changes  []Change
+		changes  []model.Change
 		expected bool
 	}{
 		{
 			name:     "no changes",
-			changes:  []Change{},
+			changes:  []model.Change{},
 			expected: false,
 		},
 		{
 			name:     "no deletes",
-			changes:  []Change{{Type: ChangeAdd}, {Type: ChangeUpdate}},
+			changes:  []model.Change{{Type: model.ChangeAdd}, {Type: model.ChangeUpdate}},
 			expected: false,
 		},
 		{
 			name:     "has delete",
-			changes:  []Change{{Type: ChangeAdd}, {Type: ChangeDelete}},
+			changes:  []model.Change{{Type: model.ChangeAdd}, {Type: model.ChangeDelete}},
 			expected: true,
 		},
 		{
 			name:     "only delete",
-			changes:  []Change{{Type: ChangeDelete}},
+			changes:  []model.Change{{Type: model.ChangeDelete}},
 			expected: true,
 		},
 		{
 			name:     "missing is not delete",
-			changes:  []Change{{Type: ChangeMissing}},
+			changes:  []model.Change{{Type: model.ChangeMissing}},
 			expected: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			plan := &Plan{Changes: tt.changes}
+			plan := model.NewPlanFromChanges(tt.changes)
 			if plan.HasDeletes() != tt.expected {
 				t.Errorf("expected HasDeletes() = %v", tt.expected)
 			}
@@ -263,17 +255,15 @@ func TestPlanHasDeletes(t *testing.T) {
 
 func TestJSONChangeOldNewValues(t *testing.T) {
 	// Test that Old and New values are correctly preserved in JSON
-	plan := &Plan{
-		Changes: []Change{
-			{Type: ChangeUpdate, Category: "repo", Key: "description", Old: "old desc", New: "new desc"},
-			{Type: ChangeAdd, Category: "labels", Key: "bug", Old: nil, New: "color=d73a4a"},
-			{Type: ChangeDelete, Category: "labels", Key: "wontfix", Old: "color=ffffff", New: nil},
-			{Type: ChangeUpdate, Category: "branch_protection", Key: "main.required_reviews", Old: 1, New: 2},
-			{Type: ChangeUpdate, Category: "actions", Key: "enabled", Old: false, New: true},
-		},
-	}
+	plan := model.NewPlanFromChanges([]model.Change{
+		{Type: model.ChangeUpdate, Category: "repo", Key: "description", Old: "old desc", New: "new desc"},
+		{Type: model.ChangeAdd, Category: "labels", Key: "bug", Old: nil, New: "color=d73a4a"},
+		{Type: model.ChangeDelete, Category: "labels", Key: "wontfix", Old: "color=ffffff", New: nil},
+		{Type: model.ChangeUpdate, Category: "branch_protection", Key: "main.required_reviews", Old: 1, New: 2},
+		{Type: model.ChangeUpdate, Category: "actions", Key: "enabled", Old: false, New: true},
+	})
 
-	jsonPlan := plan.ToJSON()
+	jsonPlan := PlanToJSON(plan)
 
 	// Check repo change
 	if len(jsonPlan.Repo) != 1 {
@@ -323,20 +313,18 @@ func TestJSONChangeOldNewValues(t *testing.T) {
 }
 
 func TestJSONSummaryCountsAllTypes(t *testing.T) {
-	plan := &Plan{
-		Changes: []Change{
-			{Type: ChangeAdd, Category: "labels", Key: "a"},
-			{Type: ChangeAdd, Category: "labels", Key: "b"},
-			{Type: ChangeAdd, Category: "labels", Key: "c"},
-			{Type: ChangeUpdate, Category: "repo", Key: "x"},
-			{Type: ChangeUpdate, Category: "repo", Key: "y"},
-			{Type: ChangeDelete, Category: "variables", Key: "z"},
-			{Type: ChangeMissing, Category: "secrets", Key: "m1"},
-			{Type: ChangeMissing, Category: "secrets", Key: "m2"},
-		},
-	}
+	plan := model.NewPlanFromChanges([]model.Change{
+		{Type: model.ChangeAdd, Category: "labels", Key: "a"},
+		{Type: model.ChangeAdd, Category: "labels", Key: "b"},
+		{Type: model.ChangeAdd, Category: "labels", Key: "c"},
+		{Type: model.ChangeUpdate, Category: "repo", Key: "x"},
+		{Type: model.ChangeUpdate, Category: "repo", Key: "y"},
+		{Type: model.ChangeDelete, Category: "variables", Key: "z"},
+		{Type: model.ChangeMissing, Category: "secrets", Key: "m1"},
+		{Type: model.ChangeMissing, Category: "secrets", Key: "m2"},
+	})
 
-	jsonPlan := plan.ToJSON()
+	jsonPlan := PlanToJSON(plan)
 
 	if jsonPlan.Summary.Add != 3 {
 		t.Errorf("expected 3 adds, got %d", jsonPlan.Summary.Add)
@@ -353,13 +341,11 @@ func TestJSONSummaryCountsAllTypes(t *testing.T) {
 }
 
 func TestJSONMarshalIndentFormat(t *testing.T) {
-	plan := &Plan{
-		Changes: []Change{
-			{Type: ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
-		},
-	}
+	plan := model.NewPlanFromChanges([]model.Change{
+		{Type: model.ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
+	})
 
-	jsonBytes, err := plan.MarshalIndent()
+	jsonBytes, err := PlanMarshalIndent(plan)
 	if err != nil {
 		t.Fatalf("MarshalIndent failed: %v", err)
 	}
@@ -391,14 +377,12 @@ func TestJSONMarshalIndentFormat(t *testing.T) {
 
 func TestJSONUnknownCategoryIgnored(t *testing.T) {
 	// Test that unknown categories don't cause panic
-	plan := &Plan{
-		Changes: []Change{
-			{Type: ChangeAdd, Category: "unknown_category", Key: "test"},
-			{Type: ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
-		},
-	}
+	plan := model.NewPlanFromChanges([]model.Change{
+		{Type: model.ChangeAdd, Category: "unknown_category", Key: "test"},
+		{Type: model.ChangeUpdate, Category: "repo", Key: "description", Old: "old", New: "new"},
+	})
 
-	jsonPlan := plan.ToJSON()
+	jsonPlan := PlanToJSON(plan)
 
 	// Unknown category should not appear in any field
 	if len(jsonPlan.Repo) != 1 {
