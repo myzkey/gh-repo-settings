@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -15,6 +16,17 @@ import (
 
 // httpStatusRegex matches "HTTP XXX" in gh api stderr output
 var httpStatusRegex = regexp.MustCompile(`HTTP (\d{3})`)
+
+// httpMethod represents an HTTP method for API calls
+type httpMethod string
+
+const (
+	httpGet    httpMethod = "GET"
+	httpPost   httpMethod = "POST"
+	httpPut    httpMethod = "PUT"
+	httpPatch  httpMethod = "PATCH"
+	httpDelete httpMethod = "DELETE"
+)
 
 // RepoInfo represents repository owner and name
 type RepoInfo struct {
@@ -89,6 +101,47 @@ func (c *Client) RepoName() string {
 	return c.Repo.Name
 }
 
+// repoPath builds an API endpoint path for the current repository.
+// Example: repoPath("labels") returns "repos/{owner}/{name}/labels"
+func (c *Client) repoPath(path string) string {
+	if path == "" {
+		return fmt.Sprintf("repos/%s/%s", c.Repo.Owner, c.Repo.Name)
+	}
+	return fmt.Sprintf("repos/%s/%s/%s", c.Repo.Owner, c.Repo.Name, path)
+}
+
+// branchPath builds an API endpoint path for branch-related operations.
+// It URL-encodes the branch name to handle branches with slashes (e.g., "feature/foo").
+// Example: branchPath("main", "protection") returns "repos/{owner}/{name}/branches/main/protection"
+func (c *Client) branchPath(branch, suffix string) string {
+	encodedBranch := url.PathEscape(branch)
+	if suffix == "" {
+		return c.repoPath(fmt.Sprintf("branches/%s", encodedBranch))
+	}
+	return c.repoPath(fmt.Sprintf("branches/%s/%s", encodedBranch, suffix))
+}
+
+// labelPath builds an API endpoint path for label operations.
+// It URL-encodes the label name to handle labels with spaces, Japanese characters, or special symbols.
+// Example: labelPath("bug") returns "labels/bug", labelPath("help wanted") returns "labels/help%20wanted"
+func labelPath(name string) string {
+	return "labels/" + url.PathEscape(name)
+}
+
+// secretPath builds an API endpoint path for secret operations.
+// It URL-encodes the secret name to handle names with special characters.
+// Example: secretPath("MY_SECRET") returns "actions/secrets/MY_SECRET"
+func secretPath(name string) string {
+	return "actions/secrets/" + url.PathEscape(name)
+}
+
+// variablePath builds an API endpoint path for variable operations.
+// It URL-encodes the variable name to handle names with special characters.
+// Example: variablePath("MY_VAR") returns "actions/variables/MY_VAR"
+func variablePath(name string) string {
+	return "actions/variables/" + url.PathEscape(name)
+}
+
 // parseHTTPStatus extracts HTTP status code from gh api stderr output
 // Returns 0 if no status code is found
 func parseHTTPStatus(stderr string) int {
@@ -101,509 +154,61 @@ func parseHTTPStatus(stderr string) int {
 	return 0
 }
 
-// ghAPI executes a gh api command and returns the result
-func (c *Client) ghAPI(ctx context.Context, endpoint string, args ...string) ([]byte, error) {
-	cmdArgs := []string{"api", endpoint}
-	cmdArgs = append(cmdArgs, args...)
+// callAPI is the low-level function for executing gh api commands.
+// It handles GET requests (body must be nil) and other methods with optional body data.
+func (c *Client) callAPI(ctx context.Context, method httpMethod, endpoint string, body []byte, extraArgs ...string) ([]byte, error) {
+	if method == httpGet && body != nil {
+		return nil, fmt.Errorf("GET request must not have body")
+	}
 
-	cmd := exec.CommandContext(ctx, "gh", cmdArgs...)
+	cmdArgs := []string{"api", endpoint}
+	if method != httpGet {
+		cmdArgs = append(cmdArgs, "-X", string(method))
+	}
+	cmdArgs = append(cmdArgs, extraArgs...)
+
+	var cmd *exec.Cmd
+	if body != nil {
+		cmdArgs = append(cmdArgs, "--input", "-")
+		cmd = exec.CommandContext(ctx, "gh", cmdArgs...)
+		cmd.Stdin = bytes.NewReader(body)
+	} else {
+		cmd = exec.CommandContext(ctx, "gh", cmdArgs...)
+	}
+
 	out, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			stderr := string(exitErr.Stderr)
 			statusCode := parseHTTPStatus(stderr)
-			return nil, apperrors.NewAPIError("", endpoint, statusCode, stderr, err)
+			return nil, apperrors.NewAPIError(string(method), endpoint, statusCode, stderr, err)
 		}
-		return nil, apperrors.NewAPIError("", endpoint, 0, err.Error(), err)
+		return nil, apperrors.NewAPIError(string(method), endpoint, 0, err.Error(), err)
 	}
 	return out, nil
 }
 
-// ghAPIWithInput executes a gh api command with stdin input
-func (c *Client) ghAPIWithInput(ctx context.Context, endpoint string, input []byte, args ...string) ([]byte, error) {
-	cmdArgs := []string{"api", endpoint}
-	cmdArgs = append(cmdArgs, args...)
-	cmdArgs = append(cmdArgs, "--input", "-")
-
-	cmd := exec.CommandContext(ctx, "gh", cmdArgs...)
-	cmd.Stdin = bytes.NewReader(input)
-	out, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			stderr := string(exitErr.Stderr)
-			statusCode := parseHTTPStatus(stderr)
-			return nil, apperrors.NewAPIError("", endpoint, statusCode, stderr, err)
-		}
-		return nil, apperrors.NewAPIError("", endpoint, 0, err.Error(), err)
-	}
-	return out, nil
+// jsonHeaders returns the standard headers for JSON API requests
+func jsonHeaders() []string {
+	return []string{"-H", "Accept: application/vnd.github+json"}
 }
 
-// GetRepo fetches repository settings
-func (c *Client) GetRepo(ctx context.Context) (*RepoData, error) {
-	endpoint := fmt.Sprintf("repos/%s/%s", c.Repo.Owner, c.Repo.Name)
-	out, err := c.ghAPI(ctx, endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get repo: %w", err)
-	}
-
-	var data RepoData
-	if err := json.Unmarshal(out, &data); err != nil {
-		return nil, fmt.Errorf("failed to parse repo data: %w", err)
-	}
-
-	return &data, nil
-}
-
-// UpdateRepo updates repository settings
-func (c *Client) UpdateRepo(ctx context.Context, settings map[string]interface{}) error {
-	endpoint := fmt.Sprintf("repos/%s/%s", c.Repo.Owner, c.Repo.Name)
-	jsonData, err := json.Marshal(settings)
+// getJSON performs a GET request to the given endpoint and unmarshals the JSON response into result.
+// This function is GET-only; use callJSON for POST/PUT/PATCH/DELETE requests.
+func (c *Client) getJSON(ctx context.Context, endpoint string, result interface{}, extraArgs ...string) error {
+	out, err := c.callAPI(ctx, httpGet, endpoint, nil, extraArgs...)
 	if err != nil {
 		return err
 	}
+	return json.Unmarshal(out, result)
+}
 
-	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "PATCH", "-H", "Accept: application/vnd.github+json")
+// callJSON sends a JSON request body to an endpoint.
+// It marshals the body, adds JSON headers, and returns the response.
+func (c *Client) callJSON(ctx context.Context, method httpMethod, endpoint string, body interface{}) ([]byte, error) {
+	jsonData, err := json.Marshal(body)
 	if err != nil {
-		// Try with field flags instead
-		args := []string{"api", endpoint, "-X", "PATCH"}
-		for k, v := range settings {
-			switch val := v.(type) {
-			case string:
-				args = append(args, "-f", fmt.Sprintf("%s=%s", k, val))
-			case bool:
-				args = append(args, "-F", fmt.Sprintf("%s=%t", k, val))
-			}
-		}
-		cmd := exec.CommandContext(ctx, "gh", args...)
-		_, err = cmd.Output()
-		if err != nil {
-			return apperrors.NewAPIError("PATCH", endpoint, 0, "failed to update repo", err)
-		}
+		return nil, fmt.Errorf("failed to marshal request body for %s: %w", endpoint, err)
 	}
-
-	return nil
-}
-
-// GetLabels fetches repository labels
-func (c *Client) GetLabels(ctx context.Context) ([]LabelData, error) {
-	endpoint := fmt.Sprintf("repos/%s/%s/labels", c.Repo.Owner, c.Repo.Name)
-	out, err := c.ghAPI(ctx, endpoint, "--paginate")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get labels: %w", err)
-	}
-
-	var labels []LabelData
-	if err := json.Unmarshal(out, &labels); err != nil {
-		return nil, fmt.Errorf("failed to parse labels: %w", err)
-	}
-
-	return labels, nil
-}
-
-// CreateLabel creates a new label
-func (c *Client) CreateLabel(ctx context.Context, name, color, description string) error {
-	endpoint := fmt.Sprintf("repos/%s/%s/labels", c.Repo.Owner, c.Repo.Name)
-	args := []string{
-		"-X", "POST",
-		"-f", fmt.Sprintf("name=%s", name),
-		"-f", fmt.Sprintf("color=%s", color),
-	}
-	if description != "" {
-		args = append(args, "-f", fmt.Sprintf("description=%s", description))
-	}
-
-	_, err := c.ghAPI(ctx, endpoint, args...)
-	return err
-}
-
-// UpdateLabel updates an existing label
-func (c *Client) UpdateLabel(ctx context.Context, oldName, newName, color, description string) error {
-	endpoint := fmt.Sprintf("repos/%s/%s/labels/%s", c.Repo.Owner, c.Repo.Name, oldName)
-	args := []string{
-		"-X", "PATCH",
-		"-f", fmt.Sprintf("new_name=%s", newName),
-		"-f", fmt.Sprintf("color=%s", color),
-	}
-	if description != "" {
-		args = append(args, "-f", fmt.Sprintf("description=%s", description))
-	}
-
-	_, err := c.ghAPI(ctx, endpoint, args...)
-	return err
-}
-
-// DeleteLabel deletes a label
-func (c *Client) DeleteLabel(ctx context.Context, name string) error {
-	endpoint := fmt.Sprintf("repos/%s/%s/labels/%s", c.Repo.Owner, c.Repo.Name, name)
-	_, err := c.ghAPI(ctx, endpoint, "-X", "DELETE")
-	return err
-}
-
-// SetTopics sets repository topics
-func (c *Client) SetTopics(ctx context.Context, topics []string) error {
-	endpoint := fmt.Sprintf("repos/%s/%s/topics", c.Repo.Owner, c.Repo.Name)
-
-	body := struct {
-		Names []string `json:"names"`
-	}{Names: topics}
-	bodyJSON, err := json.Marshal(body)
-	if err != nil {
-		return fmt.Errorf("failed to marshal topics: %w", err)
-	}
-
-	args := []string{
-		"-X", "PUT",
-		"-H", "Accept: application/vnd.github+json",
-	}
-
-	_, err = c.ghAPIWithInput(ctx, endpoint, bodyJSON, args...)
-	return err
-}
-
-// GetSecrets fetches repository secret names
-func (c *Client) GetSecrets(ctx context.Context) ([]string, error) {
-	endpoint := fmt.Sprintf("repos/%s/%s/actions/secrets", c.Repo.Owner, c.Repo.Name)
-	out, err := c.ghAPI(ctx, endpoint, "--paginate")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get secrets: %w", err)
-	}
-
-	var result struct {
-		Secrets []struct {
-			Name string `json:"name"`
-		} `json:"secrets"`
-	}
-
-	if err := json.Unmarshal(out, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse secrets: %w", err)
-	}
-
-	names := make([]string, len(result.Secrets))
-	for i, s := range result.Secrets {
-		names[i] = s.Name
-	}
-
-	return names, nil
-}
-
-// SetSecret creates or updates a repository secret using gh secret set
-func (c *Client) SetSecret(ctx context.Context, name, value string) error {
-	repo := fmt.Sprintf("%s/%s", c.Repo.Owner, c.Repo.Name)
-	cmd := exec.CommandContext(ctx, "gh", "secret", "set", name, "--repo", repo, "--body", value)
-	_, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return apperrors.NewAPIError("SET", "secret/"+name, exitErr.ExitCode(), string(exitErr.Stderr), err)
-		}
-		return err
-	}
-	return nil
-}
-
-// DeleteSecret deletes a repository secret
-func (c *Client) DeleteSecret(ctx context.Context, name string) error {
-	endpoint := fmt.Sprintf("repos/%s/%s/actions/secrets/%s", c.Repo.Owner, c.Repo.Name, name)
-	_, err := c.ghAPI(ctx, endpoint, "-X", "DELETE")
-	return err
-}
-
-// GetVariables fetches repository variables with their values
-func (c *Client) GetVariables(ctx context.Context) ([]VariableData, error) {
-	endpoint := fmt.Sprintf("repos/%s/%s/actions/variables", c.Repo.Owner, c.Repo.Name)
-	out, err := c.ghAPI(ctx, endpoint, "--paginate")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get variables: %w", err)
-	}
-
-	var result struct {
-		Variables []VariableData `json:"variables"`
-	}
-
-	if err := json.Unmarshal(out, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse variables: %w", err)
-	}
-
-	return result.Variables, nil
-}
-
-// SetVariable creates or updates a repository variable
-func (c *Client) SetVariable(ctx context.Context, name, value string) error {
-	// First, try to get the variable to see if it exists
-	getEndpoint := fmt.Sprintf("repos/%s/%s/actions/variables/%s", c.Repo.Owner, c.Repo.Name, name)
-	_, getErr := c.ghAPI(ctx, getEndpoint)
-
-	payload := map[string]string{
-		"name":  name,
-		"value": value,
-	}
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal variable: %w", err)
-	}
-
-	if getErr != nil {
-		// Check if it's a 404 (not found) error
-		var apiErr *apperrors.APIError
-		if apperrors.As(getErr, &apiErr) && apiErr.StatusCode == 404 {
-			// Variable doesn't exist, create it
-			createEndpoint := fmt.Sprintf("repos/%s/%s/actions/variables", c.Repo.Owner, c.Repo.Name)
-			_, err = c.ghAPIWithInput(ctx, createEndpoint, jsonData, "-X", "POST", "-H", "Accept: application/vnd.github+json")
-			return err
-		}
-		// Other error (permission denied, rate limited, etc.)
-		return fmt.Errorf("failed to check variable existence: %w", getErr)
-	}
-
-	// Variable exists, update it
-	_, err = c.ghAPIWithInput(ctx, getEndpoint, jsonData, "-X", "PATCH", "-H", "Accept: application/vnd.github+json")
-	return err
-}
-
-// DeleteVariable deletes a repository variable
-func (c *Client) DeleteVariable(ctx context.Context, name string) error {
-	endpoint := fmt.Sprintf("repos/%s/%s/actions/variables/%s", c.Repo.Owner, c.Repo.Name, name)
-	_, err := c.ghAPI(ctx, endpoint, "-X", "DELETE")
-	return err
-}
-
-// GetBranchProtection fetches branch protection rules
-func (c *Client) GetBranchProtection(ctx context.Context, branch string) (*BranchProtectionData, error) {
-	endpoint := fmt.Sprintf("repos/%s/%s/branches/%s/protection", c.Repo.Owner, c.Repo.Name, branch)
-	out, err := c.ghAPI(ctx, endpoint)
-	if err != nil {
-		// Check if branch protection doesn't exist (404)
-		var apiErr *apperrors.APIError
-		if apperrors.As(err, &apiErr) && apiErr.StatusCode == 404 {
-			return nil, apperrors.ErrBranchNotProtected
-		}
-		return nil, err
-	}
-
-	var data BranchProtectionData
-	if err := json.Unmarshal(out, &data); err != nil {
-		return nil, err
-	}
-
-	return &data, nil
-}
-
-// UpdateBranchProtection updates branch protection rules
-func (c *Client) UpdateBranchProtection(ctx context.Context, branch string, settings *BranchProtectionSettings) error {
-	endpoint := fmt.Sprintf("repos/%s/%s/branches/%s/protection", c.Repo.Owner, c.Repo.Name, branch)
-
-	// Build the protection payload
-	payload := map[string]interface{}{
-		"enforce_admins":          settings.EnforceAdmins != nil && *settings.EnforceAdmins,
-		"required_linear_history": settings.RequireLinearHistory != nil && *settings.RequireLinearHistory,
-		"allow_force_pushes":      settings.AllowForcePushes != nil && *settings.AllowForcePushes,
-		"allow_deletions":         settings.AllowDeletions != nil && *settings.AllowDeletions,
-		"restrictions":            nil,
-	}
-
-	// Required pull request reviews
-	if settings.RequiredReviews != nil || settings.DismissStaleReviews != nil || settings.RequireCodeOwnerReviews != nil {
-		reviews := map[string]interface{}{}
-		if settings.RequiredReviews != nil {
-			reviews["required_approving_review_count"] = *settings.RequiredReviews
-		}
-		if settings.DismissStaleReviews != nil {
-			reviews["dismiss_stale_reviews"] = *settings.DismissStaleReviews
-		}
-		if settings.RequireCodeOwnerReviews != nil {
-			reviews["require_code_owner_reviews"] = *settings.RequireCodeOwnerReviews
-		}
-		payload["required_pull_request_reviews"] = reviews
-	} else {
-		payload["required_pull_request_reviews"] = nil
-	}
-
-	// Required status checks
-	if settings.RequireStatusChecks != nil && *settings.RequireStatusChecks {
-		checks := map[string]interface{}{
-			"strict": settings.StrictStatusChecks != nil && *settings.StrictStatusChecks,
-		}
-		if len(settings.StatusChecks) > 0 {
-			checks["contexts"] = settings.StatusChecks
-		} else {
-			checks["contexts"] = []string{}
-		}
-		payload["required_status_checks"] = checks
-	} else {
-		payload["required_status_checks"] = nil
-	}
-
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
-	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "PUT", "-H", "Accept: application/vnd.github+json")
-	return err
-}
-
-// GetActionsPermissions fetches Actions permissions for the repository
-func (c *Client) GetActionsPermissions(ctx context.Context) (*ActionsPermissionsData, error) {
-	endpoint := fmt.Sprintf("repos/%s/%s/actions/permissions", c.Repo.Owner, c.Repo.Name)
-	out, err := c.ghAPI(ctx, endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get actions permissions: %w", err)
-	}
-
-	var data ActionsPermissionsData
-	if err := json.Unmarshal(out, &data); err != nil {
-		return nil, fmt.Errorf("failed to parse actions permissions: %w", err)
-	}
-
-	return &data, nil
-}
-
-// UpdateActionsPermissions updates Actions permissions for the repository
-func (c *Client) UpdateActionsPermissions(ctx context.Context, enabled bool, allowedActions string) error {
-	endpoint := fmt.Sprintf("repos/%s/%s/actions/permissions", c.Repo.Owner, c.Repo.Name)
-
-	payload := map[string]interface{}{
-		"enabled": enabled,
-	}
-	if enabled && allowedActions != "" {
-		payload["allowed_actions"] = allowedActions
-	}
-
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
-	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "PUT", "-H", "Accept: application/vnd.github+json")
-	return err
-}
-
-// GetActionsSelectedActions fetches selected actions configuration
-func (c *Client) GetActionsSelectedActions(ctx context.Context) (*ActionsSelectedData, error) {
-	endpoint := fmt.Sprintf("repos/%s/%s/actions/permissions/selected-actions", c.Repo.Owner, c.Repo.Name)
-	out, err := c.ghAPI(ctx, endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get selected actions: %w", err)
-	}
-
-	var data ActionsSelectedData
-	if err := json.Unmarshal(out, &data); err != nil {
-		return nil, fmt.Errorf("failed to parse selected actions: %w", err)
-	}
-
-	return &data, nil
-}
-
-// UpdateActionsSelectedActions updates selected actions configuration
-func (c *Client) UpdateActionsSelectedActions(ctx context.Context, settings *ActionsSelectedData) error {
-	endpoint := fmt.Sprintf("repos/%s/%s/actions/permissions/selected-actions", c.Repo.Owner, c.Repo.Name)
-
-	jsonData, err := json.Marshal(settings)
-	if err != nil {
-		return err
-	}
-
-	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "PUT", "-H", "Accept: application/vnd.github+json")
-	return err
-}
-
-// GetActionsWorkflowPermissions fetches workflow permissions
-func (c *Client) GetActionsWorkflowPermissions(ctx context.Context) (*ActionsWorkflowPermissionsData, error) {
-	endpoint := fmt.Sprintf("repos/%s/%s/actions/permissions/workflow", c.Repo.Owner, c.Repo.Name)
-	out, err := c.ghAPI(ctx, endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get workflow permissions: %w", err)
-	}
-
-	var data ActionsWorkflowPermissionsData
-	if err := json.Unmarshal(out, &data); err != nil {
-		return nil, fmt.Errorf("failed to parse workflow permissions: %w", err)
-	}
-
-	return &data, nil
-}
-
-// UpdateActionsWorkflowPermissions updates workflow permissions
-func (c *Client) UpdateActionsWorkflowPermissions(ctx context.Context, permissions string, canApprove bool) error {
-	endpoint := fmt.Sprintf("repos/%s/%s/actions/permissions/workflow", c.Repo.Owner, c.Repo.Name)
-
-	payload := map[string]interface{}{
-		"default_workflow_permissions":     permissions,
-		"can_approve_pull_request_reviews": canApprove,
-	}
-
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
-	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "PUT", "-H", "Accept: application/vnd.github+json")
-	return err
-}
-
-// GetPages fetches GitHub Pages configuration
-func (c *Client) GetPages(ctx context.Context) (*PagesData, error) {
-	endpoint := fmt.Sprintf("repos/%s/%s/pages", c.Repo.Owner, c.Repo.Name)
-	out, err := c.ghAPI(ctx, endpoint)
-	if err != nil {
-		// Pages not enabled returns 404
-		var apiErr *apperrors.APIError
-		if apperrors.As(err, &apiErr) && apiErr.StatusCode == 404 {
-			return nil, apperrors.ErrPagesNotEnabled
-		}
-		return nil, fmt.Errorf("failed to get pages: %w", err)
-	}
-
-	var data PagesData
-	if err := json.Unmarshal(out, &data); err != nil {
-		return nil, fmt.Errorf("failed to parse pages data: %w", err)
-	}
-
-	return &data, nil
-}
-
-// CreatePages creates GitHub Pages for the repository
-func (c *Client) CreatePages(ctx context.Context, buildType string, source *PagesSourceData) error {
-	endpoint := fmt.Sprintf("repos/%s/%s/pages", c.Repo.Owner, c.Repo.Name)
-
-	payload := map[string]interface{}{
-		"build_type": buildType,
-	}
-	if source != nil && buildType == "legacy" {
-		payload["source"] = map[string]string{
-			"branch": source.Branch,
-			"path":   source.Path,
-		}
-	}
-
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
-	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "POST", "-H", "Accept: application/vnd.github+json")
-	return err
-}
-
-// UpdatePages updates GitHub Pages configuration
-func (c *Client) UpdatePages(ctx context.Context, buildType string, source *PagesSourceData) error {
-	endpoint := fmt.Sprintf("repos/%s/%s/pages", c.Repo.Owner, c.Repo.Name)
-
-	payload := map[string]interface{}{
-		"build_type": buildType,
-	}
-	if source != nil && buildType == "legacy" {
-		payload["source"] = map[string]string{
-			"branch": source.Branch,
-			"path":   source.Path,
-		}
-	}
-
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
-	_, err = c.ghAPIWithInput(ctx, endpoint, jsonData, "-X", "PUT", "-H", "Accept: application/vnd.github+json")
-	return err
+	return c.callAPI(ctx, method, endpoint, jsonData, jsonHeaders()...)
 }
